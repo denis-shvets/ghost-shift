@@ -70,6 +70,8 @@ When a domain is added: verify it in Resend, change the sender address, and upda
 | `pnpm build`        | Builds the production app into `dist/`.                  |
 | `pnpm preview`      | Serves the production build locally, after `pnpm build`. |
 
+GitHub Actions runs `lint`, `format:check`, `typecheck` and `build` on every pull request and every push to `main` ([.github/workflows/ci.yml](.github/workflows/ci.yml)). Run them locally before you push to catch problems early.
+
 ### Where things are
 
 ```
