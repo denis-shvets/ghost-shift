@@ -24,9 +24,11 @@ Rejected: Render (sleeps), Netlify (credit-based free plan), Vercel Hobby (fine,
 
 ## How to use
 
-- Create a free Cloudflare account, then `pnpm wrangler login`.
-- `pnpm deploy` builds and deploys to `ghost-shift.<account>.workers.dev`.
-- Secrets (Supabase keys, Resend key) go in with `pnpm wrangler secret put NAME`, never in the repo.
+- Create a free Cloudflare account, then `pnpm exec wrangler login`.
+- `pnpm run deploy` builds and deploys to `ghost-shift.<account>.workers.dev`. Use `pnpm run deploy`, not `pnpm deploy`, which is a different built-in pnpm command.
+- `pnpm dev` and `pnpm preview` already run the server code in the local Workers runtime, so what works locally works on Cloudflare.
+- Config lives in `wrangler.jsonc`. Raise `compatibility_date` on purpose, never automatically.
+- Secrets (Supabase keys, Resend key) go in with `pnpm exec wrangler secret put NAME`, never in the repo.
 
 ## Known limits (free plan, checked 2026-10-17)
 
