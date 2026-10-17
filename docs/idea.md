@@ -18,12 +18,12 @@ It is also a portfolio project: a complete, tested, free-to-run fullstack app th
 
 ## Who uses it
 
-| Actor            | What they do                                                        |
-| ---------------- | ------------------------------------------------------------------- |
-| **Agents**       | Pick up work, decide and act on their own through the API.          |
-| **Operators**    | Humans who watch agents work and take over when they want.          |
-| **Admins**       | Manage users and agents, roles and limits.                          |
-| **QA tester**    | Tests the app by hand, reports bugs that become automated tests.    |
+| Actor         | What they do                                                     |
+| ------------- | ---------------------------------------------------------------- |
+| **Agents**    | Pick up work, decide and act on their own through the API.       |
+| **Operators** | Humans who watch agents work and take over when they want.       |
+| **Admins**    | Manage users and agents, roles and limits.                       |
+| **QA tester** | Tests the app by hand, reports bugs that become automated tests. |
 
 ## Core concepts
 
@@ -41,19 +41,19 @@ Ghost Shift is a **merchant portal for Phantom Checkout, a fictional checkout an
 
 Domains, roughly in build order (_proposal_):
 
-| Domain              | What it covers                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------ |
-| **Accounts & stores** | A merchant with stores per market (country, currency), and checkout settings per store.        |
-| **Team & agents**   | Human team members and agent users, invited with roles and permissions.                          |
-| **Orders**          | Order list and detail with line items, shopper, shipping and payment method. Lifecycle: authorized, captured (fully or partly), refunded (fully or partly), cancelled, expired. |
-| **Refunds**         | Full and partial refunds, with a reason recorded for each.       |
-| **Disputes**        | Chargebacks and shopper disputes with deadlines, evidence uploads and outcomes.                  |
-| **Settlements**     | Payouts per market: which captured orders, refunds, fees and disputes went into each payout.     |
-| **Payment links**   | Create a link for a one-off order and send it by email.                                          |
-| **Insights**        | Sales volume, conversion, payment mix, refund and dispute rates.                                 |
-| **Audit log**       | Every action by every human and agent, with the reason.                                          |
-| **Developers**      | API keys, webhooks and request logs for the merchant's own integration.                          |
-| **Emails sent**     | Every notification the portal sent, for checking and resending.                                  |
+| Domain                | What it covers                                                                                                                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Accounts & stores** | A merchant with stores per market (country, currency), and checkout settings per store.                                                                                         |
+| **Team & agents**     | Human team members and agent users, invited with roles and permissions.                                                                                                         |
+| **Orders**            | Order list and detail with line items, shopper, shipping and payment method. Lifecycle: authorized, captured (fully or partly), refunded (fully or partly), cancelled, expired. |
+| **Refunds**           | Full and partial refunds, with a reason recorded for each.                                                                                                                      |
+| **Disputes**          | Chargebacks and shopper disputes with deadlines, evidence uploads and outcomes.                                                                                                 |
+| **Settlements**       | Payouts per market: which captured orders, refunds, fees and disputes went into each payout.                                                                                    |
+| **Payment links**     | Create a link for a one-off order and send it by email.                                                                                                                         |
+| **Insights**          | Sales volume, conversion, payment mix, refund and dispute rates.                                                                                                                |
+| **Audit log**         | Every action by every human and agent, with the reason.                                                                                                                         |
+| **Developers**        | API keys, webhooks and request logs for the merchant's own integration.                                                                                                         |
+| **Emails sent**       | Every notification the portal sent, for checking and resending.                                                                                                                 |
 
 Agent work this enables, for example: capture orders when they ship, cancel orders that expire, answer disputes before their deadline with uploaded evidence, flag unusual refund patterns, reconcile settlements.
 

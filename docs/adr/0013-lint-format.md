@@ -1,6 +1,6 @@
 # 0013. Oxlint and Oxfmt for linting and formatting
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-17
 
 ## Context

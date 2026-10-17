@@ -17,6 +17,7 @@ Use **TanStack Start** as one fullstack TypeScript app:
 - **TanStack Query** for data fetching and caching.
 
 Rejected:
+
 - Next.js: fine, but more tied to Vercel, and we wanted a Vite-based stack.
 - Separate NestJS API: stronger API structure, but two apps to deploy and a backend host that sleeps on free plans.
 

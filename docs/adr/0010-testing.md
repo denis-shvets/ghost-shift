@@ -23,7 +23,7 @@ QA is part of the showcase. A human tester runs manual QA, and agents need autom
 ## How to use
 
 - `pnpm test` runs Vitest. `pnpm test:e2e` runs Playwright against a local build.
-- Tests live next to the feature they cover (see [0012](0012-feature-structure.md)).
+- Every test sits next to the file it tests, including component tests next to their component (see [0012](0012-feature-structure.md)).
 - `pnpm supabase db reset` before a run gives a known starting state.
 - A manual tester can record a bug as a test with `pnpm exec playwright codegen`.
 
