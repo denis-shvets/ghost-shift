@@ -41,19 +41,19 @@ Ghost Shift is a **merchant portal for Phantom Checkout, a fictional checkout an
 
 Domains, roughly in build order (_proposal_):
 
-| Domain                | What it covers                                                                                                                                                                  |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Accounts & stores** | A merchant with stores per market (country, currency), and checkout settings per store.                                                                                         |
-| **Team & agents**     | Human team members and agent users, invited with roles and permissions.                                                                                                         |
-| **Orders**            | Order list and detail with line items, shopper, shipping and payment method. Lifecycle: authorized, captured (fully or partly), refunded (fully or partly), cancelled, expired. |
-| **Refunds**           | Full and partial refunds, with a reason recorded for each.                                                                                                                      |
-| **Disputes**          | Chargebacks and shopper disputes with deadlines, evidence uploads and outcomes.                                                                                                 |
-| **Settlements**       | Payouts per market: which captured orders, refunds, fees and disputes went into each payout.                                                                                    |
-| **Payment links**     | Create a link for a one-off order and send it by email.                                                                                                                         |
-| **Insights**          | Sales volume, conversion, payment mix, refund and dispute rates.                                                                                                                |
-| **Audit log**         | Every action by every human and agent, with the reason.                                                                                                                         |
-| **Developers**        | API keys, webhooks and request logs for the merchant's own integration.                                                                                                         |
-| **Emails sent**       | Every notification the portal sent, for checking and resending.                                                                                                                 |
+| Domain                | What it covers                                                                                                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Accounts & stores** | A merchant with stores per market (country, currency), and checkout settings per store.                                                                                        |
+| **Team & agents**     | Human team members and agent users, invited with roles and permissions.                                                                                                        |
+| **Orders**            | Order list and detail with line items, shopper, shipping and payment method. Lifecycle: authorized, captured (fully or partly), refunded (fully or partly), canceled, expired. |
+| **Refunds**           | Full and partial refunds, with a reason recorded for each.                                                                                                                     |
+| **Disputes**          | Chargebacks and shopper disputes with deadlines, evidence uploads and outcomes.                                                                                                |
+| **Settlements**       | Payouts per market: which captured orders, refunds, fees and disputes went into each payout.                                                                                   |
+| **Payment links**     | Create a link for a one-off order and send it by email.                                                                                                                        |
+| **Insights**          | Sales volume, conversion, payment mix, refund and dispute rates.                                                                                                               |
+| **Audit log**         | Every action by every human and agent, with the reason.                                                                                                                        |
+| **Developers**        | API keys, webhooks and request logs for the merchant's own integration.                                                                                                        |
+| **Emails sent**       | Every notification the portal sent, for checking and resending.                                                                                                                |
 
 Agent work this enables, for example: capture orders when they ship, cancel orders that expire, answer disputes before their deadline with uploaded evidence, flag unusual refund patterns, reconcile settlements.
 
@@ -67,7 +67,7 @@ Agent work this enables, for example: capture orders when they ship, cancel orde
 
 ## First agents
 
-The first agents are **scheduled Claude tasks** that sign in as agent users and call the `/api/` routes. The first one will most likely work on **orders**, for example capturing shipped orders and cancelling expired ones. Which tasks exactly is still open.
+The first agents are **scheduled Claude tasks** that sign in as agent users and call the `/api/` routes. The first one will most likely work on **orders**, for example capturing shipped orders and canceling expired ones. Which tasks exactly is still open.
 
 Agents decide on their own. There are **no human approvals** in the first version; the activity log and live view are how humans follow what happened.
 

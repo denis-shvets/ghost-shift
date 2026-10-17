@@ -28,7 +28,7 @@ Rejected: Biome (one stable tool for both, the main alternative if Oxfmt causes 
 
 ## How to use
 
-- `pnpm lint` runs Oxlint. `pnpm format` runs Oxfmt, `pnpm format:check` checks it in CI.
+- `pnpm lint` runs Oxlint with the rules in `.oxlintrc.json`, including `oxc/no-barrel-file` (see [0012](0012-feature-structure.md)). `pnpm format` runs Oxfmt, `pnpm format:check` checks it in CI.
 - `pnpm typecheck` runs `tsc --noEmit`.
 
 ## Known limits (checked 2026-10-17)

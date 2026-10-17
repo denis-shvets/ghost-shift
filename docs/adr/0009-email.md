@@ -27,7 +27,7 @@ Rejected: Brevo (more free emails a day, weaker developer experience). Kept as a
 
 ## How to use
 
-- Locally, `pnpm supabase start` runs Mailpit (Supabase calls it Inbucket in its config). Open the inbox URL it prints.
+- Locally, `pnpm db:start` runs Mailpit (Supabase calls it Inbucket in its config). Open the inbox URL it prints.
 - The app picks the transport from environment: Mailpit (SMTP) locally and in CI, Resend in production.
 - Playwright tests read Mailpit's API to assert that an email was sent.
 

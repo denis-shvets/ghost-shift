@@ -1,13 +1,17 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 
-import { orders } from "~/mocks/data";
-import { formatDateTime, formatMoney } from "~/mocks/format";
+import { formatMoney } from "~/features/orders/model/money";
+import { fetchOrders } from "~/features/orders/server/functions";
+import { formatDateTime } from "~/mocks/format";
 
 export const Route = createFileRoute("/orders/")({
+  loader: () => fetchOrders(),
   component: Orders,
 });
 
 function Orders() {
+  const orders = Route.useLoaderData();
+
   return (
     <>
       <h1>Orders</h1>
@@ -30,11 +34,11 @@ function Orders() {
                   {order.reference}
                 </Link>
               </td>
-              <td>{formatDateTime(order.createdAt)}</td>
-              <td>{order.shopper.name}</td>
+              <td>{formatDateTime(order.createdAt.toISOString())}</td>
+              <td>{order.shopperName}</td>
               <td>{order.paymentMethod}</td>
               <td>{order.status}</td>
-              <td>{formatMoney(order.total)}</td>
+              <td>{formatMoney(order.totalAmount, order.currency)}</td>
             </tr>
           ))}
         </tbody>

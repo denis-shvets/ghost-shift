@@ -26,14 +26,22 @@ Rejected: Prisma (heavier on Workers), `supabase-js` only (less to show, weaker 
 ## How to use
 
 - Each feature declares its tables and policies in `src/features/<name>/db/schema.ts`.
-- `pnpm db:generate` creates a SQL migration from schema changes. Review it, then commit it.
-- `pnpm db:migrate` applies migrations. Locally, `pnpm supabase db reset` replays everything.
-- Never query with the service role from a request handler. Use the shared `withUser(db, user, tx => ...)` helper so RLS applies.
+- `pnpm db:generate` creates a SQL migration in `supabase/migrations/` from schema changes. Review it, then commit it.
+- `pnpm db:reset` applies all migrations and the seed data to the local database. The Supabase CLI applies the same folder to the hosted project.
+- Name every constraint yourself, as `<table>_<what it covers>_<kind>`, so error messages say which rule failed:
+  - `_fk` for foreign keys: `orders_store_currency_fk`
+  - `_check` for checks: `orders_currency_format_check`
+  - `_unique` for uniqueness: `order_lines_order_position_unique`
+  - Primary keys keep Postgres's own `<table>_pkey`.
+
+  Declare foreign keys with `foreignKey({ name, ... })` in the table's extra config, not `.references()`, because `.references()` can't take a name. Keep names under 63 characters, where Postgres cuts them off.
+
+- Never query as the connection's own user from a request handler. Use the shared `withRole(db, role, tx => ...)` helper from `src/shared/db/client.ts` so RLS applies. Until sign-in exists, pages read as `anon`; signed-in users will get a helper that also sets their claims.
 
 ## Known limits
 
 - On Workers, connect through Supabase's transaction pooler (or Cloudflare Hyperdrive) and keep connections per request. Prepared statements must be off in transaction pooling mode.
-- A query that skips `withUser` silently bypasses RLS. Tests must prove agents can't read other users' data (see [0010](0010-testing.md)).
+- A query that skips `withRole` silently bypasses RLS. Tests must prove agents can't read other users' data (see [0010](0010-testing.md)).
 
 ## Consequences
 

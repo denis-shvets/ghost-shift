@@ -31,8 +31,9 @@ Rejected: Neon (Postgres only, no auth, realtime or storage), Cloudflare D1 (SQL
 
 ## How to use
 
-- Local development: `pnpm supabase start` runs the full stack in Docker, including Studio and Mailpit (see [0009](0009-email.md)).
-- `pnpm supabase db reset` rebuilds the local database from migrations and seed data, for a clean QA run.
+- Local development needs [Docker Desktop](https://www.docker.com/products/docker-desktop/). `pnpm db:start` runs the full stack in Docker, including Studio and Mailpit (see [0009](0009-email.md)). `pnpm db:stop` stops it.
+- Local ports are 64320 to 64329 (database on 64322, Studio on 64323), set in `supabase/config.toml`. Supabase's default 543xx ports fall inside a range Windows reserves for Hyper-V, so they fail to bind there.
+- `pnpm db:reset` rebuilds the local database from `supabase/migrations/` and `supabase/seed.sql`, for a clean QA run.
 - Hosted: create a free project at <https://supabase.com/dashboard> and put its URL and keys in Workers secrets.
 - Use `supabase-js` for auth, realtime and storage. Use Drizzle for database queries.
 

@@ -1,11 +1,13 @@
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 
-import { orders } from "~/mocks/data";
-import { formatDateTime, formatMoney } from "~/mocks/format";
+import { formatMoney } from "~/features/orders/model/money";
+import { formatTaxRate } from "~/features/orders/model/tax-rate";
+import { fetchOrder } from "~/features/orders/server/functions";
+import { formatDateTime } from "~/mocks/format";
 
 export const Route = createFileRoute("/orders/$orderId")({
-  loader: ({ params }) => {
-    const order = orders.find((item) => item.id === params.orderId);
+  loader: async ({ params }) => {
+    const order = await fetchOrder({ data: params.orderId });
     if (!order) throw notFound();
     return order;
   },
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/orders/$orderId")({
 
 function OrderDetail() {
   const order = Route.useLoaderData();
+  const money = (amount: number) => formatMoney(amount, order.currency);
 
   return (
     <>
@@ -23,43 +26,57 @@ function OrderDetail() {
       </p>
       <h1>Order {order.reference}</h1>
       <dl>
+        <dt>Store</dt>
+        <dd>{order.storeName}</dd>
         <dt>Status</dt>
         <dd>{order.status}</dd>
         <dt>Created</dt>
-        <dd>{formatDateTime(order.createdAt)}</dd>
+        <dd>{formatDateTime(order.createdAt.toISOString())}</dd>
         <dt>Shopper</dt>
         <dd>
-          {order.shopper.name}, {order.shopper.email}, {order.shopper.country}
+          {order.shopperName}, {order.shopperEmail}, {order.shopperCountry}
         </dd>
         <dt>Payment method</dt>
         <dd>{order.paymentMethod}</dd>
         <dt>Total</dt>
-        <dd>{formatMoney(order.total)}</dd>
+        <dd>{money(order.totalAmount)}</dd>
         <dt>Captured</dt>
-        <dd>{formatMoney(order.captured)}</dd>
+        <dd>{money(order.capturedAmount)}</dd>
         <dt>Refunded</dt>
-        <dd>{formatMoney(order.refunded)}</dd>
+        <dd>{money(order.refundedAmount)}</dd>
         <dt>Shipping</dt>
         <dd>
-          {order.shipping.carrier}
-          {order.shipping.tracking ? `, tracking ${order.shipping.tracking}` : ""}
+          {order.shippingCarrier}
+          {order.shippingTracking ? `, tracking ${order.shippingTracking}` : ""}
         </dd>
       </dl>
       <h2>Items</h2>
       <table>
         <thead>
           <tr>
+            <th>#</th>
             <th>Item</th>
+            <th>Type</th>
+            <th>SKU</th>
             <th>Quantity</th>
             <th>Unit price</th>
+            <th>Tax rate</th>
+            <th>Total</th>
+            <th>Tax included</th>
           </tr>
         </thead>
         <tbody>
           {order.lines.map((line) => (
-            <tr key={line.name}>
+            <tr key={line.position}>
+              <td>{line.position}</td>
               <td>{line.name}</td>
+              <td>{line.type}</td>
+              <td>{line.sku ?? "-"}</td>
               <td>{line.quantity}</td>
-              <td>{formatMoney(line.unitPrice)}</td>
+              <td>{money(line.unitPrice)}</td>
+              <td>{formatTaxRate(line.taxRate)}</td>
+              <td>{money(line.totalAmount)}</td>
+              <td>{money(line.totalTaxAmount)}</td>
             </tr>
           ))}
         </tbody>

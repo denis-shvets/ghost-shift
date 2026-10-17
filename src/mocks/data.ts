@@ -21,7 +21,7 @@ export type OrderStatus =
   | "part_captured"
   | "refunded"
   | "part_refunded"
-  | "cancelled"
+  | "canceled"
   | "expired";
 
 export type Order = {

@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   check:
-    name: Lint, format, types and build
+    name: Lint, format, types, build and test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -32,3 +32,9 @@ jobs:
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm build
+
+      # Only the database is needed for tests, so the other Supabase services stay off.
+      - name: Start Supabase database
+        run: pnpm db:start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - run: pnpm test
