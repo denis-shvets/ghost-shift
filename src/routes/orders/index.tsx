@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 
+import { SignOutButton } from "~/features/auth/ui/sign-out-button";
 import { formatMoney } from "~/features/orders/model/money";
 import { fetchOrders } from "~/features/orders/server/functions";
 import { formatDateTime } from "~/mocks/format";
@@ -15,6 +16,7 @@ function Orders() {
   return (
     <>
       <h1>Orders</h1>
+      <SignOutButton />
       <table>
         <thead>
           <tr>

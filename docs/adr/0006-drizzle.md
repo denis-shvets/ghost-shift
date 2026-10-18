@@ -37,12 +37,12 @@ Rejected: Prisma (heavier on Workers), `supabase-js` only (less to show, weaker 
 
   Declare foreign keys with `foreignKey({ name, ... })` in the table's extra config, not `.references()`, because `.references()` can't take a name. Keep names under 63 characters, where Postgres cuts them off.
 
-- Never query as the connection's own user from a request handler. Use the shared `withRole(db, role, tx => ...)` helper from `src/shared/db/client.ts` so RLS applies. Until sign-in exists, pages read as `anon`; signed-in users will get a helper that also sets their claims.
+- Never query as the connection's own user from a request handler. Use the shared `withUser(db, claims, tx => ...)` helper from `src/shared/db/client.ts` so RLS applies to the signed-in person's claims. `withRole(db, role, tx => ...)` is only for anonymous-access tests.
 
 ## Known limits
 
 - On Workers, connect through Supabase's transaction pooler (or Cloudflare Hyperdrive) and keep connections per request. Prepared statements must be off in transaction pooling mode.
-- A query that skips `withRole` silently bypasses RLS. Tests must prove agents can't read other users' data (see [0010](0010-testing.md)).
+- A query that skips `withUser` or `withRole` silently bypasses RLS. Tests must prove agents can't read other users' data (see [0010](0010-testing.md)).
 
 ## Consequences
 

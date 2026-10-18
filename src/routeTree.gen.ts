@@ -15,6 +15,7 @@ import { Route as DevelopersRouteImport } from './routes/developers'
 import { Route as DisputesRouteImport } from './routes/disputes'
 import { Route as EmailsRouteImport } from './routes/emails'
 import { Route as InsightsRouteImport } from './routes/insights'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PaymentLinksRouteImport } from './routes/payment-links'
 import { Route as RefundsRouteImport } from './routes/refunds'
 import { Route as SettlementsRouteImport } from './routes/settlements'
@@ -51,6 +52,11 @@ const EmailsRoute = EmailsRouteImport.update({
 const InsightsRoute = InsightsRouteImport.update({
   id: '/insights',
   path: '/insights',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaymentLinksRoute = PaymentLinksRouteImport.update({
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/disputes': typeof DisputesRoute
   '/emails': typeof EmailsRoute
   '/insights': typeof InsightsRoute
+  '/login': typeof LoginRoute
   '/payment-links': typeof PaymentLinksRoute
   '/refunds': typeof RefundsRoute
   '/settlements': typeof SettlementsRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/disputes': typeof DisputesRoute
   '/emails': typeof EmailsRoute
   '/insights': typeof InsightsRoute
+  '/login': typeof LoginRoute
   '/payment-links': typeof PaymentLinksRoute
   '/refunds': typeof RefundsRoute
   '/settlements': typeof SettlementsRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/disputes': typeof DisputesRoute
   '/emails': typeof EmailsRoute
   '/insights': typeof InsightsRoute
+  '/login': typeof LoginRoute
   '/payment-links': typeof PaymentLinksRoute
   '/refunds': typeof RefundsRoute
   '/settlements': typeof SettlementsRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/disputes'
     | '/emails'
     | '/insights'
+    | '/login'
     | '/payment-links'
     | '/refunds'
     | '/settlements'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/disputes'
     | '/emails'
     | '/insights'
+    | '/login'
     | '/payment-links'
     | '/refunds'
     | '/settlements'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/disputes'
     | '/emails'
     | '/insights'
+    | '/login'
     | '/payment-links'
     | '/refunds'
     | '/settlements'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   DisputesRoute: typeof DisputesRoute
   EmailsRoute: typeof EmailsRoute
   InsightsRoute: typeof InsightsRoute
+  LoginRoute: typeof LoginRoute
   PaymentLinksRoute: typeof PaymentLinksRoute
   RefundsRoute: typeof RefundsRoute
   SettlementsRoute: typeof SettlementsRoute
@@ -241,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/insights'
       fullPath: '/insights'
       preLoaderRoute: typeof InsightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/payment-links': {
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   DisputesRoute: DisputesRoute,
   EmailsRoute: EmailsRoute,
   InsightsRoute: InsightsRoute,
+  LoginRoute: LoginRoute,
   PaymentLinksRoute: PaymentLinksRoute,
   RefundsRoute: RefundsRoute,
   SettlementsRoute: SettlementsRoute,

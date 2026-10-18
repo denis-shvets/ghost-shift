@@ -5,14 +5,12 @@ import {
   foreignKey,
   integer,
   pgEnum,
-  pgPolicy,
   pgTable,
   text,
   timestamp,
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
-import { anonRole, authenticatedRole } from "drizzle-orm/supabase";
 
 import { stores } from "~/features/stores/db/schema";
 
@@ -73,14 +71,8 @@ export const orders = pgTable(
     }),
     check("orders_currency_format_check", sql`${table.currency} ~ '^[A-Z]{3}$'`),
     check("orders_shopper_country_format_check", sql`${table.shopperCountry} ~ '^[A-Z]{2}$'`),
-    // Demo data is public for now. Writes get their own policies when sign-in arrives.
-    pgPolicy("orders are readable by everyone", {
-      for: "select",
-      to: [anonRole, authenticatedRole],
-      using: sql`true`,
-    }),
   ],
-);
+).enableRLS();
 
 export const orderLines = pgTable(
   "order_lines",
@@ -122,10 +114,5 @@ export const orderLines = pgTable(
       "order_lines_discount_sign_check",
       sql`(${table.type} = 'discount') = (${table.unitPrice} < 0) or ${table.unitPrice} = 0`,
     ),
-    pgPolicy("order lines are readable by everyone", {
-      for: "select",
-      to: [anonRole, authenticatedRole],
-      using: sql`true`,
-    }),
   ],
-);
+).enableRLS();

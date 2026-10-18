@@ -35,7 +35,7 @@ src/
       orders.e2e.ts              # Playwright flows for the whole feature
       README.md                  # what the feature does, for humans and agents
   shared/
-    db/                          # Drizzle client, withRole() RLS helper
+    db/                          # Drizzle client, withUser() and withRole() RLS helpers
     auth/                        # session and role helpers
     email/                       # transport (Resend or Mailpit)
     api/                         # validation, errors, OpenAPI generation

@@ -1,7 +1,8 @@
 import { asc, desc, eq } from "drizzle-orm";
 
 import { stores } from "~/features/stores/db/schema";
-import { type Database, withRole } from "~/shared/db/client";
+import type { UserClaims } from "~/shared/auth/user-claims";
+import { type Database, withUser } from "~/shared/db/client";
 import { isUuid } from "~/shared/ids/is-uuid";
 
 import { orderLines, orders } from "../db/schema";
@@ -9,9 +10,9 @@ import { orderLines, orders } from "../db/schema";
 export type OrderSummary = Awaited<ReturnType<typeof listOrders>>[number];
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;
 
-// Visitors aren't signed in yet, so everything is read as the anonymous role.
-export function listOrders(db: Database) {
-  return withRole(db, "anon", (tx) =>
+// Runs as the signed-in user, so row-level security decides what they can read.
+export function listOrders(db: Database, user: UserClaims) {
+  return withUser(db, user, (tx) =>
     tx
       .select({
         id: orders.id,
@@ -28,10 +29,10 @@ export function listOrders(db: Database) {
   );
 }
 
-export async function getOrder(db: Database, id: string) {
+export async function getOrder(db: Database, user: UserClaims, id: string) {
   if (!isUuid(id)) return null;
 
-  return withRole(db, "anon", async (tx) => {
+  return withUser(db, user, async (tx) => {
     const [row] = await tx
       .select({ order: orders, storeName: stores.name })
       .from(orders)
