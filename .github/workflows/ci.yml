@@ -33,8 +33,30 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build
 
+      # The Supabase CLI version decides the image tags, so the cache is keyed on it.
+      - name: Read Supabase CLI version
+        id: supabase-cli
+        run: |
+          echo "version=$(node -p "require('./package.json').devDependencies.supabase")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Supabase images cache
+        id: supabase-images
+        uses: actions/cache@v4
+        with:
+          path: ~/supabase-images.tar.gz
+          key: supabase-images-${{ steps.supabase-cli.outputs.version }}
+
+      - name: Load cached Supabase images
+        if: steps.supabase-images.outputs.cache-hit == 'true'
+        run: gunzip -c ~/supabase-images.tar.gz | docker load
+
       # Only the database is needed for tests, so the other Supabase services stay off.
       - name: Start Supabase database
         run: pnpm db:start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      # shortcut: saves every supabase/* image this run has, not only the ones this stack needs; upgrade by listing them if the cache gets large.
+      - name: Save Supabase images cache
+        if: steps.supabase-images.outputs.cache-hit != 'true'
+        run: docker images --format '{{.Repository}}:{{.Tag}}' | grep supabase | xargs docker save | gzip > ~/supabase-images.tar.gz
 
       - run: pnpm test
