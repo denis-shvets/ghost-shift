@@ -1,0 +1,26 @@
+name: Keep Supabase awake
+
+# Pings the live site so the free Supabase project does not pause after 7 days
+# without activity (see docs/adr/0005-supabase.md and docs/adr/0011-ci.md).
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping /orders
+    runs-on: ubuntu-latest
+    steps:
+      # /orders reads from the database, so a 200 response counts as database activity.
+      - name: Request /orders
+        env:
+          URL: https://ghost-shift.denis-shvets.workers.dev/orders
+        run: |
+          status=$(curl --silent --show-error --max-time 60 -o /dev/null -w '%{http_code}' "$URL")
+          echo "Status: $status"
+          test "$status" = "200"
