@@ -8,9 +8,6 @@ import { isUuid } from "~/shared/ids/is-uuid";
 import { orderLines, orders } from "../db/schema";
 import type { OrderListInput } from "../model/order-list-input";
 
-export type OrderSummary = Awaited<ReturnType<typeof listOrders>>["orders"][number];
-export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;
-
 // Runs as the signed-in user, so row-level security decides what they can read.
 // Pages are ordered by (created_at, id), so orders with the same time can't be skipped.
 // The cursor is an order id: the anchor's created_at and id are looked up in the same query.

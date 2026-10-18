@@ -157,7 +157,7 @@ This hand-written migration first granted `select` on `stores`, `orders` and `or
 - `listOrders(db, user, { limit, cursor })` selects only the columns the list page needs, newest first, one page at a time (see "Pages and indexes" below).
 - `getOrder(db, id)` first checks that `id` looks like a uuid (`src/shared/ids/is-uuid.ts`). A mistyped link then shows "Order not found" instead of a database error. It then reads the order joined with its store's name, and the lines ordered by `position`, inside the same transaction. It returns `null` if the order doesn't exist.
 
-Both run as the signed-in user. The server function checks the sign-in cookie first and sends anyone else to the login page. The return types (`OrderSummary`, `OrderDetail`) come from the queries themselves, so if a column changes, TypeScript points at every page that used it.
+Both run as the signed-in user. The server function checks the sign-in cookie first and sends anyone else to the login page. The return types come from the queries themselves, so if a column changes, TypeScript points at every page that used it.
 
 ### Pages and indexes
 
