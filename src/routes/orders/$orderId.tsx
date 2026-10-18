@@ -1,5 +1,6 @@
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 
+import { SignOutButton } from "~/features/auth/ui/sign-out-button";
 import { formatMoney } from "~/features/orders/model/money";
 import { formatTaxRate } from "~/features/orders/model/tax-rate";
 import { fetchOrder } from "~/features/orders/server/functions";
@@ -24,6 +25,7 @@ function OrderDetail() {
       <p>
         <Link to="/orders">Back to orders</Link>
       </p>
+      <SignOutButton />
       <h1>Order {order.reference}</h1>
       <dl>
         <dt>Store</dt>

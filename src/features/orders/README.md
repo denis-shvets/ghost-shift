@@ -23,12 +23,12 @@ Orders placed through Phantom Checkout, with their lines, payment and shipping.
 
 ## Files
 
-| File                               | Purpose                                    |
-| ---------------------------------- | ------------------------------------------ |
-| `db/schema.ts`                     | Tables, enums and RLS policies             |
-| `server/orders-repository.ts`      | Queries, always run through `withRole`     |
-| `server/orders-repository.test.ts` | Tests against the local database           |
-| `server/functions.ts`              | Server functions the routes call           |
-| `model/money.ts`                   | Formatting minor-unit amounts              |
-| `model/order-id-input.ts`          | Zod schema for the order id a caller sends |
-| `model/tax-rate.ts`                | Formatting basis points as a percentage    |
+| File                               | Purpose                                     |
+| ---------------------------------- | ------------------------------------------- |
+| `db/schema.ts`                     | Tables, enums and RLS policies              |
+| `server/orders-repository.ts`      | Queries, run through `withUser` (signed-in) |
+| `server/orders-repository.test.ts` | Tests against the local database            |
+| `server/functions.ts`              | Server functions the routes call            |
+| `model/money.ts`                   | Formatting minor-unit amounts               |
+| `model/order-id-input.ts`          | Zod schema for the order id a caller sends  |
+| `model/tax-rate.ts`                | Formatting basis points as a percentage     |

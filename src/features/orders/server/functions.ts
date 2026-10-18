@@ -1,33 +1,32 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
 
+import { requireUser } from "~/features/auth/server/session";
 import { createDb } from "~/shared/db/client";
 import { parseServerEnv } from "~/shared/env/server-env";
 
 import { orderIdInput } from "../model/order-id-input";
 import { getOrder, listOrders } from "./orders-repository";
 
-function openDb() {
-  return createDb(parseServerEnv(env).DATABASE_URL);
-}
-
-export const fetchOrders = createServerFn({ method: "GET" }).handler(async () => {
-  const db = openDb();
+// Each request gets its own connection, closed when the request ends.
+async function withDb<T>(run: (db: ReturnType<typeof createDb>) => Promise<T>) {
+  const db = createDb(parseServerEnv(env).DATABASE_URL);
   try {
-    return await listOrders(db);
+    return await run(db);
   } finally {
     await db.close();
   }
+}
+
+export const fetchOrders = createServerFn({ method: "GET" }).handler(async () => {
+  const user = await requireUser(parseServerEnv(env));
+  return withDb((db) => listOrders(db, user));
 });
 
 // Server functions are public HTTP endpoints, so the input is checked at runtime, not just typed.
 export const fetchOrder = createServerFn({ method: "GET" })
   .validator(orderIdInput)
   .handler(async ({ data: id }) => {
-    const db = openDb();
-    try {
-      return await getOrder(db, id);
-    } finally {
-      await db.close();
-    }
+    const user = await requireUser(parseServerEnv(env));
+    return withDb((db) => getOrder(db, user, id));
   });

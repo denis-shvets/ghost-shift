@@ -1,1 +1,6 @@
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:64322/postgres
+SUPABASE_URL=http://127.0.0.1:64321
+# From `pnpm exec supabase status` (the "Publishable key" line). Safe to put in the browser.
+SUPABASE_PUBLISHABLE_KEY=
+# Password for the seeded local accounts (`pnpm db:seed-users`). Local only; pick anything.
+SEED_PASSWORD=

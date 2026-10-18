@@ -21,8 +21,8 @@ Server function       src/features/orders/server/functions.ts
 Repository            src/features/orders/server/orders-repository.ts
   │  builds the SQL queries with Drizzle
   ▼
-withRole("anon")      src/shared/db/client.ts
-  │  tells the database "treat these queries as an anonymous visitor"
+withUser(user)       src/shared/db/client.ts
+  │  tells the database "treat these queries as this signed-in user"
   ▼
 Postgres (Supabase)   tables orders and order_lines
      checks row-level security, returns the rows
@@ -51,7 +51,7 @@ The answer travels back up the same way, and the page renders it.
 | **Seed**                     | Demo rows loaded into a fresh local database, so you always start from the same data.                                                                                                  |
 | **Role**                     | Who the database thinks is asking. Supabase has `anon` (not signed in) and `authenticated` (signed in), plus admin roles.                                                              |
 | **Row-level security (RLS)** | Rules stored in the database that decide which rows each role may see or change. Even if app code has a bug, the database refuses what the rules don't allow.                          |
-| **Policy**                   | One RLS rule, for example "anyone may read orders".                                                                                                                                    |
+| **Policy**                   | One RLS rule, for example "signed-in users may read orders".                                                                                                                           |
 | **Grant**                    | Permission for a role to use a table at all, for example "anon may select from orders". Postgres checks the grant first, then the RLS policies decide which rows. Both must allow it.  |
 | **Transaction**              | A group of queries that either all succeed or all fail together.                                                                                                                       |
 | **Connection**               | An open line between the app and the database. Queries travel over it.                                                                                                                 |
@@ -107,7 +107,7 @@ Choices worth knowing:
 
 **Every rule has a name** following `<table>_<what it covers>_<kind>`, with the kind `_fk` (foreign key), `_check` or `_unique`. The name is what appears in the error when the rule refuses a change. For example, `orders_store_currency_fk` tells you straight away it's the store-and-currency link on `orders` ([ADR 0006](../adr/0006-drizzle.md)).
 
-**RLS policies** sit at the bottom of each table, next to the checks: "orders are readable by everyone" allows `select` (reading) for `anon` and `authenticated`. Nothing allows insert, update or delete yet, so even a buggy page can't change orders. When sign-in arrives, write policies will say exactly who may capture or refund.
+**RLS policies** sit at the bottom of each table, next to the checks. Reading is for signed-in users who hold the `orders.read` permission for the order's store: "members can read orders in their stores" calls `has_permission('orders.read', store_id)`. Nothing allows insert, update or delete yet, and the migrations revoke those privileges outright, so even a buggy page can't change orders. When writes arrive, write policies will say exactly who may capture or refund. See [Sign-in and policies](auth-and-policies.md).
 
 ### The migration: turning the schema into real tables
 
@@ -127,7 +127,7 @@ The file name starts with a timestamp so migrations always run in the order they
 
 **Why:** Postgres checks two things before a role can read a row. First the **grant**: may this role use the table at all? Then the **RLS policies**: which rows may it see? Local Supabase grants the API roles access to new tables automatically, but newer hosted projects don't. On the first deploy that made the live site fail with "permission denied", even though the policies allowed reading.
 
-This hand-written migration grants `select` (read only) on `stores`, `orders` and `order_lines` to `anon` and `authenticated`, so every database behaves the same. There are no insert, update or delete grants, so those are refused before RLS even looks. Drizzle can't generate grants, so every new table needs a migration like this, made with `pnpm db:generate --custom --name <name>` ([ADR 0006](../adr/0006-drizzle.md)).
+This hand-written migration first granted `select` on `stores`, `orders` and `order_lines` to `anon` and `authenticated`, so every database behaved the same. A later migration took `anon` off those tables and gave `authenticated` read access only. There are no insert, update or delete grants, so those are refused before RLS even looks. Drizzle can't generate grants, so every new table needs a migration like this, made with `pnpm db:generate --custom --name <name>` ([ADR 0006](../adr/0006-drizzle.md)).
 
 ### The seed: demo data
 
@@ -144,7 +144,9 @@ This hand-written migration grants `select` (read only) on `stores`, `orders` an
 - `createDb(url)` opens a connection using **postgres.js** (the driver that actually speaks to Postgres) and wraps it with Drizzle. Two settings matter:
   - `max: 1`: Cloudflare Workers can't reuse a connection between requests, so each request opens its own and closes it when done.
   - `prepare: false`: the hosted Supabase connection will go through a "pooler" that shares database connections between many clients, and it doesn't support prepared statements. Turning them off now means local and live behave the same.
-- `withRole(db, role, run)` starts a **transaction**, runs `set local role anon` inside it, then runs your queries. `local` means the role only lasts until the transaction ends, so it can't leak into the next request. This is what makes RLS apply: the app connects as the `postgres` admin user, which ignores RLS, so every query from a page **must** go through `withRole`. Forgetting it would silently skip the rules, which is why the ADR and the feature README repeat it.
+- `withUser(db, user, run)` does the same, but runs `set local role authenticated` and tells Postgres who the signed-in user is. The user's claims travel as a setting for that transaction only, so RLS can see them. Order pages use this.
+- `withRole(db, role, run)` starts a **transaction**, runs `set local role anon` inside it, then runs your queries. Only the anonymous-access tests use it.
+- Both start a **transaction**, which is why `local` matters: the role and the claims last only until the transaction ends, so they can't leak into the next request. `local` means the role only lasts until the transaction ends, so it can't leak into the next request. This is what makes RLS apply: the app connects as the `postgres` admin user, which ignores RLS, so every query from a page **must** go through `withRole`. Forgetting it would silently skip the rules, which is why the ADR and the feature README repeat it.
 
 ### The queries
 
@@ -155,7 +157,7 @@ This hand-written migration grants `select` (read only) on `stores`, `orders` an
 - `listOrders(db)` selects only the columns the list page needs, newest first.
 - `getOrder(db, id)` first checks that `id` looks like a uuid (`src/shared/ids/is-uuid.ts`). A mistyped link then shows "Order not found" instead of a database error. It then reads the order joined with its store's name, and the lines ordered by `position`, inside the same transaction. It returns `null` if the order doesn't exist.
 
-Both run as `anon`, because nobody signs in yet. The return types (`OrderSummary`, `OrderDetail`) come from the queries themselves, so if a column changes, TypeScript points at every page that used it.
+Both run as the signed-in user. The server function checks the sign-in cookie first and sends anyone else to the login page. The return types (`OrderSummary`, `OrderDetail`) come from the queries themselves, so if a column changes, TypeScript points at every page that used it.
 
 ### Server functions: the bridge between page and database
 
@@ -197,7 +199,7 @@ Turns `129000` + `SEK` into `SEK 1,290.00` by dividing by 100 and letting the br
 **Why:** tests sit next to the code they check ([ADR 0012](../adr/0012-feature-structure.md)).
 
 - `money.test.ts` checks the formatting, including negative amounts. `Intl` puts a no-break space between `SEK` and the number, which looks like a normal space but isn't, so the test spells it as ` `.
-- `orders-repository.test.ts` runs the real queries against the local database with seed data, through `withRole`, so it also proves `anon` can read through RLS. It checks the order of results, the lines of one order, and that an unknown id returns `null`.
+- `orders-repository.test.ts` runs the real queries against the local database with seed data, through `withUser`, as a merchant. It also proves one company can't read another company's orders. `schema.test.ts` proves an anonymous visitor can't read orders, order lines or stores, and that each role sees only what it's allowed to. It checks the order of results, the lines of one order, and that an unknown id returns `null`.
 - `vitest.config.ts` is separate from `vite.config.ts` so tests run in plain Node, without the Cloudflare runtime.
 
 ### CI
@@ -215,7 +217,7 @@ After lint, format, types and build, CI starts **only the database container** (
 
 ## 4. What's deliberately not done yet
 
-- **No sign-in**, so everything is read as `anon` and reading is public. It's demo data, but the policies will tighten when users and agents sign in.
+- **Reads follow roles, but nothing changes orders yet.** Each company sees its own orders, and agents see their stores. Write rules come with the write features. See [Sign-in and access](auth-and-policies.md).
 - **No writes.** Capture, refund and cancel are still disabled buttons.
 - The dashboard and other pages still use `src/mocks/data.ts`.
 
@@ -229,12 +231,17 @@ With `pnpm db:start` and `pnpm dev` running:
    ```sql
    select reference, status, total_amount / 100.0 as total, currency from orders order by created_at desc;
    ```
-4. See RLS at work. Run this in the SQL Editor:
+4. See the rules at work. Run this in the SQL Editor:
    ```sql
    set role anon;
+   select reference from orders;
+   ```
+   It fails with `permission denied for table orders`. Anonymous visitors have no access at all now. Then try a write as a signed-in user:
+   ```sql
+   set role authenticated;
    update orders set status = 'canceled' where reference = 'MG-1001';
    ```
-   It reports `UPDATE 0`: no policy allows `anon` to update, so the database changed nothing, without even raising an error. Run `reset role;` afterwards.
+   It fails with `permission denied` too, because writes are revoked. Run `reset role;` afterwards.
 5. Try to break the rules. Each of these fails, and the error names the rule:
    ```sql
    update orders set status = 'lost' where reference = 'MG-1001';         -- not in the enum
