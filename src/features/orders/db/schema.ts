@@ -3,6 +3,7 @@ import {
   char,
   check,
   foreignKey,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -71,6 +72,8 @@ export const orders = pgTable(
     }),
     check("orders_currency_format_check", sql`${table.currency} ~ '^[A-Z]{3}$'`),
     check("orders_shopper_country_format_check", sql`${table.shopperCountry} ~ '^[A-Z]{2}$'`),
+    // Matches the list's sort order, so pages come straight off the index.
+    index("orders_created_at_id_idx").on(table.createdAt.desc(), table.id.desc()),
   ],
 ).enableRLS();
 

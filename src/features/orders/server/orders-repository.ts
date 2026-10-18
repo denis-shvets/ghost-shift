@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 
 import { stores } from "~/features/stores/db/schema";
 import type { UserClaims } from "~/shared/auth/user-claims";
@@ -6,14 +6,24 @@ import { type Database, withUser } from "~/shared/db/client";
 import { isUuid } from "~/shared/ids/is-uuid";
 
 import { orderLines, orders } from "../db/schema";
+import type { OrderListInput } from "../model/order-list-input";
 
-export type OrderSummary = Awaited<ReturnType<typeof listOrders>>[number];
+export type OrderSummary = Awaited<ReturnType<typeof listOrders>>["orders"][number];
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;
 
 // Runs as the signed-in user, so row-level security decides what they can read.
-export function listOrders(db: Database, user: UserClaims) {
-  return withUser(db, user, (tx) =>
-    tx
+// Pages are ordered by (created_at, id), so orders with the same time can't be skipped.
+// The cursor is an order id: the anchor's created_at and id are looked up in the same query.
+export function listOrders(
+  db: Database,
+  user: UserClaims,
+  { limit, cursor, direction }: OrderListInput,
+) {
+  return withUser(db, user, async (tx) => {
+    // "prev" reads the orders newer than the cursor. Without a cursor there is nothing to go back from.
+    const newer = direction === "prev" && cursor !== undefined;
+    const anchor = sql`(select ${orders.createdAt}, ${orders.id} from ${orders} where ${orders.id} = ${cursor})`;
+    const rows = await tx
       .select({
         id: orders.id,
         reference: orders.reference,
@@ -25,8 +35,34 @@ export function listOrders(db: Database, user: UserClaims) {
         totalAmount: orders.totalAmount,
       })
       .from(orders)
-      .orderBy(desc(orders.createdAt)),
-  );
+      .where(
+        cursor
+          ? sql`(${orders.createdAt}, ${orders.id}) ${sql.raw(newer ? ">" : "<")} ${anchor}`
+          : undefined,
+      )
+      .orderBy(
+        newer ? asc(orders.createdAt) : desc(orders.createdAt),
+        newer ? asc(orders.id) : desc(orders.id),
+      )
+      // One extra row tells us whether another page exists in this direction.
+      .limit(limit + 1);
+
+    const hasMore = rows.length > limit;
+    const page = rows.slice(0, limit);
+    // Going back, the nearest rows came first, so flip them to newest first.
+    if (newer) page.reverse();
+    const first = page.at(0);
+    const last = page.at(-1);
+    return {
+      orders: page,
+      // Going forward, "older" exists only if there is an extra row. Going back, it always
+      // exists, because the cursor order is older than this page.
+      nextCursor: (newer || hasMore) && last ? last.id : null,
+      // Going back, "newer" exists only if there is an extra row. Going forward with a
+      // cursor, it always exists, because the cursor order is newer than this page.
+      prevCursor: (newer ? hasMore : cursor !== undefined) && first ? first.id : null,
+    };
+  });
 }
 
 export async function getOrder(db: Database, user: UserClaims, id: string) {

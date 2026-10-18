@@ -7,5 +7,7 @@ export default defineConfig({
   },
   test: {
     include: ["src/**/*.test.{ts,tsx}"],
+    // All test files share one local database, so they run one at a time.
+    fileParallelism: false,
   },
 });
