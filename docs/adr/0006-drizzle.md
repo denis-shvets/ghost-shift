@@ -28,6 +28,7 @@ Rejected: Prisma (heavier on Workers), `supabase-js` only (less to show, weaker 
 - Each feature declares its tables and policies in `src/features/<name>/db/schema.ts`.
 - `pnpm db:generate` creates a SQL migration in `supabase/migrations/` from schema changes. Review it, then commit it.
 - `pnpm db:reset` applies all migrations and the seed data to the local database. The Supabase CLI applies the same folder to the hosted project.
+- Drizzle can't generate `grant` statements. For each new table, add a hand-written migration with `pnpm db:generate --custom --name <name>` that grants the API roles exactly what the policies expect, for example `grant select on table public.orders to anon, authenticated;`. A grant lets a role ask; RLS policies still decide which rows it gets.
 - Name every constraint yourself, as `<table>_<what it covers>_<kind>`, so error messages say which rule failed:
   - `_fk` for foreign keys: `orders_store_currency_fk`
   - `_check` for checks: `orders_currency_format_check`

@@ -52,6 +52,7 @@ The answer travels back up the same way, and the page renders it.
 | **Role**                     | Who the database thinks is asking. Supabase has `anon` (not signed in) and `authenticated` (signed in), plus admin roles.                                                              |
 | **Row-level security (RLS)** | Rules stored in the database that decide which rows each role may see or change. Even if app code has a bug, the database refuses what the rules don't allow.                          |
 | **Policy**                   | One RLS rule, for example "anyone may read orders".                                                                                                                                    |
+| **Grant**                    | Permission for a role to use a table at all, for example "anon may select from orders". Postgres checks the grant first, then the RLS policies decide which rows. Both must allow it.  |
 | **Transaction**              | A group of queries that either all succeed or all fail together.                                                                                                                       |
 | **Connection**               | An open line between the app and the database. Queries travel over it.                                                                                                                 |
 
@@ -119,6 +120,14 @@ The file name starts with a timestamp so migrations always run in the order they
 **Rule:** never edit a migration that has been applied somewhere. Change `schema.ts` and generate a new one.
 
 **Config:** `drizzle.config.ts` tells Drizzle Kit where the schemas are (`src/features/*/db/schema.ts`), to write migrations into `supabase/migrations/` in Supabase's naming style, and that Supabase manages the roles (`anon`, `authenticated`), so it shouldn't try to create them.
+
+### Grants: letting the roles in at all
+
+**File:** `supabase/migrations/20261018022342_grant_read_access.sql`
+
+**Why:** Postgres checks two things before a role can read a row. First the **grant**: may this role use the table at all? Then the **RLS policies**: which rows may it see? Local Supabase grants the API roles access to new tables automatically, but newer hosted projects don't. On the first deploy that made the live site fail with "permission denied", even though the policies allowed reading.
+
+This hand-written migration grants `select` (read only) on `stores`, `orders` and `order_lines` to `anon` and `authenticated`, so every database behaves the same. There are no insert, update or delete grants, so those are refused before RLS even looks. Drizzle can't generate grants, so every new table needs a migration like this, made with `pnpm db:generate --custom --name <name>` ([ADR 0006](../adr/0006-drizzle.md)).
 
 ### The seed: demo data
 
@@ -206,7 +215,6 @@ After lint, format, types and build, CI starts **only the database container** (
 
 ## 4. What's deliberately not done yet
 
-- **The live site has no database.** Deploying this version would break the Orders pages. The hosted Supabase project and the `DATABASE_URL` secret come next.
 - **No sign-in**, so everything is read as `anon` and reading is public. It's demo data, but the policies will tighten when users and agents sign in.
 - **No writes.** Capture, refund and cancel are still disabled buttons.
 - The dashboard and other pages still use `src/mocks/data.ts`.

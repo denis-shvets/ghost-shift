@@ -101,11 +101,39 @@ Supabase Studio, a web UI for browsing tables, runs at <http://127.0.0.1:64323> 
 
 GitHub Actions runs `lint`, `format:check`, `typecheck`, `build` and `test`, fastest first, on every pull request and every push to `main` ([.github/workflows/ci.yml](.github/workflows/ci.yml)). Run them locally before you push to catch problems early.
 
+### Set up the hosted database
+
+The live site reads from a free hosted [Supabase](https://supabase.com/) project ([ADR 0005](docs/adr/0005-supabase.md)). This is done once. Steps that involve passwords are yours, so the database password never leaves your machine.
+
+1. Sign in at <https://supabase.com/dashboard> and create a project named `ghost-shift` on the **Free** plan. Click **Generate a password** and save it in your password manager.
+2. Copy the project ref from the address bar: `supabase.com/dashboard/project/<project-ref>`.
+3. Connect the Supabase CLI. `login` opens a browser; `link` asks for the database password:
+   ```bash
+   pnpm exec supabase login
+   pnpm exec supabase link --project-ref <project-ref>
+   ```
+4. Preview, then create the tables and load the demo data:
+   ```bash
+   pnpm exec supabase db push --dry-run --include-seed
+   pnpm exec supabase db push --include-seed
+   ```
+5. In the dashboard, click **Connect**, choose **Transaction pooler** (port **6543**, which Cloudflare Workers need) and copy the URI. Replace `[YOUR-PASSWORD]`, brackets included, with your password.
+6. Store it as a Cloudflare secret. Paste the URI when asked:
+   ```bash
+   pnpm exec wrangler secret put DATABASE_URL
+   ```
+
+New hosted projects don't let the `anon` and `authenticated` roles read new tables on their own, while local Supabase does. The migrations grant that access explicitly, so you don't need to change any dashboard setting.
+
+**After a change adds a migration**, apply it to the hosted database before deploying the code that needs it:
+
+```bash
+pnpm exec supabase db push
+```
+
 ### Deploy to Cloudflare Workers
 
 The app runs on [Cloudflare Workers](https://developers.cloudflare.com/workers/) on the free plan ([ADR 0004](docs/adr/0004-cloudflare-workers.md)). `pnpm dev` and `pnpm preview` already run the server code in the local Workers runtime, so a page that works locally works there too.
-
-> **Not yet connected to a hosted database.** The Orders pages fail on the live site until the hosted Supabase project and its `DATABASE_URL` secret are set up. Don't deploy this version until then.
 
 First time only:
 

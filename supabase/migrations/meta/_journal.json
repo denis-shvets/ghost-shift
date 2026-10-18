@@ -8,6 +8,13 @@
       "when": 1792286728521,
       "tag": "20261018012528_orders_and_stores",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792290222256,
+      "tag": "20261018022342_grant_read_access",
+      "breakpoints": true
     }
   ]
 }
