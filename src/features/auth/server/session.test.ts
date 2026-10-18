@@ -1,13 +1,13 @@
-import { getCookie, setCookie } from "@tanstack/react-start/server";
+import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
 import type { Session } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ServerEnv } from "~/shared/env/server-env";
 
-import { createAuthClient } from "./supabase-auth";
-import { readCurrentUser, requireUser, saveSession } from "./session";
+import { createAuthClient, revokeSession } from "./supabase-auth";
+import { endSession, readCurrentUser, requireUser, saveSession } from "./session";
 
-const { getClaims } = vi.hoisted(() => ({ getClaims: vi.fn() }));
+const { getClaims, getUser } = vi.hoisted(() => ({ getClaims: vi.fn(), getUser: vi.fn() }));
 
 vi.mock("@tanstack/react-start/server", () => ({
   setCookie: vi.fn(),
@@ -17,6 +17,7 @@ vi.mock("@tanstack/react-start/server", () => ({
 
 vi.mock("./supabase-auth", () => ({
   createAuthClient: vi.fn(),
+  revokeSession: vi.fn(),
 }));
 
 const env = {
@@ -29,6 +30,31 @@ const validClaims = {
   email: "owner@example.com",
   global_roles: ["developer"],
 };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("endSession", () => {
+  it("ends the Supabase session with the cookie token and clears the cookie", async () => {
+    vi.mocked(getCookie).mockReturnValue("token-value");
+
+    await endSession(env);
+
+    expect(revokeSession).toHaveBeenCalledWith(env, "token-value");
+    expect(deleteCookie).toHaveBeenCalledWith("ghost-shift-access-token", { path: "/" });
+  });
+
+  // A failed call to Supabase must not leave the person signed in on this browser.
+  it("still clears the cookie when Supabase fails", async () => {
+    vi.mocked(getCookie).mockReturnValue("token-value");
+    vi.mocked(revokeSession).mockRejectedValue(new Error("down"));
+
+    await expect(endSession(env)).resolves.toBeUndefined();
+
+    expect(deleteCookie).toHaveBeenCalledWith("ghost-shift-access-token", { path: "/" });
+  });
+});
 
 describe("saveSession", () => {
   // The token must never be readable by page scripts, and must only be sent over HTTPS.
@@ -51,8 +77,10 @@ describe("sign-in gate", () => {
   beforeEach(() => {
     vi.mocked(getCookie).mockReset();
     getClaims.mockReset();
+    getUser.mockReset();
+    getUser.mockResolvedValue({ data: { user: {} }, error: null });
     vi.mocked(createAuthClient).mockReturnValue({
-      auth: { getClaims },
+      auth: { getClaims, getUser },
     } as unknown as ReturnType<typeof createAuthClient>);
   });
 
@@ -61,7 +89,17 @@ describe("sign-in gate", () => {
       vi.mocked(getCookie).mockReturnValue(undefined);
 
       await expect(readCurrentUser(env)).resolves.toBeNull();
+      expect(getUser).not.toHaveBeenCalled();
       expect(getClaims).not.toHaveBeenCalled();
+    });
+
+    // A session ended by sign-out (or revoked elsewhere) is rejected here, before its token expires.
+    it("returns null when Supabase says the session no longer exists", async () => {
+      vi.mocked(getCookie).mockReturnValue("revoked-token");
+      getUser.mockResolvedValue({ data: { user: null }, error: { message: "session_not_found" } });
+      getClaims.mockResolvedValue({ data: { claims: validClaims }, error: null });
+
+      await expect(readCurrentUser(env)).resolves.toBeNull();
     });
 
     it("returns null when Supabase rejects the token, even if claims come back", async () => {
@@ -86,6 +124,7 @@ describe("sign-in gate", () => {
       getClaims.mockResolvedValue({ data: { claims: validClaims }, error: null });
 
       await expect(readCurrentUser(env)).resolves.toEqual(validClaims);
+      expect(getUser).toHaveBeenCalledWith("token");
       expect(getClaims).toHaveBeenCalledWith("token");
     });
 

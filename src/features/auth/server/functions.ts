@@ -4,7 +4,7 @@ import { env } from "cloudflare:workers";
 import { parseServerEnv } from "~/shared/env/server-env";
 
 import { loginInput } from "../model/login-input";
-import { clearSession, saveSession } from "./session";
+import { endSession, saveSession } from "./session";
 import { createAuthClient } from "./supabase-auth";
 
 // Server functions are public HTTP endpoints, so the input is checked at runtime, not just typed.
@@ -22,5 +22,5 @@ export const signIn = createServerFn({ method: "POST" })
   });
 
 export const signOut = createServerFn({ method: "POST" }).handler(async () => {
-  clearSession();
+  await endSession(parseServerEnv(env));
 });

@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { type UserClaims, toUserClaims } from "~/shared/auth/user-claims";
 import type { ServerEnv } from "~/shared/env/server-env";
 
-import { createAuthClient } from "./supabase-auth";
+import { createAuthClient, revokeSession } from "./supabase-auth";
 
 // HttpOnly means page scripts can't read the token. It only travels with requests to this site.
 const ACCESS_TOKEN_COOKIE = "ghost-shift-access-token";
@@ -24,13 +24,30 @@ export function clearSession() {
   deleteCookie(ACCESS_TOKEN_COOKIE, { path: "/" });
 }
 
-// shortcut: checks the token on every request, revisit if traffic grows.
-// Checks the token's signature with Supabase before trusting its claims.
+// Ends the Supabase session, then clears the cookie even if Supabase can't be reached.
+export async function endSession(env: ServerEnv) {
+  const token = getCookie(ACCESS_TOKEN_COOKIE);
+  try {
+    if (token) await revokeSession(env, token);
+  } catch {
+    // The cookie is still cleared below. The token then expires on its own.
+  } finally {
+    clearSession();
+  }
+}
+
+// shortcut: makes two Supabase calls per request, revisit if traffic grows.
+// getUser asks Supabase that the session still exists (a revoked token fails here),
+// and getClaims reads the custom claims such as global_roles.
 export async function readCurrentUser(env: ServerEnv): Promise<UserClaims | null> {
   const token = getCookie(ACCESS_TOKEN_COOKIE);
   if (!token) return null;
 
-  const { data, error } = await createAuthClient(env).auth.getClaims(token);
+  const auth = createAuthClient(env).auth;
+  const { error: sessionError } = await auth.getUser(token);
+  if (sessionError) return null;
+
+  const { data, error } = await auth.getClaims(token);
   if (error || !data) return null;
   return toUserClaims(data.claims);
 }
