@@ -154,10 +154,24 @@ This hand-written migration first granted `select` on `stores`, `orders` and `or
 
 **Why:** keeping queries in plain functions that take a database as an argument makes them easy to test without a browser or the Workers runtime.
 
-- `listOrders(db)` selects only the columns the list page needs, newest first.
+- `listOrders(db, user, { limit, cursor })` selects only the columns the list page needs, newest first, one page at a time (see "Pages and indexes" below).
 - `getOrder(db, id)` first checks that `id` looks like a uuid (`src/shared/ids/is-uuid.ts`). A mistyped link then shows "Order not found" instead of a database error. It then reads the order joined with its store's name, and the lines ordered by `position`, inside the same transaction. It returns `null` if the order doesn't exist.
 
 Both run as the signed-in user. The server function checks the sign-in cookie first and sends anyone else to the login page. The return types (`OrderSummary`, `OrderDetail`) come from the queries themselves, so if a column changes, TypeScript points at every page that used it.
+
+### Pages and indexes
+
+**Files:** `src/features/orders/model/order-list-input.ts`, `supabase/migrations/20261018215118_orders_list_index.sql`, `src/features/orders/db/schema.ts`
+
+**Why:** the list used to load every order at once. The page now asks for 50 at a time, and the database finds each page without sorting the whole table.
+
+- **Index.** An index is a sorted copy of some columns, kept by the database, so it can jump straight to the rows it needs. Without one, Postgres reads every row and sorts them on each request. `orders_created_at_id_idx` stores `created_at` and `id`, both newest first. The migration is one line: `create index … on orders (created_at desc, id desc)`. Drizzle writes it because the index is declared in `schema.ts`. The `id` is there to break ties, as explained next.
+- **Cursor.** A cursor is the `id` of one order: the last order on the page for "Next page", or the first for "Previous page". The database looks up that order's `created_at` in the same query and compares against it. This is "keyset" paging. An offset (`skip 50`) gets slower on later pages, and it can skip or repeat orders when new ones arrive.
+- **Why the id.** Two orders can share a `created_at`. Comparing on `created_at` alone could put one of them on both pages or on neither. The pair `(created_at, id)` is always unique, so every order appears exactly once.
+- **Going back.** "Previous page" reads the orders newer than the cursor, nearest first, then flips them back to newest first. Without a cursor there is nothing to go back from, so the first page is shown.
+- **Checking.** The list asks for one extra row in the direction it is reading. If it comes back, there is another page that way and its link is set. Going forward from a cursor, a previous page always exists. A malformed cursor fails in the validator (`order-list-input.ts`) before any query runs.
+- **Deleted orders.** If the order behind a cursor is deleted, the page comes back empty. This is fine for now, because orders aren't deleted yet.
+- **What the index does not do.** Row-level security still runs the `has_permission` check for each row it reads. An index only reduces how many rows reach that check. Measuring it is a separate follow-up.
 
 ### Server functions: the bridge between page and database
 
@@ -250,7 +264,12 @@ With `pnpm db:start` and `pnpm dev` running:
    update order_lines set total_amount = 1 where sku = 'LAN-BRS-01';       -- generated column: can't be written
    update order_lines set quantity = 0 where sku = 'LAN-BRS-01';           -- check constraint: quantity must be > 0
    ```
-6. Put everything back with `pnpm db:reset`.
+6. Look at the index. Run this in the SQL Editor:
+   ```sql
+   explain select reference from orders order by created_at desc, id desc limit 51;
+   ```
+   Look for `orders_created_at_id_idx` in the plan. On a table this small Postgres may still choose a plain scan, because it's faster than the index here. That's fine: the index is for when the table grows.
+7. Put everything back with `pnpm db:reset`.
 
 ## 6. Where to read more
 
