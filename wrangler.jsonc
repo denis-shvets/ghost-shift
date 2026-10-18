@@ -7,4 +7,12 @@
   "observability": {
     "enabled": true,
   },
+  // Caps callers of /health/database at 10 requests per 10 seconds per IP.
+  "ratelimits": [
+    {
+      "name": "HEALTH_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 10 },
+    },
+  ],
 }

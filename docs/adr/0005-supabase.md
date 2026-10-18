@@ -40,7 +40,7 @@ Rejected: Neon (Postgres only, no auth, realtime or storage), Cloudflare D1 (SQL
 
 ## Known limits (free plan, checked 2026-10-17; sources disagree, confirm on the pricing page)
 
-- **Pauses after 7 days with no activity.** Data is kept, but the app stops until the project is restored in the dashboard. Our CI pings it weekly (see [0011](0011-ci.md)).
+- **Pauses after 7 days with no activity.** Data is kept, but the app stops until the project is restored in the dashboard. Our CI pings it daily (see [0011](0011-ci.md)).
 - 2 active projects, 500 MB database per project.
 - 50,000 monthly active users, 5 GB egress a month.
 - Realtime: 200 concurrent connections, 2 million messages a month.

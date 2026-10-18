@@ -101,7 +101,7 @@ Supabase Studio, a web UI for browsing tables, runs at <http://127.0.0.1:64323> 
 
 GitHub Actions runs `lint`, `format:check`, `typecheck`, `build` and `test`, fastest first, on every pull request and every push to `main` ([.github/workflows/ci.yml](.github/workflows/ci.yml)). Run them locally before you push to catch problems early.
 
-A weekly workflow, [keepalive.yml](.github/workflows/keepalive.yml), requests the live `/orders` page, which reads the hosted database. This stops the free Supabase project from pausing after 7 days without activity ([ADR 0005](docs/adr/0005-supabase.md)). It fails if the page doesn't return `200`. To run it by hand, open the **Actions** tab, choose **Keep Supabase awake**, and click **Run workflow**.
+A daily workflow, [keepalive.yml](.github/workflows/keepalive.yml), requests the live `/health/database` route, which queries the hosted database. This stops the free Supabase project from pausing after 7 days without activity ([ADR 0005](docs/adr/0005-supabase.md)). It fails if the page doesn't return `200`. To run it by hand, open the **Actions** tab, choose **Keep Supabase awake**, and click **Run workflow**.
 
 ### Set up the hosted database
 
