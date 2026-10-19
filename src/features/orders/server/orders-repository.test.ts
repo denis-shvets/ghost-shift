@@ -11,7 +11,7 @@ import { createDb } from "~/shared/db/client";
 
 import { orders } from "../db/schema";
 
-import { getOrder, listOrders } from "./orders-repository";
+import { getOrder, listOrders, listOrdersOrFirstPage } from "./orders-repository";
 
 // Runs against the local Supabase database with seed data (`pnpm db:reset`).
 const db = createDb(testDatabaseUrl);
@@ -86,6 +86,15 @@ describe("listOrders", () => {
     expect(result.orders.map((order) => order.reference)).toEqual(["NB-2001"]);
     expect(result.nextCursor).toBeNull();
     expect(result.prevCursor).toBeNull();
+  });
+
+  it("shows the first page when the cursor is an order the user can't see", async () => {
+    // NB-2001 belongs to Nordic Bikes, so the cursor is invisible to Moonlight Goods.
+    const invisible = "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b";
+    const result = await listOrdersOrFirstPage(db, merchant, { limit: 2, cursor: invisible });
+
+    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1001", "MG-1002"]);
+    expect(result.nextCursor).toBe(mg1002);
   });
 
   it("doesn't skip or repeat orders that share a creation time", async () => {

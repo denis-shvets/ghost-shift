@@ -7,7 +7,7 @@ import { parseServerEnv } from "~/shared/env/server-env";
 
 import { orderIdInput } from "../model/order-id-input";
 import { orderListInput } from "../model/order-list-input";
-import { getOrder, listOrders } from "./orders-repository";
+import { getOrder, listOrdersOrFirstPage } from "./orders-repository";
 
 // Each request gets its own connection, closed when the request ends.
 async function withDb<T>(run: (db: ReturnType<typeof createDb>) => Promise<T>) {
@@ -24,7 +24,7 @@ export const fetchOrders = createServerFn({ method: "GET" })
   .validator(orderListInput)
   .handler(async ({ data }) => {
     const user = await requireUser(parseServerEnv(env));
-    return withDb((db) => listOrders(db, user, data));
+    return withDb((db) => listOrdersOrFirstPage(db, user, data));
   });
 
 // Server functions are public HTTP endpoints, so the input is checked at runtime, not just typed.

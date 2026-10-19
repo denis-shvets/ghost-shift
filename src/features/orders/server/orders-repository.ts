@@ -62,6 +62,14 @@ export function listOrders(
   });
 }
 
+// A cursor the user can't see gives an empty page with no links, so fall back to the first page.
+// shortcut: one extra query only when the cursor is invisible, upgrade if that path gets hot
+export async function listOrdersOrFirstPage(db: Database, user: UserClaims, input: OrderListInput) {
+  const page = await listOrders(db, user, input);
+  if (page.orders.length > 0 || input.cursor === undefined) return page;
+  return listOrders(db, user, { limit: input.limit });
+}
+
 export async function getOrder(db: Database, user: UserClaims, id: string) {
   if (!isUuid(id)) return null;
 
