@@ -35,7 +35,23 @@ const developer: UserClaims = {
 
 const validBody = {
   storeId: "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
-  shopper: { name: "Test", email: "test@example.com", country: "SE" },
+  customer: { firstName: "Test", lastName: "Customer", email: "test@example.com" },
+  billingAddress: {
+    firstName: "Test",
+    lastName: "Customer",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
+  shippingAddress: {
+    firstName: "Test",
+    lastName: "Customer",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
   paymentMethod: "card",
   shippingCarrier: "PostNord",
   lines: [{ type: "physical", name: "Mug", quantity: 1, unitPrice: 100, taxRate: 0 }],
@@ -87,6 +103,18 @@ describe("POST /api/developer/orders", () => {
     expect(response.status).toBe(400);
     expect(body.error).toBe("Invalid input");
     expect(body.issues.length).toBeGreaterThan(0);
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 JSON when shippingAddress is missing", async () => {
+    readCurrentUser.mockResolvedValue(developer);
+    const { shippingAddress: _omitted, ...withoutShipping } = validBody;
+
+    const response = await post(JSON.stringify(withoutShipping));
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.issues).toContainEqual(expect.objectContaining({ path: ["shippingAddress"] }));
     expect(createOrder).not.toHaveBeenCalled();
   });
 

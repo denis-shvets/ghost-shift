@@ -12,7 +12,7 @@ import { stores } from "~/features/stores/db/schema";
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { createDb, withRole, withUser } from "~/shared/db/client";
 
-import { orderLines, orders } from "./schema";
+import { orderAddresses, orderEvents, orderLines, orders } from "./schema";
 
 // These tests check the row-level security rules themselves, against the local database.
 // They need the database with seed data (`pnpm db:reset`), not the Auth service.
@@ -73,28 +73,32 @@ describe("anonymous visitors", () => {
 });
 
 describe("signed-in users see what their access allows", () => {
-  const ownOrders = ["MG-1001", "MG-1002", "MG-1003", "MG-1004"];
+  // The seed has many generated orders too, so these checks look at the fixed ones and at prefixes.
+  const moonlightOrders = ["MG-1001", "MG-1002", "MG-1003", "MG-1004"];
 
   it("a merchant sees their own company's orders only", async () => {
-    expect(await readableReferences(testAccounts.merchantA)).toEqual(ownOrders);
+    const references = await readableReferences(testAccounts.merchantA);
+    expect(references).toEqual(expect.arrayContaining(moonlightOrders));
+    expect(references.some((reference) => reference.startsWith("NB-"))).toBe(false);
   });
 
   it("another merchant sees only their own company's orders", async () => {
-    expect(await readableReferences(testAccounts.merchantB)).toEqual(["NB-2001"]);
+    const references = await readableReferences(testAccounts.merchantB);
+    expect(references).toContain("NB-2001");
+    expect(references.some((reference) => reference.startsWith("MG-"))).toBe(false);
   });
 
   it("an agent sees only orders of the stores assigned to them", async () => {
-    expect(await readableReferences(testAccounts.agent)).toEqual(["NB-2001"]);
+    const references = await readableReferences(testAccounts.agent);
+    expect(references).toContain("NB-2001");
+    expect(references.some((reference) => reference.startsWith("MG-"))).toBe(false);
   });
 
   it("a developer sees every order", async () => {
-    expect(await readableReferences(testAccounts.developer)).toEqual([
-      "MG-1001",
-      "MG-1002",
-      "MG-1003",
-      "MG-1004",
-      "NB-2001",
-    ]);
+    const references = await readableReferences(testAccounts.developer);
+    expect(references).toEqual(expect.arrayContaining([...moonlightOrders, "NB-2001"]));
+    expect(references.some((reference) => reference.startsWith("MG-"))).toBe(true);
+    expect(references.some((reference) => reference.startsWith("NB-"))).toBe(true);
   });
 
   it("someone with no access sees no orders or stores", async () => {
@@ -108,9 +112,105 @@ describe("signed-in users see what their access allows", () => {
   it("can't write orders, because no write policy exists yet", async () => {
     await expect(
       withUser(db, asUser(testAccounts.merchantA), (tx) =>
-        tx.execute(sql`update public.orders set shopper_name = 'Changed'`),
+        tx.execute(sql`update public.orders set customer_first_name = 'Changed'`),
       ),
     ).rejects.toMatchObject(permissionDenied);
+  });
+});
+
+describe("addresses and timeline follow the order", () => {
+  // MG-1001 belongs to Moonlight Goods, NB-2001 to Nordic Bikes (supabase/seed-orders.sql).
+  const moonlightOrder = "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922";
+  const nordicOrder = "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b";
+
+  function readable(userId: string, orderId: string) {
+    return withUser(db, asUser(userId), async (tx) => ({
+      addresses: (await tx.select().from(orderAddresses).where(eq(orderAddresses.orderId, orderId)))
+        .length,
+      events: (await tx.select().from(orderEvents).where(eq(orderEvents.orderId, orderId))).length,
+    }));
+  }
+
+  it("a merchant reads the addresses and timeline of their own company's orders", async () => {
+    const own = await readable(testAccounts.merchantA, moonlightOrder);
+    expect(own.addresses).toBe(2);
+    expect(own.events).toBeGreaterThan(0);
+  });
+
+  it("a merchant can't read another company's customer addresses or timeline", async () => {
+    expect(await readable(testAccounts.merchantA, nordicOrder)).toEqual({
+      addresses: 0,
+      events: 0,
+    });
+  });
+
+  it("anonymous visitors can't read addresses or events", async () => {
+    await expect(
+      withRole(db, "anon", (tx) => tx.select().from(orderAddresses)),
+    ).rejects.toMatchObject(permissionDenied);
+    await expect(withRole(db, "anon", (tx) => tx.select().from(orderEvents))).rejects.toMatchObject(
+      permissionDenied,
+    );
+  });
+
+  it("nobody can rewrite the timeline, not even a developer", async () => {
+    await expect(
+      withUser(db, asUser(testAccounts.developer), (tx) =>
+        tx.execute(sql`update public.order_events set actor_name = 'Changed'`),
+      ),
+    ).rejects.toMatchObject(permissionDenied);
+    await expect(
+      withUser(db, asUser(testAccounts.developer), (tx) =>
+        tx.execute(sql`delete from public.order_events`),
+      ),
+    ).rejects.toMatchObject(permissionDenied);
+    // TRUNCATE skips row-level security, so only the missing grant stops it.
+    await expect(
+      withUser(db, asUser(testAccounts.developer), (tx) =>
+        tx.execute(sql`truncate public.order_events`),
+      ),
+    ).rejects.toMatchObject(permissionDenied);
+  });
+
+  it("a merchant can't add timeline events, because only orders.create allows inserts", async () => {
+    await expect(
+      withUser(db, asUser(testAccounts.merchantA), (tx) =>
+        tx.insert(orderEvents).values({
+          orderId: moonlightOrder,
+          action: "captured",
+          actorName: "Merchant",
+          metadata: { amount: 1 },
+        }),
+      ),
+    ).rejects.toThrow();
+  });
+});
+
+describe("timeline events a developer adds", () => {
+  // MG-1001, a Moonlight Goods order the developer may add events to.
+  const moonlightOrder = "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922";
+
+  function addEvent(values: { actorUserId: string; action: "authorized" | "refunded" }) {
+    return withUser(db, asUser(testAccounts.developer), (tx) =>
+      tx.insert(orderEvents).values({
+        orderId: moonlightOrder,
+        actorName: "Phantom Checkout",
+        metadata: { amount: 1 },
+        ...values,
+      }),
+    );
+  }
+
+  it("must name the developer as the actor", async () => {
+    await expect(
+      addEvent({ actorUserId: testAccounts.merchantA, action: "authorized" }),
+    ).rejects.toThrow();
+  });
+
+  it("can only be an authorization, so refunds can't be made up", async () => {
+    await expect(
+      addEvent({ actorUserId: testAccounts.developer, action: "refunded" }),
+    ).rejects.toThrow();
   });
 });
 
@@ -224,9 +324,9 @@ describe("creating orders", () => {
       reference,
       storeId: moonlightSweden,
       currency: "SEK",
-      shopperName: "Test Shopper",
-      shopperEmail: "shopper@ghostshift.test",
-      shopperCountry: "SE",
+      customerFirstName: "Test",
+      customerLastName: "Customer",
+      customerEmail: "customer@ghostshift.test",
       paymentMethod: "card" as const,
       status: "authorized" as const,
       totalAmount: 20000,

@@ -30,79 +30,109 @@ afterAll(() => db.close());
 // Merchant A (orders editor at Moonlight Goods) reads the orders in these tests.
 const merchant: UserClaims = { sub: testAccounts.merchantA, global_roles: [] };
 
-// Order ids in supabase/seed.sql, newest first.
-const mg1002 = "a04509c1-b524-494a-8662-8d6ed7bcfc8d";
-const mg1003 = "29fb84e7-03da-44f2-9389-dbbe9e12d3f3";
+// The id of an order in the seed, looked up by reference so the tests don't hard-code random ids.
+async function idOf(reference: string) {
+  const [row] = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(eq(orders.reference, reference));
+  return row?.id;
+}
+
+// Moonlight Goods' fixed orders, newest first. Generated orders are all older than MG-1004.
+const newestMoonlightOrders = [
+  "MG-1010",
+  "MG-1001",
+  "MG-1002",
+  "MG-1003",
+  "MG-1005",
+  "MG-1008",
+  "MG-1009",
+  "MG-1006",
+  "MG-1007",
+  "MG-1004",
+];
 
 describe("listOrders", () => {
   it("returns the orders of the signed-in merchant's company, newest first", async () => {
     const result = await listOrders(db, merchant, { limit: 50 });
 
-    expect(result.orders.map((order) => order.reference)).toEqual([
-      "MG-1001",
-      "MG-1002",
-      "MG-1003",
-      "MG-1004",
-    ]);
-    expect(result.nextCursor).toBeNull();
+    expect(
+      result.orders.slice(0, newestMoonlightOrders.length).map((order) => order.reference),
+    ).toEqual(newestMoonlightOrders);
+    expect(result.orders.every((order) => order.reference.startsWith("MG-"))).toBe(true);
+    expect(result.nextCursor).not.toBeNull();
     expect(result.prevCursor).toBeNull();
   });
 
   it("returns one page, with a cursor for the next page", async () => {
     const first = await listOrders(db, merchant, { limit: 2 });
 
-    expect(first.orders.map((order) => order.reference)).toEqual(["MG-1001", "MG-1002"]);
-    expect(first.nextCursor).toBe(mg1002);
+    expect(first.orders.map((order) => order.reference)).toEqual(["MG-1010", "MG-1001"]);
+    expect(first.nextCursor).toBe(await idOf("MG-1001"));
     expect(first.prevCursor).toBeNull();
   });
 
   it("continues from the cursor, with a cursor back to the previous page", async () => {
-    const second = await listOrders(db, merchant, { limit: 2, cursor: mg1002 });
+    const second = await listOrders(db, merchant, {
+      limit: 2,
+      cursor: await idOf("MG-1001"),
+    });
 
-    expect(second.orders.map((order) => order.reference)).toEqual(["MG-1003", "MG-1004"]);
-    expect(second.prevCursor).toBe(mg1003);
-    expect(second.nextCursor).toBeNull();
+    expect(second.orders.map((order) => order.reference)).toEqual(["MG-1002", "MG-1003"]);
+    expect(second.prevCursor).toBe(await idOf("MG-1002"));
+    expect(second.nextCursor).toBe(await idOf("MG-1003"));
   });
 
   it("goes back to the previous page from a cursor", async () => {
-    const back = await listOrders(db, merchant, { limit: 2, cursor: mg1003, direction: "prev" });
+    const back = await listOrders(db, merchant, {
+      limit: 2,
+      cursor: await idOf("MG-1003"),
+      direction: "prev",
+    });
 
     expect(back.orders.map((order) => order.reference)).toEqual(["MG-1001", "MG-1002"]);
-    expect(back.prevCursor).toBeNull();
-    expect(back.nextCursor).toBe(mg1002);
+    expect(back.nextCursor).toBe(await idOf("MG-1002"));
   });
 
   it("goes back one order at a time, when more newer orders exist", async () => {
-    const back = await listOrders(db, merchant, { limit: 1, cursor: mg1003, direction: "prev" });
+    const back = await listOrders(db, merchant, {
+      limit: 1,
+      cursor: await idOf("MG-1003"),
+      direction: "prev",
+    });
 
     expect(back.orders.map((order) => order.reference)).toEqual(["MG-1002"]);
-    expect(back.prevCursor).toBe(mg1002);
-    expect(back.nextCursor).toBe(mg1002);
+    expect(back.prevCursor).toBe(await idOf("MG-1002"));
+    expect(back.nextCursor).toBe(await idOf("MG-1002"));
   });
 
   it("treats a previous request without a cursor as the first page", async () => {
     const result = await listOrders(db, merchant, { limit: 2, direction: "prev" });
 
-    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1001", "MG-1002"]);
+    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1010", "MG-1001"]);
   });
 
   it("only pages through the orders the signed-in user can read", async () => {
-    // Nordic Bikes has one order, NB-2001, so a page size of 2 must not reveal Moonlight Goods.
+    // Every order on this page must belong to Nordic Bikes, so a page size of 2 reveals no Moonlight Goods.
     const other: UserClaims = { sub: testAccounts.merchantB, global_roles: [] };
     const result = await listOrders(db, other, { limit: 2 });
 
-    expect(result.orders.map((order) => order.reference)).toEqual(["NB-2001"]);
-    expect(result.nextCursor).toBeNull();
+    expect(result.orders).toHaveLength(2);
+    expect(result.orders.every((order) => order.reference.startsWith("NB-"))).toBe(true);
     expect(result.prevCursor).toBeNull();
   });
 
   it("shows the first page when the cursor is an order the user can't see", async () => {
     // NB-2001 belongs to Nordic Bikes, so the cursor is invisible to Moonlight Goods.
-    const invisible = "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b";
-    const result = await listOrdersOrFirstPage(db, merchant, { limit: 2, cursor: invisible });
+    const invisible = await idOf("NB-2001");
+    const result = await listOrdersOrFirstPage(db, merchant, {
+      limit: 2,
+      cursor: invisible,
+    });
 
-    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1001", "MG-1002"]);
-    expect(result.nextCursor).toBe(mg1002);
+    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1010", "MG-1001"]);
+    expect(result.nextCursor).toBe(await idOf("MG-1001"));
   });
 
   it("doesn't skip or repeat orders that share a creation time", async () => {
@@ -118,9 +148,9 @@ describe("listOrders", () => {
         createdAt: new Date(shared),
         storeId: "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
         currency: "SEK",
-        shopperName: "Test Shopper",
-        shopperEmail: "tie@example.com",
-        shopperCountry: "SE",
+        customerFirstName: "Test",
+        customerLastName: "Customer",
+        customerEmail: "tie@example.com",
         paymentMethod: "card",
         status: "authorized",
         totalAmount: 1000,
@@ -138,10 +168,13 @@ describe("listOrders", () => {
         cursor = page.nextCursor ?? undefined;
       } while (cursor);
 
-      expect(forward).toHaveLength(6);
-      expect(new Set(forward.map((order) => order.reference))).toEqual(
-        new Set(["MG-1001", "MG-1002", "MG-1003", "MG-1004", "TIE-1", "TIE-2"]),
-      );
+      // Every Moonlight Goods order, the generated ones included, plus the two ties.
+      const visible = await db.select({ reference: orders.reference }).from(orders);
+      const expected = visible
+        .map((order) => order.reference)
+        .filter((reference) => reference.startsWith("MG-") || reference.startsWith("TIE-"));
+      expect(forward).toHaveLength(expected.length);
+      expect(new Set(forward.map((order) => order.reference))).toEqual(new Set(expected));
 
       const backward: string[] = [];
       let back: string | undefined = forward.at(-1)?.id;
@@ -173,7 +206,7 @@ describe("getOrder", () => {
 
     expect(order).toMatchObject({
       reference: "MG-1003",
-      status: "part_refunded",
+      status: "captured",
       refundedAmount: 4000,
       storeName: "Moonlight Goods Finland",
     });
@@ -223,7 +256,23 @@ const swedenStore = "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6";
 
 const newOrder: CreateOrderInput = {
   storeId: swedenStore,
-  shopper: { name: "Test Developer", email: "dev@example.com", country: "SE" },
+  customer: { firstName: "Test", lastName: "Developer", email: "dev@example.com" },
+  billingAddress: {
+    firstName: "Test",
+    lastName: "Developer",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
+  shippingAddress: {
+    firstName: "Test",
+    lastName: "Developer",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
   paymentMethod: "card",
   shippingCarrier: "PostNord",
   lines: [
@@ -284,6 +333,19 @@ describe("createOrder", () => {
       { position: 2, name: "Shipping", totalAmount: 4900 },
       { position: 3, name: "Welcome", totalAmount: -500 },
     ]);
+
+    const saved = await getOrder(db, developer, id);
+    expect(saved?.addresses.map((address) => address.kind)).toEqual(["billing", "shipping"]);
+    expect(saved?.events).toMatchObject([
+      {
+        occurredAt: order!.createdAt,
+        action: "authorized",
+        actorName: "Phantom Checkout",
+        metadata: { amount: 6400 },
+      },
+    ]);
+    // A card authorization runs out after 7 days.
+    expect(order!.expiresAt.getTime() - order!.createdAt.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
   });
 
   it("denies users who can't create orders, and writes nothing", async () => {

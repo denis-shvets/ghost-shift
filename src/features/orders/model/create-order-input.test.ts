@@ -14,7 +14,23 @@ const line = {
 
 const valid = {
   storeId,
-  shopper: { name: "Ada Lovelace", email: "ada@example.com", country: "GB" },
+  customer: { firstName: "Ada", lastName: "Lovelace", email: "ada@example.com" },
+  billingAddress: {
+    firstName: "Ada",
+    lastName: "Lovelace",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "GB",
+  },
+  shippingAddress: {
+    firstName: "Ada",
+    lastName: "Lovelace",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "GB",
+  },
   paymentMethod: "card",
   shippingCarrier: "Swift",
   lines: [line],
@@ -35,8 +51,8 @@ describe("createOrderInput", () => {
 
   it("rejects a country code that is not two capital letters", () => {
     for (const country of ["us", "USA", "U"]) {
-      const shopper = { ...valid.shopper, country };
-      expect(createOrderInput.safeParse({ ...valid, shopper }).success).toBe(false);
+      const billingAddress = { ...valid.billingAddress, country };
+      expect(createOrderInput.safeParse({ ...valid, billingAddress }).success).toBe(false);
     }
   });
 

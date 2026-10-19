@@ -6,32 +6,26 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
+import { authUsers } from "drizzle-orm/supabase";
 
 import { stores } from "~/features/stores/db/schema";
 
-export const orderStatus = pgEnum("order_status", [
-  "authorized",
-  "captured",
-  "part_captured",
-  "refunded",
-  "part_refunded",
-  "canceled",
-  "expired",
-]);
+import { ORDER_EVENT_ACTIONS } from "../model/order-event";
+import { ORDER_STATUSES } from "../model/order-statuses";
+import { PAYMENT_METHODS } from "../model/payment-methods";
 
-export const paymentMethod = pgEnum("payment_method", [
-  "card",
-  "invoice",
-  "wallet",
-  "bank_transfer",
-]);
+export const orderStatus = pgEnum("order_status", ORDER_STATUSES);
+
+export const paymentMethod = pgEnum("payment_method", PAYMENT_METHODS);
 
 export const orderLineType = pgEnum("order_line_type", [
   "physical",
@@ -46,22 +40,31 @@ export const orders = pgTable(
   "orders",
   {
     id: uuid().primaryKey().defaultRandom(),
-    // The human-readable order number shown to merchants and shoppers.
+    // The human-readable order number shown to merchants and customers.
     reference: text().notNull().unique(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    // When the authorization runs out and nothing more can be captured.
+    expiresAt: timestamp({ withTimezone: true })
+      .notNull()
+      .default(sql`now() + interval '28 days'`),
     storeId: uuid().notNull(),
     // ISO 4217 currency code, for example SEK. Must match the store's currency.
     currency: char({ length: 3 }).notNull(),
-    shopperName: text().notNull(),
-    shopperEmail: text().notNull(),
-    // ISO 3166-1 alpha-2 country code, for example SE.
-    shopperCountry: char({ length: 2 }).notNull(),
+    // The customer as they were when they ordered. Addresses are in order_addresses.
+    customerFirstName: text().notNull(),
+    customerLastName: text().notNull(),
+    customerEmail: text().notNull(),
+    customerPhone: text(),
     paymentMethod: paymentMethod().notNull(),
     status: orderStatus().notNull(),
     // bigint: a large order can add up to more than the 4-byte integer's limit.
     totalAmount: bigint({ mode: "number" }).notNull(),
     capturedAmount: bigint({ mode: "number" }).notNull().default(0),
     refundedAmount: bigint({ mode: "number" }).notNull().default(0),
+    // What is left of the authorization. Computed by the database, like the line totals.
+    uncapturedAmount: bigint({ mode: "number" })
+      .notNull()
+      .generatedAlwaysAs(sql`total_amount - captured_amount`),
     // Temporary: moves to a shipments table when shipping is built.
     shippingCarrier: text().notNull(),
     shippingTracking: text(),
@@ -73,8 +76,16 @@ export const orders = pgTable(
       foreignColumns: [stores.id, stores.currency],
     }),
     check("orders_currency_format_check", sql`${table.currency} ~ '^[A-Z]{3}$'`),
-    check("orders_shopper_country_format_check", sql`${table.shopperCountry} ~ '^[A-Z]{2}$'`),
     check("orders_total_amount_not_negative_check", sql`${table.totalAmount} >= 0`),
+    check(
+      "orders_captured_amount_range_check",
+      sql`${table.capturedAmount} between 0 and ${table.totalAmount}`,
+    ),
+    check(
+      "orders_refunded_amount_range_check",
+      sql`${table.refundedAmount} between 0 and ${table.capturedAmount}`,
+    ),
+    check("orders_expires_after_created_check", sql`${table.expiresAt} > ${table.createdAt}`),
     // Matches the list's sort order, so pages come straight off the index.
     index("orders_created_at_id_idx").on(table.createdAt.desc(), table.id.desc()),
   ],
@@ -121,5 +132,69 @@ export const orderLines = pgTable(
       "order_lines_discount_sign_check",
       sql`(${table.type} = 'discount') = (${table.unitPrice} < 0) or ${table.unitPrice} = 0`,
     ),
+  ],
+).enableRLS();
+
+export const addressKind = pgEnum("address_kind", ["billing", "shipping"]);
+
+// Every order gets both a billing and a shipping address, even when they are the same.
+export const orderAddresses = pgTable(
+  "order_addresses",
+  {
+    orderId: uuid().notNull(),
+    kind: addressKind().notNull(),
+    firstName: text().notNull(),
+    lastName: text().notNull(),
+    company: text(),
+    streetAddress: text().notNull(),
+    streetAddress2: text(),
+    postalCode: text().notNull(),
+    city: text().notNull(),
+    region: text(),
+    // ISO 3166-1 alpha-2 country code, for example SE.
+    country: char({ length: 2 }).notNull(),
+    phone: text(),
+  },
+  (table) => [
+    primaryKey({ name: "order_addresses_pk", columns: [table.orderId, table.kind] }),
+    foreignKey({
+      name: "order_addresses_order_fk",
+      columns: [table.orderId],
+      foreignColumns: [orders.id],
+    }).onDelete("cascade"),
+    check("order_addresses_country_format_check", sql`${table.country} ~ '^[A-Z]{2}$'`),
+  ],
+).enableRLS();
+
+export const orderEventAction = pgEnum("order_event_action", ORDER_EVENT_ACTIONS);
+
+// The order's timeline. Append-only: nobody is granted update or delete.
+export const orderEvents = pgTable(
+  "order_events",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    orderId: uuid().notNull(),
+    occurredAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    action: orderEventAction().notNull(),
+    // Empty for the system, or when the user has been deleted.
+    actorUserId: uuid(),
+    // A copy of who did it, because other users can't read auth.users.
+    actorName: text().notNull(),
+    // Shape per action: OrderEventMetadata in model/order-event.ts.
+    metadata: jsonb().notNull().default({}),
+  },
+  (table) => [
+    foreignKey({
+      name: "order_events_order_fk",
+      columns: [table.orderId],
+      foreignColumns: [orders.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "order_events_actor_user_fk",
+      columns: [table.actorUserId],
+      foreignColumns: [authUsers.id],
+    }).onDelete("set null"),
+    check("order_events_metadata_object_check", sql`jsonb_typeof(${table.metadata}) = 'object'`),
+    index("order_events_order_occurred_at_idx").on(table.orderId, table.occurredAt),
   ],
 ).enableRLS();

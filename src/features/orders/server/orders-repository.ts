@@ -6,10 +6,12 @@ import type { UserClaims } from "~/shared/auth/user-claims";
 import { type Database, withUser } from "~/shared/db/client";
 import { isUuid } from "~/shared/ids/is-uuid";
 
-import { orderLines, orders } from "../db/schema";
+import { orderAddresses, orderEvents, orderLines, orders } from "../db/schema";
 import type { CreateOrderInput } from "../model/create-order-input";
+import type { OrderEvent, OrderEventMetadata } from "../model/order-event";
 import type { OrderListInput } from "../model/order-list-input";
 import { orderTotal } from "../model/order-total";
+import { authorizationExpiresAt } from "../model/payment-methods";
 
 // Runs as the signed-in user, so row-level security decides what they can read.
 // Pages are ordered by (created_at, id), so orders with the same time can't be skipped.
@@ -28,11 +30,14 @@ export function listOrders(
         id: orders.id,
         reference: orders.reference,
         createdAt: orders.createdAt,
-        shopperName: orders.shopperName,
+        expiresAt: orders.expiresAt,
+        customerFirstName: orders.customerFirstName,
+        customerLastName: orders.customerLastName,
         paymentMethod: orders.paymentMethod,
         status: orders.status,
         currency: orders.currency,
         totalAmount: orders.totalAmount,
+        capturedAmount: orders.capturedAmount,
       })
       .from(orders)
       .where(
@@ -89,16 +94,20 @@ export function createOrder(db: Database, user: UserClaims, input: CreateOrderIn
     // shortcut: 8 hex characters, a clash fails on the unique reference constraint, upgrade to a retry if clashes become common
     const reference = `DEV-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 
+    const createdAt = new Date();
     // The currency comes from the store, never from the request.
     const [order] = await tx
       .insert(orders)
       .values({
         reference,
+        createdAt,
+        expiresAt: authorizationExpiresAt(createdAt, input.paymentMethod),
         storeId: store.id,
         currency: store.currency,
-        shopperName: input.shopper.name,
-        shopperEmail: input.shopper.email,
-        shopperCountry: input.shopper.country,
+        customerFirstName: input.customer.firstName,
+        customerLastName: input.customer.lastName,
+        customerEmail: input.customer.email,
+        customerPhone: input.customer.phone,
         paymentMethod: input.paymentMethod,
         status: "authorized",
         totalAmount,
@@ -122,6 +131,23 @@ export function createOrder(db: Database, user: UserClaims, input: CreateOrderIn
         taxRate: line.taxRate,
       })),
     );
+
+    await tx.insert(orderAddresses).values([
+      { orderId: order.id, kind: "billing", ...input.billingAddress },
+      { orderId: order.id, kind: "shipping", ...input.shippingAddress },
+    ]);
+
+    const metadata: OrderEventMetadata<"authorized"> = { amount: totalAmount };
+    await tx.insert(orderEvents).values({
+      orderId: order.id,
+      // The order's own time, so the timeline starts exactly when the order was created.
+      occurredAt: createdAt,
+      action: "authorized",
+      actorUserId: user.sub,
+      // The provider authorizes, as in the seed. Not the email: merchants can read the timeline.
+      actorName: "Phantom Checkout",
+      metadata,
+    });
 
     return order;
   });
@@ -171,6 +197,43 @@ export async function getOrder(db: Database, user: UserClaims, id: string) {
       .where(eq(orderLines.orderId, id))
       .orderBy(asc(orderLines.position));
 
-    return { ...row.order, storeName: row.storeName, lines };
+    const addresses = await tx
+      .select({
+        kind: orderAddresses.kind,
+        firstName: orderAddresses.firstName,
+        lastName: orderAddresses.lastName,
+        company: orderAddresses.company,
+        streetAddress: orderAddresses.streetAddress,
+        streetAddress2: orderAddresses.streetAddress2,
+        postalCode: orderAddresses.postalCode,
+        city: orderAddresses.city,
+        region: orderAddresses.region,
+        country: orderAddresses.country,
+        phone: orderAddresses.phone,
+      })
+      .from(orderAddresses)
+      .where(eq(orderAddresses.orderId, id))
+      .orderBy(asc(orderAddresses.kind));
+
+    const events = await tx
+      .select({
+        id: orderEvents.id,
+        occurredAt: orderEvents.occurredAt,
+        action: orderEvents.action,
+        actorName: orderEvents.actorName,
+        metadata: orderEvents.metadata,
+      })
+      .from(orderEvents)
+      .where(eq(orderEvents.orderId, id))
+      .orderBy(asc(orderEvents.occurredAt), asc(orderEvents.id));
+
+    return {
+      ...row.order,
+      storeName: row.storeName,
+      lines,
+      addresses,
+      // jsonb comes back untyped; only our own code writes it, in the shapes OrderEvent names.
+      events: events as OrderEvent[],
+    };
   });
 }

@@ -56,7 +56,7 @@ export const productsInput = z.object({
   count: z.number().int().min(1).max(20).optional(),
 });
 
-// Readable form of Zod issues, e.g. "shopper.email: Invalid email address; lines: Too small".
+// Readable form of Zod issues, e.g. "customer.email: Invalid email address; lines: Too small".
 export function issueText(issues: { path?: PropertyKey[]; message?: string }[]): string {
   return issues
     .map((issue) => `${(issue.path ?? []).map(String).join(".") || "order"}: ${issue.message}`)
@@ -86,7 +86,8 @@ const tools = [
   },
   {
     name: "create_order",
-    description: "Create a test order in a store. The currency comes from the store.",
+    description:
+      "Create a test order in a store. The currency comes from the store. Always send both billingAddress and shippingAddress; when they are the same, send the same object twice.",
     inputSchema: z.toJSONSchema(createOrderInput) as { type: "object" },
   },
 ];

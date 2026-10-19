@@ -84,6 +84,7 @@ Roles are named for the job, with a prefix for the side (`platform_`, `merchant_
 - `has_permission` reads the membership tables on every row check. Fine at this size. Watch it if an order list grows large.
 - Only read policies exist, plus the first write policies: `orders.create` lets only `platform_developer` insert orders and their lines (`orders_create_access`). Other write policies are added with the features that need them.
 - Nothing shows a person's effective permissions yet. Someone has to read several membership rows to see them.
+- `order_addresses` and `order_events` reuse `orders.read` and `orders.create` through the parent order; no new roles were needed (2026-10-19).
 
 ## Consequences
 
