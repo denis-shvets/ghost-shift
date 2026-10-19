@@ -2,7 +2,10 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { type SyntheticEvent, useEffect, useState } from "react";
 
-import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
+import {
+  type CreateOrderInput,
+  MAX_LINE_QUANTITY,
+} from "~/features/orders/model/create-order-input";
 import { formatMoney } from "~/features/orders/model/money";
 import { lineTotal, orderTotal } from "~/features/orders/model/order-total";
 import { SAMPLE_PRODUCTS, type SampleProduct } from "~/features/orders/model/sample-products";
@@ -60,11 +63,21 @@ function CreateOrder() {
 
   function addLine(product: SampleProduct) {
     const quantity = quantities[product.sku] ?? 1;
+    // The number input still lets through 0, an empty field (Number("") is 0) and fractions.
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_LINE_QUANTITY) {
+      setMessage(
+        `Quantity for ${product.sku} must be a whole number from 1 to ${MAX_LINE_QUANTITY}.`,
+      );
+      return;
+    }
+    setMessage("");
     setLines((current) => {
       const existing = current.find((line) => line.sku === product.sku);
       if (!existing) return [...current, { ...product, quantity }];
       return current.map((line) =>
-        line.sku === product.sku ? { ...line, quantity: line.quantity + quantity } : line,
+        line.sku === product.sku
+          ? { ...line, quantity: Math.min(line.quantity + quantity, MAX_LINE_QUANTITY) }
+          : line,
       );
     });
   }
@@ -130,6 +143,7 @@ function CreateOrder() {
                   <input
                     type="number"
                     min={1}
+                    max={MAX_LINE_QUANTITY}
                     step={1}
                     value={quantities[product.sku] ?? 1}
                     onChange={(event) =>
