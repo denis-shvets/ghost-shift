@@ -139,9 +139,9 @@ This hand-written migration first granted `select` on `stores`, `orders` and `or
 2. Postgres checks the grant. `authenticated` has `insert` on `orders`, but no update or delete.
 3. Postgres runs the `with check` policy on the row. `has_permission('orders.create', store_id)` must be true, which is only the case for `platform_developer`.
 4. The database checks the row's own rules. The currency must match the store's currency (the foreign key `orders_store_currency_fk`), and the country code must be two capital letters.
-5. For each line, the app inserts a row into `order_lines`: `order_id`, `position` (1, 2, 3 and so on), `type`, `sku`, `name`, `quantity`, `unit_price` and `tax_rate`. The line policy then checks that the user can read the order.
+5. For each line, the app inserts a row into `order_lines`: `order_id`, `position` (1, 2, 3 and so on), `type`, `sku`, `name`, `quantity`, `unit_price` and `tax_rate`. The line policy then looks up the line's order and checks `has_permission('orders.create', ...)` for that order's store, so someone who can only read orders can't add lines to them.
 
-The app never inserts `total_amount` or `total_tax_amount` on `order_lines`. They are **generated columns**: Postgres computes them from `unit_price`, `quantity` and `tax_rate` on every save, so they can't disagree with the line. Writing a value to them is an error. The order's own `total_amount` is still sent by the app, and no rule yet checks it against the sum of its lines.
+The app never inserts `total_amount` or `total_tax_amount` on `order_lines`. They are **generated columns**: Postgres computes them from `unit_price`, `quantity` and `tax_rate` on every save, so they can't disagree with the line. Writing a value to them is an error. The order's own `total_amount` is still sent by the app. The database only checks that it isn't negative (see below); no rule yet checks it against the sum of its lines.
 
 ### The seed: demo data
 
@@ -260,6 +260,19 @@ After lint, format, types and build, CI starts **only the database container** (
 4. Leaves `unit_price` and `quantity` as `integer`. Their own values already fit, and the Zod limits keep them within range.
 
 In `schema.ts`, Drizzle reads these as JavaScript numbers (`mode: "number"`). That's safe up to about 9 quadrillion, far above any order.
+
+### Why an order total can't be negative
+
+**File:** `supabase/migrations/20261019173355_orders_total_not_negative.sql`
+
+**Why:** discount lines have negative prices. Without a rule, an order with only a discount line (say -50.00) would be saved as an authorized order with a total of -50.00. Later capture and refund code would then have to cope with a payment that owes the shopper money.
+
+The fix has two layers, step by step:
+
+1. `createOrderInput` (Zod) adds up the lines with `orderTotal` and rejects the request when the sum is below zero. The caller gets a clear 400 error: "The order total cannot be negative".
+2. The migration adds a **check constraint** `orders_total_amount_not_negative_check`: `total_amount >= 0`. This is the safety net. If some other code path ever sends a negative total, Postgres refuses the row, whatever the app thought.
+
+A total of exactly zero is still allowed, for example a product fully covered by a discount.
 
 ## 4. What's deliberately not done yet
 

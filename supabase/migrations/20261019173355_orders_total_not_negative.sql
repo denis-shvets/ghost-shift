@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD CONSTRAINT "orders_total_amount_not_negative_check" CHECK ("orders"."total_amount" >= 0);

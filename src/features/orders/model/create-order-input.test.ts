@@ -51,7 +51,16 @@ describe("createOrderInput", () => {
 
   it("accepts a negative discount", () => {
     const discount = { ...line, type: "discount", unitPrice: -500 };
-    expect(createOrderInput.safeParse({ ...valid, lines: [discount] }).success).toBe(true);
+    expect(createOrderInput.safeParse({ ...valid, lines: [line, discount] }).success).toBe(true);
+  });
+
+  it("accepts discounts that bring the total to zero, but not below", () => {
+    const product = { ...line, quantity: 1, unitPrice: 500 };
+    const discount = { ...line, type: "discount", quantity: 1, unitPrice: -500 };
+    expect(createOrderInput.safeParse({ ...valid, lines: [product, discount] }).success).toBe(true);
+    const tooMuch = { ...discount, unitPrice: -501 };
+    expect(createOrderInput.safeParse({ ...valid, lines: [product, tooMuch] }).success).toBe(false);
+    expect(createOrderInput.safeParse({ ...valid, lines: [discount] }).success).toBe(false);
   });
 
   it("rejects a negative price on a non-discount line", () => {
@@ -66,14 +75,10 @@ describe("createOrderInput", () => {
   });
 
   it("accepts the quantity and unit price limits", () => {
-    const atLimit = [
-      { ...line, quantity: 10000 },
-      { ...line, unitPrice: 10_000_000 },
-      { ...line, type: "discount", unitPrice: -10_000_000 },
-    ];
-    for (const edge of atLimit) {
-      expect(createOrderInput.safeParse({ ...valid, lines: [edge] }).success).toBe(true);
-    }
+    // The large product line keeps the total from going negative with the largest discount.
+    const product = { ...line, quantity: 10000, unitPrice: 10_000_000 };
+    const discount = { ...line, type: "discount", unitPrice: -10_000_000 };
+    expect(createOrderInput.safeParse({ ...valid, lines: [product, discount] }).success).toBe(true);
   });
 
   it("rejects a quantity or unit price just past the limits", () => {

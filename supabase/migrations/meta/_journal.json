@@ -50,6 +50,13 @@
       "when": 1792426045778,
       "tag": "20261019160725_orders_amounts_bigint",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792431235529,
+      "tag": "20261019173355_orders_total_not_negative",
+      "breakpoints": true
     }
   ]
 }
