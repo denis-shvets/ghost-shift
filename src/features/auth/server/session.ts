@@ -1,5 +1,5 @@
 import { redirect } from "@tanstack/react-router";
-import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
+import { deleteCookie, getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server";
 import type { Session } from "@supabase/supabase-js";
 
 import { type UserClaims, toUserClaims } from "~/shared/auth/user-claims";
@@ -36,11 +36,18 @@ export async function endSession(env: ServerEnv) {
   }
 }
 
+// Browsers send the cookie. Scripts and local tools send "Authorization: Bearer <token>" instead.
+// A malformed header is ignored, so the cookie (or no token) decides.
+function readAccessToken(): string | undefined {
+  const match = /^Bearer\s+(\S+)$/i.exec(getRequestHeader("authorization") ?? "");
+  return match?.[1] ?? getCookie(ACCESS_TOKEN_COOKIE);
+}
+
 // shortcut: makes two Supabase calls per request, revisit if traffic grows.
 // getUser asks Supabase that the session still exists (a revoked token fails here),
 // and getClaims reads the custom claims such as global_roles.
 export async function readCurrentUser(env: ServerEnv): Promise<UserClaims | null> {
-  const token = getCookie(ACCESS_TOKEN_COOKIE);
+  const token = readAccessToken();
   if (!token) return null;
 
   const auth = createAuthClient(env).auth;

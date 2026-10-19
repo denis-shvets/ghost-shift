@@ -1,4 +1,4 @@
-import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
+import { deleteCookie, getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server";
 import type { Session } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,7 @@ const { getClaims, getUser } = vi.hoisted(() => ({ getClaims: vi.fn(), getUser: 
 vi.mock("@tanstack/react-start/server", () => ({
   setCookie: vi.fn(),
   getCookie: vi.fn(),
+  getRequestHeader: vi.fn(),
   deleteCookie: vi.fn(),
 }));
 
@@ -78,6 +79,7 @@ describe("sign-in gate", () => {
     vi.mocked(getCookie).mockReset();
     getClaims.mockReset();
     getUser.mockReset();
+    vi.mocked(getRequestHeader).mockReset();
     getUser.mockResolvedValue({ data: { user: {} }, error: null });
     vi.mocked(createAuthClient).mockReturnValue({
       auth: { getClaims, getUser },
@@ -92,6 +94,46 @@ describe("sign-in gate", () => {
       expect(getUser).not.toHaveBeenCalled();
       expect(getClaims).not.toHaveBeenCalled();
     });
+
+    it("accepts a Bearer token from the Authorization header", async () => {
+      vi.mocked(getRequestHeader).mockReturnValue("Bearer header-token");
+      getClaims.mockResolvedValue({ data: { claims: validClaims }, error: null });
+
+      await expect(readCurrentUser(env)).resolves.toEqual(validClaims);
+      expect(getUser).toHaveBeenCalledWith("header-token");
+      expect(getClaims).toHaveBeenCalledWith("header-token");
+    });
+
+    it("still accepts the cookie when there is no Authorization header", async () => {
+      vi.mocked(getRequestHeader).mockReturnValue(undefined);
+      vi.mocked(getCookie).mockReturnValue("token");
+      getClaims.mockResolvedValue({ data: { claims: validClaims }, error: null });
+
+      await expect(readCurrentUser(env)).resolves.toEqual(validClaims);
+      expect(getUser).toHaveBeenCalledWith("token");
+    });
+
+    it("prefers the Bearer token when both the header and the cookie are present", async () => {
+      vi.mocked(getRequestHeader).mockReturnValue("Bearer header-token");
+      vi.mocked(getCookie).mockReturnValue("cookie-token");
+      getClaims.mockResolvedValue({ data: { claims: validClaims }, error: null });
+
+      await readCurrentUser(env);
+      expect(getUser).toHaveBeenCalledWith("header-token");
+      expect(getUser).not.toHaveBeenCalledWith("cookie-token");
+    });
+
+    // A malformed or empty header counts as no token, the same as a missing cookie.
+    it.each(["Bearer", "Bearer ", "Basic abc123", "Bearer a b", ""])(
+      "returns null for the malformed Authorization header %j when there is no cookie",
+      async (header) => {
+        vi.mocked(getRequestHeader).mockReturnValue(header);
+        vi.mocked(getCookie).mockReturnValue(undefined);
+
+        await expect(readCurrentUser(env)).resolves.toBeNull();
+        expect(getUser).not.toHaveBeenCalled();
+      },
+    );
 
     // A session ended by sign-out (or revoked elsewhere) is rejected here, before its token expires.
     it("returns null when Supabase says the session no longer exists", async () => {

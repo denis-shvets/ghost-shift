@@ -20,7 +20,7 @@ signIn function    src/features/auth/server/functions.ts
   │  asks Supabase Auth to check the password, then stores the login token in a cookie
   ▼
 Next page request  src/features/orders/server/functions.ts
-  │  reads the cookie, asks Supabase to verify the token and return its claims
+  │  reads the cookie (or an "Authorization: Bearer" header for non-browser callers), asks Supabase to verify the token and return its claims
   ▼
 withUser(user)     src/shared/db/client.ts
   │  tells Postgres "this query is from this signed-in user"
