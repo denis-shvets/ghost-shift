@@ -90,4 +90,16 @@ describe("handleDeveloperRequest", () => {
     expect(close).toHaveBeenCalledOnce();
     consoleError.mockRestore();
   });
+
+  it("returns 500 JSON when the sign-in check itself fails, without opening the database", async () => {
+    readCurrentUser.mockRejectedValue(new Error("fetch failed"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await handleDeveloperRequest(vi.fn());
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Internal error" });
+    expect(close).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 });

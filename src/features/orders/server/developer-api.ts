@@ -17,18 +17,20 @@ export function json(body: unknown, status = 200) {
 export async function handleDeveloperRequest(
   run: (db: Database, user: UserClaims) => Promise<Response>,
 ): Promise<Response> {
-  const config = parseServerEnv(env);
-  const user = await readCurrentUser(config);
-  if (!user) return json({ error: "Unauthorized" }, 401);
-
+  // Everything that can fail sits inside the try, so scripts always get JSON back.
+  let db: Database | undefined;
   try {
-    requirePlatformDeveloper(user);
-  } catch {
-    return json({ error: "Forbidden" }, 403);
-  }
+    const config = parseServerEnv(env);
+    const user = await readCurrentUser(config);
+    if (!user) return json({ error: "Unauthorized" }, 401);
 
-  const db = createDb(config.DATABASE_URL);
-  try {
+    try {
+      requirePlatformDeveloper(user);
+    } catch {
+      return json({ error: "Forbidden" }, 403);
+    }
+
+    db = createDb(config.DATABASE_URL);
     return await run(db, user);
   } catch (error) {
     // A store the user can't see is reported as missing, the same as one that doesn't exist.
@@ -37,6 +39,6 @@ export async function handleDeveloperRequest(
     console.error(error);
     return json({ error: "Internal error" }, 500);
   } finally {
-    await db.close();
+    await db?.close();
   }
 }
