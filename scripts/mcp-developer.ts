@@ -23,6 +23,35 @@ export function isLocalUrl(url: string): boolean {
   }
 }
 
+// An empty line in .dev.vars counts as unset, so the default applies.
+const unsetIfEmpty = (value: unknown) => (value === "" ? undefined : value);
+
+const localUrl = (name: string) =>
+  z
+    .string({ error: `${name} is required. Copy .dev.vars.example to .dev.vars.` })
+    .refine(isLocalUrl, {
+      error: `${name} must be an http:// or https:// URL on 127.0.0.1 or localhost, e.g. http://localhost:3000. This server is for local development only.`,
+    });
+
+export const configInput = z.object({
+  SUPABASE_URL: z.preprocess(unsetIfEmpty, localUrl("SUPABASE_URL")),
+  SUPABASE_PUBLISHABLE_KEY: z.preprocess(
+    unsetIfEmpty,
+    z.string({ error: "SUPABASE_PUBLISHABLE_KEY is required (see .dev.vars.example)." }),
+  ),
+  APP_URL: z.preprocess(unsetIfEmpty, localUrl("APP_URL").default("http://localhost:3000")),
+  SEED_DEVELOPER_EMAIL: z.preprocess(
+    unsetIfEmpty,
+    z
+      .email({ error: "SEED_DEVELOPER_EMAIL must be an email address." })
+      .default("developer@ghostshift.test"),
+  ),
+  SEED_PASSWORD: z.preprocess(
+    unsetIfEmpty,
+    z.string({ error: "SEED_PASSWORD is required. Set it in .dev.vars (see .dev.vars.example)." }),
+  ),
+});
+
 export const productsInput = z.object({
   count: z.number().int().min(1).max(20).optional(),
 });
@@ -97,15 +126,13 @@ function createApiClient(config: {
   }
 
   async function request(path: string, init: RequestInit = {}) {
-    const send = (bearer: string) =>
-      fetch(new URL(path, config.appUrl), {
-        ...init,
-        headers: {
-          ...init.headers,
-          "content-type": "application/json",
-          authorization: `Bearer ${bearer}`,
-        },
-      });
+    const send = (bearer: string) => {
+      // new Headers() keeps headers given as a Headers object or pairs; spreading would drop them.
+      const headers = new Headers(init.headers);
+      headers.set("content-type", "application/json");
+      headers.set("authorization", `Bearer ${bearer}`);
+      return fetch(new URL(path, config.appUrl), { ...init, headers });
+    };
 
     let response = await send(token ?? (await signIn()));
     if (response.status === 401) response = await send(await signIn());
@@ -130,7 +157,7 @@ export async function runTool(
       return toolText(await api.request("/api/developer/stores"));
     case "list_sample_products": {
       const input = productsInput.safeParse(args);
-      if (!input.success) return toolError(input.error.message);
+      if (!input.success) return toolError(`Invalid input: ${issueText(input.error.issues)}`);
       return toolText(SAMPLE_PRODUCTS.slice(0, input.data.count ?? SAMPLE_PRODUCTS.length));
     }
     case "create_order": {
@@ -149,31 +176,15 @@ export async function runTool(
 }
 
 function readConfig() {
-  const config = {
-    // || (not ??) so an empty line in .dev.vars falls back to the default.
-    supabaseUrl: process.env.SUPABASE_URL || "",
-    publishableKey: process.env.SUPABASE_PUBLISHABLE_KEY || "",
-    appUrl: process.env.APP_URL || "http://localhost:3000",
-    email: process.env.SEED_DEVELOPER_EMAIL || "developer@ghostshift.test",
-    password: process.env.SEED_PASSWORD || "",
+  const env = configInput.safeParse(process.env);
+  if (!env.success) throw new Error(z.prettifyError(env.error));
+  return {
+    supabaseUrl: env.data.SUPABASE_URL,
+    publishableKey: env.data.SUPABASE_PUBLISHABLE_KEY,
+    appUrl: env.data.APP_URL,
+    email: env.data.SEED_DEVELOPER_EMAIL,
+    password: env.data.SEED_PASSWORD,
   };
-  if (!config.supabaseUrl)
-    throw new Error("SUPABASE_URL is required. Copy .dev.vars.example to .dev.vars.");
-  if (!config.publishableKey)
-    throw new Error("SUPABASE_PUBLISHABLE_KEY is required (see .dev.vars.example).");
-  if (!config.password)
-    throw new Error("SEED_PASSWORD is required. Set it in .dev.vars (see .dev.vars.example).");
-  // Refuses anything that isn't this machine, the same check scripts/seed-users.ts makes.
-  for (const [name, url] of [
-    ["SUPABASE_URL", config.supabaseUrl],
-    ["APP_URL", config.appUrl],
-  ] as const) {
-    if (!isLocalUrl(url))
-      throw new Error(
-        `${name} is "${url}". It must start with http:// and point at 127.0.0.1 or localhost, e.g. http://localhost:3000. This server is for local development only.`,
-      );
-  }
-  return config;
 }
 
 async function main() {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
 
-import { apiErrorText, isLocalUrl, productsInput } from "./mcp-developer.ts";
+import { apiErrorText, configInput, isLocalUrl, productsInput } from "./mcp-developer.ts";
 
 const validOrder = {
   storeId: "00000000-0000-4000-8000-000000000001",
@@ -79,5 +79,26 @@ describe("apiErrorText", () => {
         issues: [{ path: ["lines"], message: "Too small" }],
       }),
     ).toBe("HTTP 400: Invalid input (lines: Too small)");
+  });
+});
+
+describe("configInput", () => {
+  const env = {
+    SUPABASE_URL: "http://127.0.0.1:64321",
+    SUPABASE_PUBLISHABLE_KEY: "key",
+    SEED_PASSWORD: "secret",
+  };
+
+  it("fills in the defaults, also for empty lines in .dev.vars", () => {
+    expect(configInput.parse({ ...env, APP_URL: "", SEED_DEVELOPER_EMAIL: "" })).toMatchObject({
+      APP_URL: "http://localhost:3000",
+      SEED_DEVELOPER_EMAIL: "developer@ghostshift.test",
+    });
+  });
+
+  it("rejects a missing password, a remote URL and an invalid email", () => {
+    expect(configInput.safeParse({ ...env, SEED_PASSWORD: "" }).success).toBe(false);
+    expect(configInput.safeParse({ ...env, APP_URL: "https://example.com" }).success).toBe(false);
+    expect(configInput.safeParse({ ...env, SEED_DEVELOPER_EMAIL: "nope" }).success).toBe(false);
   });
 });

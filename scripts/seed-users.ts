@@ -23,13 +23,19 @@ if (!agentEmail.success) {
   );
 }
 
-// The MCP server signs in with the same address, so both read SEED_DEVELOPER_EMAIL.
-const developerEmail = process.env.SEED_DEVELOPER_EMAIL || "developer@ghostshift.test";
+// The MCP server signs in with the same address, so both read SEED_DEVELOPER_EMAIL. Empty means the default.
+const developerEmail = z
+  .email()
+  .default("developer@ghostshift.test")
+  .safeParse(process.env.SEED_DEVELOPER_EMAIL || undefined);
+if (!developerEmail.success) {
+  throw new Error("SEED_DEVELOPER_EMAIL must be a valid email address, or empty for the default.");
+}
 
 // A person may hold several roles at the same company or store (ADR 0015).
 const seedUsers = [
   {
-    email: developerEmail,
+    email: developerEmail.data,
     globalRoles: ["platform_developer"],
     organizationRoles: [],
     storeRoles: [],
