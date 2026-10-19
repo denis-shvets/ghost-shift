@@ -56,7 +56,7 @@ export const productsInput = z.object({
   count: z.number().int().min(1).max(20).optional(),
 });
 
-// Readable form of Zod issues, e.g. "shopper.email: Invalid email address; lines: Too small".
+// Readable form of Zod issues, e.g. "customer.email: Invalid email address; lines: Too small".
 export function issueText(issues: { path?: PropertyKey[]; message?: string }[]): string {
   return issues
     .map((issue) => `${(issue.path ?? []).map(String).join(".") || "order"}: ${issue.message}`)

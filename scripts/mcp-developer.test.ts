@@ -6,7 +6,23 @@ import { apiErrorText, configInput, isLocalUrl, productsInput } from "./mcp-deve
 
 const validOrder = {
   storeId: "00000000-0000-4000-8000-000000000001",
-  shopper: { name: "Test Shopper", email: "shopper@example.com", country: "DE" },
+  customer: { firstName: "Test", lastName: "Customer", email: "customer@example.com" },
+  billingAddress: {
+    firstName: "Test",
+    lastName: "Customer",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "DE",
+  },
+  shippingAddress: {
+    firstName: "Test",
+    lastName: "Customer",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "DE",
+  },
   paymentMethod: "card",
   shippingCarrier: "Test Carrier",
   lines: [{ type: "physical", name: "Widget", quantity: 2, unitPrice: 1000, taxRate: 1900 }],

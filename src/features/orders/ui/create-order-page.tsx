@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { type SyntheticEvent, useEffect, useState } from "react";
 
 import { type CreateOrderInput, MAX_LINE_QUANTITY } from "../model/create-order-input";
+import { PAYMENT_METHOD_LABELS } from "../model/order-labels";
 import { formatMoney } from "../model/money";
 import { lineTotal, orderTotal } from "../model/order-total";
 import { SAMPLE_PRODUCTS, type SampleProduct } from "../model/sample-products";
@@ -73,15 +74,25 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setMessage("");
+    const address = {
+      firstName: String(form.get("firstName")),
+      lastName: String(form.get("lastName")),
+      streetAddress: String(form.get("streetAddress")),
+      postalCode: String(form.get("postalCode")),
+      city: String(form.get("city")),
+      country: String(form.get("country")),
+    };
     try {
       const order = await createOrderOnServer({
         data: {
           storeId,
-          shopper: {
-            name: String(form.get("shopperName")),
-            email: String(form.get("shopperEmail")),
-            country: String(form.get("shopperCountry")),
+          customer: {
+            firstName: String(form.get("firstName")),
+            lastName: String(form.get("lastName")),
+            email: String(form.get("email")),
           },
+          billingAddress: address,
+          shippingAddress: address,
           // The server validates these values; the select only offers valid options.
           paymentMethod: String(form.get("paymentMethod")) as CreateOrderInput["paymentMethod"],
           shippingCarrier: String(form.get("shippingCarrier")),
@@ -175,28 +186,51 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
         </p>
         <p>
           <label>
-            Shopper name <input name="shopperName" required />
+            First name <input name="firstName" required />
           </label>
         </p>
         <p>
           <label>
-            Shopper email <input name="shopperEmail" type="email" required />
+            Last name <input name="lastName" required />
           </label>
         </p>
         <p>
           <label>
-            Shopper country (2 letters){" "}
-            <input name="shopperCountry" required pattern="[A-Z]{2}" maxLength={2} />
+            Email <input name="email" type="email" required />
           </label>
         </p>
+        <fieldset>
+          <legend>Address</legend>
+          <p>
+            <label>
+              Street address <input name="streetAddress" required />
+            </label>
+          </p>
+          <p>
+            <label>
+              Postal code <input name="postalCode" required />
+            </label>
+          </p>
+          <p>
+            <label>
+              City <input name="city" required />
+            </label>
+          </p>
+          <p>
+            <label>
+              Country (2 letters) <input name="country" required pattern="[A-Z]{2}" maxLength={2} />
+            </label>
+          </p>
+        </fieldset>
         <p>
           <label>
             Payment method{" "}
             <select name="paymentMethod" defaultValue="card">
-              <option value="card">Card</option>
-              <option value="invoice">Invoice</option>
-              <option value="wallet">Wallet</option>
-              <option value="bank_transfer">Bank transfer</option>
+              {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
             </select>
           </label>
         </p>

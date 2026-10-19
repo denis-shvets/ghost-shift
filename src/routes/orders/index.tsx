@@ -25,7 +25,7 @@ function Orders() {
           <tr>
             <th>Reference</th>
             <th>Created</th>
-            <th>Shopper</th>
+            <th>Customer</th>
             <th>Payment method</th>
             <th>Status</th>
             <th>Total</th>
@@ -40,7 +40,9 @@ function Orders() {
                 </Link>
               </td>
               <td>{formatMockDateTime(order.createdAt.toISOString())}</td>
-              <td>{order.shopperName}</td>
+              <td>
+                {order.customerFirstName} {order.customerLastName}
+              </td>
               <td>{order.paymentMethod}</td>
               <td>{order.status}</td>
               <td>{formatMoney(order.totalAmount, order.currency)}</td>

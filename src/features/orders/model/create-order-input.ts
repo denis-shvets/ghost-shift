@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { orderTotal } from "./order-total";
+import { PAYMENT_METHODS } from "./payment-methods";
 
 // The most units one line may hold. The create page caps added quantities at the same value.
 export const MAX_LINE_QUANTITY = 10000;
@@ -33,15 +34,35 @@ const orderLineInput = z
     }
   });
 
+export const addressInput = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  company: z.string().min(1).optional(),
+  streetAddress: z.string().min(1),
+  streetAddress2: z.string().min(1).optional(),
+  postalCode: z.string().min(1),
+  city: z.string().min(1),
+  region: z.string().min(1).optional(),
+  // ISO 3166-1 alpha-2 country code, for example SE.
+  country: z.string().regex(/^[A-Z]{2}$/),
+  phone: z.string().min(1).optional(),
+});
+
+export type AddressInput = z.infer<typeof addressInput>;
+
 // What a developer sends to create a test order. Later server code takes the currency from the store.
+// Both addresses are required; the page copies billing into shipping when they are the same.
 export const createOrderInput = z.object({
   storeId: z.uuid(),
-  shopper: z.object({
-    name: z.string().min(1),
+  customer: z.object({
+    firstName: z.string().min(1),
+    lastName: z.string().min(1),
     email: z.email(),
-    country: z.string().regex(/^[A-Z]{2}$/),
+    phone: z.string().min(1).optional(),
   }),
-  paymentMethod: z.enum(["card", "invoice", "wallet", "bank_transfer"]),
+  billingAddress: addressInput,
+  shippingAddress: addressInput,
+  paymentMethod: z.enum(PAYMENT_METHODS),
   shippingCarrier: z.string().min(1),
   lines: z
     .array(orderLineInput)

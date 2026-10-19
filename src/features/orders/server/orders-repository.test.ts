@@ -118,9 +118,9 @@ describe("listOrders", () => {
         createdAt: new Date(shared),
         storeId: "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
         currency: "SEK",
-        shopperName: "Test Shopper",
-        shopperEmail: "tie@example.com",
-        shopperCountry: "SE",
+        customerFirstName: "Test",
+        customerLastName: "Customer",
+        customerEmail: "tie@example.com",
         paymentMethod: "card",
         status: "authorized",
         totalAmount: 1000,
@@ -173,7 +173,7 @@ describe("getOrder", () => {
 
     expect(order).toMatchObject({
       reference: "MG-1003",
-      status: "part_refunded",
+      status: "captured",
       refundedAmount: 4000,
       storeName: "Moonlight Goods Finland",
     });
@@ -223,7 +223,23 @@ const swedenStore = "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6";
 
 const newOrder: CreateOrderInput = {
   storeId: swedenStore,
-  shopper: { name: "Test Developer", email: "dev@example.com", country: "SE" },
+  customer: { firstName: "Test", lastName: "Developer", email: "dev@example.com" },
+  billingAddress: {
+    firstName: "Test",
+    lastName: "Developer",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
+  shippingAddress: {
+    firstName: "Test",
+    lastName: "Developer",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
   paymentMethod: "card",
   shippingCarrier: "PostNord",
   lines: [
@@ -284,6 +300,19 @@ describe("createOrder", () => {
       { position: 2, name: "Shipping", totalAmount: 4900 },
       { position: 3, name: "Welcome", totalAmount: -500 },
     ]);
+
+    const saved = await getOrder(db, developer, id);
+    expect(saved?.addresses.map((address) => address.kind)).toEqual(["billing", "shipping"]);
+    expect(saved?.events).toMatchObject([
+      {
+        occurredAt: order!.createdAt,
+        action: "authorized",
+        actorName: "Phantom Checkout",
+        metadata: { amount: 6400 },
+      },
+    ]);
+    // A card authorization runs out after 7 days.
+    expect(order!.expiresAt.getTime() - order!.createdAt.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
   });
 
   it("denies users who can't create orders, and writes nothing", async () => {

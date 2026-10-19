@@ -12,7 +12,7 @@ import { stores } from "~/features/stores/db/schema";
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { createDb, withRole, withUser } from "~/shared/db/client";
 
-import { orderLines, orders } from "./schema";
+import { orderEvents, orderLines, orders } from "./schema";
 
 // These tests check the row-level security rules themselves, against the local database.
 // They need the database with seed data (`pnpm db:reset`), not the Auth service.
@@ -108,9 +108,37 @@ describe("signed-in users see what their access allows", () => {
   it("can't write orders, because no write policy exists yet", async () => {
     await expect(
       withUser(db, asUser(testAccounts.merchantA), (tx) =>
-        tx.execute(sql`update public.orders set shopper_name = 'Changed'`),
+        tx.execute(sql`update public.orders set customer_first_name = 'Changed'`),
       ),
     ).rejects.toMatchObject(permissionDenied);
+  });
+});
+
+describe("timeline events a developer adds", () => {
+  // MG-1001, a Moonlight Goods order the developer may add events to.
+  const moonlightOrder = "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922";
+
+  function addEvent(values: { actorUserId: string; action: "authorized" | "refunded" }) {
+    return withUser(db, asUser(testAccounts.developer), (tx) =>
+      tx.insert(orderEvents).values({
+        orderId: moonlightOrder,
+        actorName: "Phantom Checkout",
+        metadata: { amount: 1 },
+        ...values,
+      }),
+    );
+  }
+
+  it("must name the developer as the actor", async () => {
+    await expect(
+      addEvent({ actorUserId: testAccounts.merchantA, action: "authorized" }),
+    ).rejects.toThrow();
+  });
+
+  it("can only be an authorization, so refunds can't be made up", async () => {
+    await expect(
+      addEvent({ actorUserId: testAccounts.developer, action: "refunded" }),
+    ).rejects.toThrow();
   });
 });
 
@@ -224,9 +252,9 @@ describe("creating orders", () => {
       reference,
       storeId: moonlightSweden,
       currency: "SEK",
-      shopperName: "Test Shopper",
-      shopperEmail: "shopper@ghostshift.test",
-      shopperCountry: "SE",
+      customerFirstName: "Test",
+      customerLastName: "Customer",
+      customerEmail: "customer@ghostshift.test",
       paymentMethod: "card" as const,
       status: "authorized" as const,
       totalAmount: 20000,

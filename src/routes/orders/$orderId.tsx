@@ -34,9 +34,9 @@ function OrderDetail() {
         <dd>{order.status}</dd>
         <dt>Created</dt>
         <dd>{formatMockDateTime(order.createdAt.toISOString())}</dd>
-        <dt>Shopper</dt>
+        <dt>Customer</dt>
         <dd>
-          {order.shopperName}, {order.shopperEmail}, {order.shopperCountry}
+          {order.customerFirstName} {order.customerLastName}, {order.customerEmail}
         </dd>
         <dt>Payment method</dt>
         <dd>{order.paymentMethod}</dd>

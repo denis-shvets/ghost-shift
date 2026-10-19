@@ -10,7 +10,23 @@ type Registered = {
 
 const validOrder = {
   storeId: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  shopper: { name: "Ada", email: "ada@example.com", country: "SE" },
+  customer: { firstName: "Ada", lastName: "Lovelace", email: "ada@example.com" },
+  billingAddress: {
+    firstName: "Ada",
+    lastName: "Lovelace",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
+  shippingAddress: {
+    firstName: "Ada",
+    lastName: "Lovelace",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
   paymentMethod: "card",
   shippingCarrier: "PostNord",
   lines: [
