@@ -166,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      '@faker-js/faker':
+        specifier: 10.6.0
+        version: 10.6.0
       '@supabase/supabase-js':
         specifier: 2.118.0
         version: 2.118.0
@@ -817,6 +820,10 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@faker-js/faker@10.6.0':
+    resolution: {integrity: sha512-3RQHgEtvL1Frl/d1cSreo7qhJ3Gk1OdNUai/CtZ8G+wYeRQnJih3s9xJ9/kgYekPQRdwgh0HXRPqMlzWGwivIQ==}
+    engines: {node: ^20.19.0 || ^22.13.0 || ^23.5.0 || >=24.0.0, npm: '>=10'}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -2902,6 +2909,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@faker-js/faker@10.6.0': {}
 
   '@img/colour@1.1.0': {}
 

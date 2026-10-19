@@ -23,6 +23,7 @@
     "cf:types": "wrangler types --include-runtime=false"
   },
   "dependencies": {
+    "@faker-js/faker": "10.6.0",
     "@supabase/supabase-js": "2.118.0",
     "@tanstack/react-router": "1.170.45",
     "@tanstack/react-start": "1.169.3",
