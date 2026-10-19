@@ -37,6 +37,7 @@ Rejected: Neon (Postgres only, no auth, realtime or storage), Cloudflare D1 (SQL
 - Hosted: a free project, linked with `supabase link`, with migrations applied by `supabase db push`. The live site connects through the transaction pooler (port 6543) using the `DATABASE_URL` Cloudflare secret. Step by step in the README's "Set up the hosted database".
 - New hosted projects don't grant `anon` and `authenticated` access to new tables, but local Supabase does. Every table therefore gets explicit `grant` statements in a migration, so all databases behave the same.
 - Use `supabase-js` for auth, realtime and storage. Use Drizzle for database queries.
+- Scheduled jobs that only change data, such as expiring orders, run in the database with pg_cron (see [0016](0016-scheduled-jobs-pg-cron.md)).
 
 ## Known limits (free plan, checked 2026-10-17; sources disagree, confirm on the pricing page)
 

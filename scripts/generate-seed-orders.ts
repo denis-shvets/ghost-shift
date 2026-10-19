@@ -208,7 +208,11 @@ function makeEvents(order: {
       action: "expired",
       occurredAt: expiresAt,
       actorName: "System",
-      metadata: { releasedAmount: totalAmount - capturedAmount },
+      // The same reason public.expire_orders() writes.
+      metadata: {
+        releasedAmount: totalAmount - capturedAmount,
+        reason: `Authorization expired after ${Math.round((expiresAt.getTime() - createdAt.getTime()) / (24 * HOUR))} days`,
+      },
     });
   }
   return events;

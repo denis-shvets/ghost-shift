@@ -88,6 +88,10 @@ export const orders = pgTable(
     check("orders_expires_after_created_check", sql`${table.expiresAt} > ${table.createdAt}`),
     // Matches the list's sort order, so pages come straight off the index.
     index("orders_created_at_id_idx").on(table.createdAt.desc(), table.id.desc()),
+    // Only open authorizations, so public.expire_orders() finds the due ones without a full scan.
+    index("orders_authorized_expires_at_idx")
+      .on(table.expiresAt)
+      .where(sql`${table.status} = 'authorized'`),
   ],
 ).enableRLS();
 

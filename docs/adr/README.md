@@ -20,6 +20,7 @@ Free-tier limits change often. Every limit below was checked on **2026-10-17**; 
 | 0013 | [Oxlint and Oxfmt for linting and formatting](0013-lint-format.md)     | Accepted |
 | 0014 | [No UI design in the first scaffold](0014-no-design-yet.md)            | Accepted |
 | 0015 | [Role-based access with scoped assignments](0015-role-based-access.md) | Accepted |
+| 0016 | [Scheduled jobs run in pg_cron](0016-scheduled-jobs-pg-cron.md)        | Accepted |
 
 New decision: copy [template.md](template.md), take the next number, add a row here.
 A decision is never edited away: replace it with a new ADR and mark the old one `Superseded by NNNN`.
