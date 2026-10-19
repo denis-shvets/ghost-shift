@@ -7,6 +7,7 @@ import {
   testAccounts,
   testDatabaseUrl,
 } from "~/features/access/db/test-accounts";
+import { organizations } from "~/features/organizations/db/schema";
 import { stores } from "~/features/stores/db/schema";
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { createDb, withRole, withUser } from "~/shared/db/client";
@@ -110,6 +111,29 @@ describe("signed-in users see what their access allows", () => {
         tx.execute(sql`update public.orders set shopper_name = 'Changed'`),
       ),
     ).rejects.toMatchObject(permissionDenied);
+  });
+});
+
+describe("organization names", () => {
+  // Organizations are read through their own policy, not through the store's.
+  function readableOrganizations(userId: string) {
+    return withUser(db, asUser(userId), (tx) => tx.select().from(organizations)).then((rows) =>
+      rows.map((organization) => organization.id).sort(),
+    );
+  }
+
+  it("a platform operator can't read any organization name", async () => {
+    expect(await readableOrganizations(testAccounts.operator)).toEqual([]);
+  });
+
+  it("a platform developer can read every organization name", async () => {
+    expect(await readableOrganizations(testAccounts.developer)).toEqual(
+      Object.values(seedIds.organizations).sort(),
+    );
+  });
+
+  it("a merchant can read only their own organization", async () => {
+    expect(await readableOrganizations(testAccounts.merchantA)).toEqual([moonlightGoods]);
   });
 });
 
