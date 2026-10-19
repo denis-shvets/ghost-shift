@@ -4,6 +4,9 @@ SUPABASE_URL=http://127.0.0.1:64321
 SUPABASE_PUBLISHABLE_KEY=
 # Password for the seeded local accounts (`pnpm db:seed-users`). Local only; pick anything.
 SEED_PASSWORD=
+# Optional. Email for the seeded developer account (default developer@ghostshift.test).
+# The developer MCP server signs in with the same address.
+SEED_DEVELOPER_EMAIL=
 # Email address for the seeded agent account (`pnpm db:seed-users`). Any address you can receive mail at,
 # e.g. a Gmail plus-address like yourname+orders-agent@gmail.com. Local only; never commit it.
 SEED_AGENT_EMAIL=

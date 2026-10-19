@@ -23,10 +23,13 @@ if (!agentEmail.success) {
   );
 }
 
+// The MCP server signs in with the same address, so both read SEED_DEVELOPER_EMAIL.
+const developerEmail = process.env.SEED_DEVELOPER_EMAIL || "developer@ghostshift.test";
+
 // A person may hold several roles at the same company or store (ADR 0015).
 const seedUsers = [
   {
-    email: "developer@ghostshift.test",
+    email: developerEmail,
     globalRoles: ["platform_developer"],
     organizationRoles: [],
     storeRoles: [],
