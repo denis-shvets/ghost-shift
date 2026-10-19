@@ -33,7 +33,9 @@ export async function handleDeveloperRequest(
   } catch (error) {
     // A store the user can't see is reported as missing, the same as one that doesn't exist.
     if (error instanceof StoreNotFoundError) return json({ error: "Store not found" }, 404);
-    throw error;
+    // Anything else (a database rule, a reference clash) still answers in JSON, so scripts can read it.
+    console.error(error);
+    return json({ error: "Internal error" }, 500);
   } finally {
     await db.close();
   }

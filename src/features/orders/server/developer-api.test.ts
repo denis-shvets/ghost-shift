@@ -76,4 +76,18 @@ describe("handleDeveloperRequest", () => {
     expect(await response.json()).toEqual({ error: "Store not found" });
     expect(close).toHaveBeenCalledOnce();
   });
+
+  it("returns 500 JSON for any other failure, and still closes the database", async () => {
+    readCurrentUser.mockResolvedValue(developer);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await handleDeveloperRequest(async () => {
+      throw new Error("duplicate key value violates unique constraint");
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Internal error" });
+    expect(close).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
+  });
 });
