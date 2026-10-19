@@ -105,12 +105,19 @@ create policy "developers can create orders" on public.orders
 
 Read it as "a new order may be saved when the user has `orders.create` for that order's store". An insert also needs a grant (`grant insert on ... to authenticated`), and the grant and the policy work together: the grant lets the role ask, and the policy decides each row.
 
-Order lines get a second check. A line may only go on an order the user can read, so this policy asks the orders table first:
+Order lines get the same check, made through their order. A line has no `store_id` of its own, so the policy looks up the line's order and asks `has_permission` about that order's store:
 
 ```sql
-create policy "developers can create lines of orders they can read" on public.order_lines
-  for insert to authenticated with check (exists (select 1 from public.orders o where o.id = order_id));
+create policy "developers can create order lines" on public.order_lines
+  for insert to authenticated with check (
+    exists (
+      select 1 from public.orders o
+      where o.id = order_id and public.has_permission('orders.create', o.store_id)
+    )
+  );
 ```
+
+Read it as "a new line may be saved when its order exists, the user can see it, and the user has `orders.create` for its store". Being able to _read_ the order is not enough. A merchant can read their own orders, and without the `has_permission` part they could add lines to an order that was already paid.
 
 The migration is `supabase/migrations/20261019015532_orders_create_access.sql`. It inserts the permission, gives it to `platform_developer` only, grants insert (never update or delete) and adds the two policies above.
 

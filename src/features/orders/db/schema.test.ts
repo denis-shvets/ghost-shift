@@ -319,6 +319,31 @@ describe("creating orders", () => {
       await removeOrder(reference);
     }
   });
+
+  it("a merchant can't add lines to their own store's order, even though they can read it", async () => {
+    const reference = `TEST-${randomUUID()}`;
+    try {
+      await withUser(db, asUser(testAccounts.developer), (tx) =>
+        tx.insert(orders).values(newOrder(reference)),
+      );
+      const [order] = await db.select().from(orders).where(eq(orders.reference, reference));
+      await expect(
+        withUser(db, asUser(testAccounts.merchantA), (tx) =>
+          tx.insert(orderLines).values({
+            orderId: order!.id,
+            position: 1,
+            type: "physical",
+            name: "Extra line",
+            quantity: 1,
+            unitPrice: 100,
+            taxRate: 0,
+          }),
+        ),
+      ).rejects.toMatchObject(permissionDenied);
+    } finally {
+      await removeOrder(reference);
+    }
+  });
 });
 
 describe("access token hook", () => {
