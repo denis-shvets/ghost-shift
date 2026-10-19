@@ -4,8 +4,8 @@ Orders placed through Phantom Checkout, with their lines, payment and shipping.
 
 ## What it does now
 
-- Lists orders, newest first (`/orders`).
-- Shows one order with its store, lines and amounts (`/orders/<uuid>`). An id that isn't a uuid shows "Order not found".
+- Lists orders, newest first, with status, payment method and amounts (`/orders`).
+- Shows one order with its customer, billing and shipping addresses, amounts, lines and a timeline of events (`/orders/<uuid>`). An id that isn't a uuid shows "Order not found".
 - Capture, refund and cancel are visible but disabled.
 - Platform developers can create test orders at `/developer/create-order`. Products come from a fixed list of 20 sample products, and the total uses the store's currency. Anyone else is sent back to `/orders`.
 
@@ -31,14 +31,18 @@ On `/developer/create-order`, a page script registers two tools with `document.m
 
 ## Files
 
-| File                               | Purpose                                     |
-| ---------------------------------- | ------------------------------------------- |
-| `db/schema.ts`                     | Tables, enums and RLS policies              |
-| `server/orders-repository.ts`      | Queries, run through `withUser` (signed-in) |
-| `server/orders-repository.test.ts` | Tests against the local database            |
-| `server/functions.ts`              | Server functions the routes call            |
-| `model/money.ts`                   | Formatting minor-unit amounts               |
-| `model/order-total.ts`             | Line and order totals for the create page   |
-| `ui/create-order-page.tsx`         | The create-order page for developers        |
-| `model/order-id-input.ts`          | Zod schema for the order id a caller sends  |
-| `model/tax-rate.ts`                | Formatting basis points as a percentage     |
+| File                               | Purpose                                                  |
+| ---------------------------------- | -------------------------------------------------------- |
+| `db/schema.ts`                     | Tables, enums and RLS policies                           |
+| `server/orders-repository.ts`      | Queries, run through `withUser` (signed-in)              |
+| `server/orders-repository.test.ts` | Tests against the local database                         |
+| `server/functions.ts`              | Server functions the routes call                         |
+| `model/money.ts`                   | Formatting minor-unit amounts                            |
+| `model/order-total.ts`             | Line and order totals for the create page                |
+| `ui/order-list-page.tsx`           | The `/orders` table and pagination links                 |
+| `ui/order-detail-page.tsx`         | One order: customer, addresses, amounts, lines, timeline |
+| `ui/create-order-page.tsx`         | The create-order page for developers                     |
+| `model/order-id-input.ts`          | Zod schema for the order id a caller sends               |
+| `model/tax-rate.ts`                | Formatting basis points as a percentage                  |
+| `model/order-event-details.ts`     | One readable line per timeline event                     |
+| `model/payment-methods.ts`         | Payment methods and when each authorization expires      |
