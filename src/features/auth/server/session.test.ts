@@ -1,5 +1,5 @@
 import { deleteCookie, getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server";
-import type { Session } from "@supabase/supabase-js";
+import { AuthRetryableFetchError, type Session } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ServerEnv } from "~/shared/env/server-env";
@@ -142,6 +142,16 @@ describe("sign-in gate", () => {
       getClaims.mockResolvedValue({ data: { claims: validClaims }, error: null });
 
       await expect(readCurrentUser(env)).resolves.toBeNull();
+    });
+
+    // An outage must not look like a signed-out user, or callers answer 401 and send people to /login.
+    it("throws when Supabase can't be reached", async () => {
+      vi.mocked(getCookie).mockReturnValue("token");
+      const outage = new AuthRetryableFetchError("fetch failed", 0);
+      getUser.mockResolvedValue({ data: { user: null }, error: outage });
+
+      await expect(readCurrentUser(env)).rejects.toBe(outage);
+      expect(getClaims).not.toHaveBeenCalled();
     });
 
     it("returns null when Supabase rejects the token, even if claims come back", async () => {

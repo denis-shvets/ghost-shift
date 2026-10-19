@@ -1,6 +1,6 @@
 import { redirect } from "@tanstack/react-router";
 import { deleteCookie, getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server";
-import type { Session } from "@supabase/supabase-js";
+import { type Session, isAuthRetryableFetchError } from "@supabase/supabase-js";
 
 import { type UserClaims, toUserClaims } from "~/shared/auth/user-claims";
 import type { ServerEnv } from "~/shared/env/server-env";
@@ -52,6 +52,8 @@ export async function readCurrentUser(env: ServerEnv): Promise<UserClaims | null
 
   const auth = createAuthClient(env).auth;
   const { error: sessionError } = await auth.getUser(token);
+  // Supabase unreachable is an outage, not a signed-out user; throwing keeps it from looking like a 401.
+  if (isAuthRetryableFetchError(sessionError)) throw sessionError;
   if (sessionError) return null;
 
   const { data, error } = await auth.getClaims(token);
