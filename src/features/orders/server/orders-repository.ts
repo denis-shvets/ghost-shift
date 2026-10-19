@@ -73,13 +73,16 @@ export async function listOrdersOrFirstPage(db: Database, user: UserClaims, inpu
 }
 
 // Runs as the signed-in user. Stores they can't read are hidden, so the lookup fails the same way.
+// Thrown when the store is missing or not visible to the user (RLS hides it the same way).
+export class StoreNotFoundError extends Error {}
+
 export function createOrder(db: Database, user: UserClaims, input: CreateOrderInput) {
   return withUser(db, user, async (tx) => {
     const [store] = await tx
       .select({ id: stores.id, currency: stores.currency })
       .from(stores)
       .where(eq(stores.id, input.storeId));
-    if (!store) throw new Error("Store not found");
+    if (!store) throw new StoreNotFoundError("Store not found");
 
     const totalAmount = input.lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
     // shortcut: 8 hex characters, a clash fails on the unique reference constraint, upgrade to a retry if clashes become common

@@ -13,6 +13,7 @@ import { orderLines, orders } from "../db/schema";
 import type { CreateOrderInput } from "../model/create-order-input";
 
 import {
+  StoreNotFoundError,
   createOrder,
   getOrder,
   listOrders,
@@ -307,7 +308,7 @@ describe("createOrder", () => {
   it("hides a store the user can't read as if it didn't exist", async () => {
     const otherStore = { ...newOrder, storeId: "d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6" };
     const merchant: UserClaims = { sub: testAccounts.merchantA, global_roles: [] };
-    await expect(createOrder(db, merchant, otherStore)).rejects.toThrow("Store not found");
+    await expect(createOrder(db, merchant, otherStore)).rejects.toThrow(StoreNotFoundError);
   });
 });
 
