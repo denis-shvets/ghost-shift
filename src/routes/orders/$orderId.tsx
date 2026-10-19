@@ -4,7 +4,7 @@ import { SignOutButton } from "~/features/auth/ui/sign-out-button";
 import { formatMoney } from "~/features/orders/model/money";
 import { formatTaxRate } from "~/features/orders/model/tax-rate";
 import { fetchOrder } from "~/features/orders/server/functions";
-import { formatDateTime } from "~/mocks/format";
+import { formatMockDateTime } from "~/mocks/format";
 
 export const Route = createFileRoute("/orders/$orderId")({
   loader: async ({ params }) => {
@@ -33,7 +33,7 @@ function OrderDetail() {
         <dt>Status</dt>
         <dd>{order.status}</dd>
         <dt>Created</dt>
-        <dd>{formatDateTime(order.createdAt.toISOString())}</dd>
+        <dd>{formatMockDateTime(order.createdAt.toISOString())}</dd>
         <dt>Shopper</dt>
         <dd>
           {order.shopperName}, {order.shopperEmail}, {order.shopperCountry}

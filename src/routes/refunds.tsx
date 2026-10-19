@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { refunds } from "~/mocks/data";
-import { formatDateTime, formatMoney } from "~/mocks/format";
+import { formatMockDateTime, formatMockMoney } from "~/mocks/format";
 
 export const Route = createFileRoute("/refunds")({
   component: Refunds,
@@ -27,10 +27,10 @@ function Refunds() {
             <tr key={refund.id}>
               <td>{refund.id}</td>
               <td>{refund.orderId}</td>
-              <td>{formatMoney(refund.amount)}</td>
+              <td>{formatMockMoney(refund.amount)}</td>
               <td>{refund.reason}</td>
               <td>{refund.by}</td>
-              <td>{formatDateTime(refund.createdAt)}</td>
+              <td>{formatMockDateTime(refund.createdAt)}</td>
             </tr>
           ))}
         </tbody>

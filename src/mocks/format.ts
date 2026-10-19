@@ -1,9 +1,9 @@
 import type { Money } from "./data";
 
-export function formatMoney({ amount, currency }: Money) {
+export function formatMockMoney({ amount, currency }: Money) {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(amount);
 }
 
-export function formatDateTime(iso: string) {
+export function formatMockDateTime(iso: string) {
   return new Date(iso).toLocaleString("en-GB", { timeZone: "UTC" });
 }
