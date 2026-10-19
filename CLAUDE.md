@@ -35,7 +35,7 @@ Rules for AI agents (and humans) changing this repo. The reasons behind the stac
 ## Writing
 
 - US English wording (`canceled`, `color`), but the `en-GB` locale for number and date formatting.
-- Ghost Shift's provider (Phantom Checkout), merchants and data are invented. Don't name or reference real payment providers, their products or anyone's employer projects anywhere in the repo.
+- Ghost Shift's provider (Phantom Checkout), merchants and data are invented. Don't name or reference real payment providers, their products or anyone's employer projects anywhere in the repo. Payment-method names (Amazon Pay, Amex, Apple Pay, Google Pay, PayPal) may be used as enum values and labels.
 
 ## Owner-only steps
 
