@@ -139,6 +139,11 @@ function createApiClient(config: {
 
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok) throw new ApiError(apiErrorText(response.status, body));
+    // Every developer API answer is JSON, so anything else is the wrong server, not a success.
+    if (body === null)
+      throw new ApiError(
+        `HTTP ${response.status}: the response was not JSON. Is APP_URL the Ghost Shift dev server?`,
+      );
     return body;
   }
 
@@ -160,16 +165,11 @@ export async function runTool(
       if (!input.success) return toolError(`Invalid input: ${issueText(input.error.issues)}`);
       return toolText(SAMPLE_PRODUCTS.slice(0, input.data.count ?? SAMPLE_PRODUCTS.length));
     }
-    case "create_order": {
-      const input = createOrderInput.safeParse(args);
-      if (!input.success) return toolError(`Invalid order: ${issueText(input.error.issues)}`);
+    // The API validates the order; its 400 issues reach the agent through apiErrorText.
+    case "create_order":
       return toolText(
-        await api.request("/api/developer/orders", {
-          method: "POST",
-          body: JSON.stringify(input.data),
-        }),
+        await api.request("/api/developer/orders", { method: "POST", body: JSON.stringify(args) }),
       );
-    }
     default:
       return toolError(`Unknown tool: ${name}`);
   }
