@@ -1,4 +1,4 @@
-import { TransactionRollbackError, sql } from "drizzle-orm";
+import { TransactionRollbackError, eq, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -214,6 +214,110 @@ describe("a role can only be granted at its own scope", () => {
           values (${testAccounts.stranger}::uuid, ${nordicBikesGermany}::uuid, 'merchant_admin')`,
       ),
     ).rejects.toMatchObject(foreignKeyViolation);
+  });
+});
+
+describe("creating orders", () => {
+  // Each test uses its own reference, so a failed run can't clash with the next one.
+  function newOrder(reference: string) {
+    return {
+      reference,
+      storeId: moonlightSweden,
+      currency: "SEK",
+      shopperName: "Test Shopper",
+      shopperEmail: "shopper@ghostshift.test",
+      shopperCountry: "SE",
+      paymentMethod: "card" as const,
+      status: "authorized" as const,
+      totalAmount: 20000,
+      shippingCarrier: "PostNord",
+    };
+  }
+
+  // Removes the test order; its lines go with it (on delete cascade). Runs as the owner, so RLS doesn't apply.
+  function removeOrder(reference: string) {
+    return db.delete(orders).where(eq(orders.reference, reference));
+  }
+
+  it("a platform developer can create an order and its lines", async () => {
+    const reference = `TEST-${randomUUID()}`;
+    try {
+      await withUser(db, asUser(testAccounts.developer), async (tx) => {
+        const [order] = await tx.insert(orders).values(newOrder(reference)).returning();
+        await tx.insert(orderLines).values([
+          {
+            orderId: order!.id,
+            position: 1,
+            type: "physical",
+            name: "Test product",
+            quantity: 2,
+            unitPrice: 10000,
+            taxRate: 2500,
+          },
+          {
+            orderId: order!.id,
+            position: 2,
+            type: "discount",
+            name: "Test discount",
+            quantity: 1,
+            unitPrice: -1000,
+            taxRate: 0,
+          },
+        ]);
+      });
+
+      const lines = await db
+        .select()
+        .from(orderLines)
+        .innerJoin(orders, eq(orderLines.orderId, orders.id))
+        .where(eq(orders.reference, reference))
+        .orderBy(orderLines.position);
+      // The database computes the totals, so the app never sends them.
+      expect(lines.map((row) => row.order_lines.totalAmount)).toEqual([20000, -1000]);
+      expect(lines.map((row) => row.order_lines.totalTaxAmount)).toEqual([4000, 0]);
+    } finally {
+      await removeOrder(reference);
+    }
+  });
+
+  it.each([
+    ["a merchant", () => testAccounts.merchantA],
+    ["an agent", () => testAccounts.agent],
+    ["a platform operator", () => testAccounts.operator],
+    ["someone with no access", () => testAccounts.stranger],
+  ])("%s can't create an order", async (_, userId) => {
+    const reference = `TEST-${randomUUID()}`;
+    await expect(
+      withUser(db, asUser(userId()), (tx) => tx.insert(orders).values(newOrder(reference))),
+    ).rejects.toMatchObject(permissionDenied);
+    // Nothing was saved, so there's nothing to clean up. Check anyway.
+    const saved = await db.select().from(orders).where(eq(orders.reference, reference));
+    expect(saved).toEqual([]);
+  });
+
+  it("a merchant can't add lines to an order they can't see", async () => {
+    const reference = `TEST-${randomUUID()}`;
+    try {
+      await withUser(db, asUser(testAccounts.developer), (tx) =>
+        tx.insert(orders).values(newOrder(reference)),
+      );
+      const [order] = await db.select().from(orders).where(eq(orders.reference, reference));
+      await expect(
+        withUser(db, asUser(testAccounts.stranger), (tx) =>
+          tx.insert(orderLines).values({
+            orderId: order!.id,
+            position: 1,
+            type: "physical",
+            name: "Sneaky line",
+            quantity: 1,
+            unitPrice: 100,
+            taxRate: 0,
+          }),
+        ),
+      ).rejects.toMatchObject(permissionDenied);
+    } finally {
+      await removeOrder(reference);
+    }
   });
 });
 

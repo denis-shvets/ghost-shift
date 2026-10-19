@@ -82,7 +82,7 @@ Roles are named for the job, with a prefix for the side (`platform_`, `merchant_
 - **Checked 2026-10-18:** the custom access token hook is not confirmed to be available on Supabase's free plan. If it isn't, the token claim goes away and policies still work, because they read the role tables directly. ADR 0002 requires a free plan.
 - Role changes reach the app after the user's token refreshes, which is up to an hour. Organization and store roles take effect immediately, because they're checked in the database.
 - `has_permission` reads the membership tables on every row check. Fine at this size. Watch it if an order list grows large.
-- Only read policies exist. Write policies are added with the features that need them.
+- Only read policies exist, plus the first write policies: `orders.create` lets only `platform_developer` insert orders and their lines (`orders_create_access`). Other write policies are added with the features that need them.
 - Nothing shows a person's effective permissions yet. Someone has to read several membership rows to see them.
 
 ## Consequences

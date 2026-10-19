@@ -107,7 +107,7 @@ Choices worth knowing:
 
 **Every rule has a name** following `<table>_<what it covers>_<kind>`, with the kind `_fk` (foreign key), `_check` or `_unique`. The name is what appears in the error when the rule refuses a change. For example, `orders_store_currency_fk` tells you straight away it's the store-and-currency link on `orders` ([ADR 0006](../adr/0006-drizzle.md)).
 
-**RLS policies** sit at the bottom of each table, next to the checks. Reading is for signed-in users who hold the `orders.read` permission for the order's store: "members can read orders in their stores" calls `has_permission('orders.read', store_id)`. Nothing allows insert, update or delete yet, and the migrations revoke those privileges outright, so even a buggy page can't change orders. When writes arrive, write policies will say exactly who may capture or refund. See [Sign-in and policies](auth-and-policies.md).
+**RLS policies** sit at the bottom of each table, next to the checks. Reading is for signed-in users who hold the `orders.read` permission for the order's store: "members can read orders in their stores" calls `has_permission('orders.read', store_id)`. Only platform developers may insert orders (`orders.create`, see below). Update and delete aren't allowed for anyone yet, and the migrations revoke those privileges outright, so even a buggy page can't change existing orders. When more writes arrive, write policies will say exactly who may capture or refund. See [Sign-in and policies](auth-and-policies.md).
 
 ### The migration: turning the schema into real tables
 
@@ -127,7 +127,21 @@ The file name starts with a timestamp so migrations always run in the order they
 
 **Why:** Postgres checks two things before a role can read a row. First the **grant**: may this role use the table at all? Then the **RLS policies**: which rows may it see? Local Supabase grants the API roles access to new tables automatically, but newer hosted projects don't. On the first deploy that made the live site fail with "permission denied", even though the policies allowed reading.
 
-This hand-written migration first granted `select` on `stores`, `orders` and `order_lines` to `anon` and `authenticated`, so every database behaved the same. A later migration took `anon` off those tables and gave `authenticated` read access only. There are no insert, update or delete grants, so those are refused before RLS even looks. Drizzle can't generate grants, so every new table needs a migration like this, made with `pnpm db:generate --custom --name <name>` ([ADR 0006](../adr/0006-drizzle.md)).
+This hand-written migration first granted `select` on `stores`, `orders` and `order_lines` to `anon` and `authenticated`, so every database behaved the same. A later migration took `anon` off those tables and gave `authenticated` read access only. Later, `orders_create_access` added an insert grant on `orders` and `order_lines` for `authenticated` only. Update and delete grants still don't exist, so those are refused before RLS even looks. Drizzle can't generate grants, so every new table needs a migration like this, made with `pnpm db:generate --custom --name <name>` ([ADR 0006](../adr/0006-drizzle.md)).
+
+### Creating orders: what gets inserted
+
+**File:** `supabase/migrations/20261019015532_orders_create_access.sql`
+
+**Why:** an insert is the first write into a table. Three things must line up: the grant (may `authenticated` insert?), the `with check` policy (is this row allowed?) and the table's own rules (is the data valid?). Here is the step-by-step:
+
+1. The app sends one row for `orders`: `reference`, `store_id`, `currency`, shopper name, email and country, payment method, `status`, `total_amount`, `shipping_carrier`. Captured and refunded amounts are left out, so they take their defaults of 0.
+2. Postgres checks the grant. `authenticated` has `insert` on `orders`, but no update or delete.
+3. Postgres runs the `with check` policy on the row. `has_permission('orders.create', store_id)` must be true, which is only the case for `platform_developer`.
+4. The database checks the row's own rules. The currency must match the store's currency (the foreign key `orders_store_currency_fk`), and the country code must be two capital letters.
+5. For each line, the app inserts a row into `order_lines`: `order_id`, `position` (1, 2, 3 and so on), `type`, `sku`, `name`, `quantity`, `unit_price` and `tax_rate`. The line policy then checks that the user can read the order.
+
+The app never inserts `total_amount` or `total_tax_amount` on `order_lines`. They are **generated columns**: Postgres computes them from `unit_price`, `quantity` and `tax_rate` on every save, so they can't disagree with the line. Writing a value to them is an error. The order's own `total_amount` is still sent by the app, and no rule yet checks it against the sum of its lines.
 
 ### The seed: demo data
 
@@ -232,7 +246,7 @@ After lint, format, types and build, CI starts **only the database container** (
 ## 4. What's deliberately not done yet
 
 - **Reads follow roles, but nothing changes orders yet.** Each company sees its own orders, and agents see their stores. Write rules come with the write features. See [Sign-in and access](auth-and-policies.md).
-- **No writes.** Capture, refund and cancel are still disabled buttons.
+- **Only inserts, and only for developers.** Platform developers can create orders. Capture, refund and cancel are still disabled buttons.
 - The dashboard and other pages still use `src/mocks/data.ts`.
 
 ## 5. Try it yourself

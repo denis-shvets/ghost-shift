@@ -58,15 +58,15 @@ The roles themselves are listed in `roles`, with their scope. A role's scope lim
 
 Each role then has permissions, listed in `role_permissions`:
 
-| Role                       | Scope        | Permissions                                        |
-| -------------------------- | ------------ | -------------------------------------------------- |
-| `platform_developer`       | global       | all four, plus read organizations                  |
-| `platform_operator`        | global       | read orders and stores                             |
-| `merchant_admin`           | organization | read and edit orders, handle disputes, read stores |
-| `merchant_order_manager`   | organization | read and edit orders, read stores                  |
-| `merchant_dispute_handler` | organization | read orders, handle disputes, read stores          |
-| `agent_first_line`         | store        | read orders and stores                             |
-| `agent_second_line`        | store        | read and edit orders, handle disputes, read stores |
+| Role                       | Scope        | Permissions                                         |
+| -------------------------- | ------------ | --------------------------------------------------- |
+| `platform_developer`       | global       | all four, plus read organizations and create orders |
+| `platform_operator`        | global       | read orders and stores                              |
+| `merchant_admin`           | organization | read and edit orders, handle disputes, read stores  |
+| `merchant_order_manager`   | organization | read and edit orders, read stores                   |
+| `merchant_dispute_handler` | organization | read orders, handle disputes, read stores           |
+| `agent_first_line`         | store        | read orders and stores                              |
+| `agent_second_line`        | store        | read and edit orders, handle disputes, read stores  |
 
 Merchant A holds two roles at Moonlight Goods, so it can edit orders and handle disputes there. Merchant B holds one role at Nordic Bikes, so it can handle disputes there but not edit orders. The agent holds both support levels on one store, so it can edit orders there, but only at that store.
 
@@ -88,6 +88,31 @@ create policy "members can read orders in their stores" on public.orders
 ```
 
 Read it as "a row may be read when the user has `orders.read` for this row's store". The same pattern will make writes safe later: `has_permission('orders.edit', store_id)` on an update policy.
+
+### Insert policies and `with check`
+
+Reading and writing use different parts of a policy:
+
+- `using (...)` decides which existing rows a query may see or touch.
+- `with check (...)` decides whether a **new** row may be saved. Postgres runs it on each row an insert or update is about to write. If it's false, the write fails with `permission denied` (error code `42501`). It doesn't quietly do nothing.
+
+The `orders.create` permission follows the same pattern. Only `platform_developer` holds it, so only that role can insert:
+
+```sql
+create policy "developers can create orders" on public.orders
+  for insert to authenticated with check (public.has_permission('orders.create', store_id));
+```
+
+Read it as "a new order may be saved when the user has `orders.create` for that order's store". An insert also needs a grant (`grant insert on ... to authenticated`), and the grant and the policy work together: the grant lets the role ask, and the policy decides each row.
+
+Order lines get a second check. A line may only go on an order the user can read, so this policy asks the orders table first:
+
+```sql
+create policy "developers can create lines of orders they can read" on public.order_lines
+  for insert to authenticated with check (exists (select 1 from public.orders o where o.id = order_id));
+```
+
+The migration is `supabase/migrations/20261019015532_orders_create_access.sql`. It inserts the permission, gives it to `platform_developer` only, grants insert (never update or delete) and adds the two policies above.
 
 ## 5. The policy changes, in order
 
@@ -192,7 +217,7 @@ Run them with `pnpm db:start`, `pnpm db:reset`, then `pnpm test`.
 
 - **Sessions last one hour, then the user signs in again.** The login token expires after an hour, and the app doesn't refresh it yet. Refreshing needs a second cookie and a refresh step on each request.
 - **Sign-out only clears the cookie.** The token stays valid until it expires, because the server doesn't revoke it. Revoking all of a user's sessions needs one extra call, to add later.
-- **Only reads are restricted.** Write rules (who may capture, refund or cancel) come with the write features. Until then, nobody can change orders through the API.
+- **Only platform developers can create orders.** Capture, refund and cancel still have no write rules, so nobody can change existing orders through the API yet.
 - **Limit by amount isn't built.** A rule like "refund up to 500" needs an attribute check on top of the roles. That's the next step if you need it (see ADR 0015).
 - **Effective permissions aren't shown anywhere.** Someone has to read several membership rows to see what a person can do. A view can list them later (see ADR 0015).
 - **No admin screen for memberships.** The seed script and SQL manage who has which role. A screen comes later.

@@ -36,6 +36,13 @@
       "when": 1792370095750,
       "tag": "20261019003455_organizations_read_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792374932241,
+      "tag": "20261019015532_orders_create_access",
+      "breakpoints": true
     }
   ]
 }
