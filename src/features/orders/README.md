@@ -39,5 +39,6 @@ On `/developer/create-order`, a page script registers two tools with `document.m
 | `server/functions.ts`              | Server functions the routes call            |
 | `model/money.ts`                   | Formatting minor-unit amounts               |
 | `model/order-total.ts`             | Line and order totals for the create page   |
+| `ui/create-order-page.tsx`         | The create-order page for developers        |
 | `model/order-id-input.ts`          | Zod schema for the order id a caller sends  |
 | `model/tax-rate.ts`                | Formatting basis points as a percentage     |
