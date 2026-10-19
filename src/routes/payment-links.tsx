@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { paymentLinks } from "~/mocks/data";
-import { formatMoney } from "~/mocks/format";
+import { formatMockMoney } from "~/mocks/format";
 
 export const Route = createFileRoute("/payment-links")({
   component: PaymentLinks,
@@ -27,7 +27,7 @@ function PaymentLinks() {
           {paymentLinks.map((link) => (
             <tr key={link.id}>
               <td>{link.description}</td>
-              <td>{formatMoney(link.amount)}</td>
+              <td>{formatMockMoney(link.amount)}</td>
               <td>{link.status}</td>
               <td>{link.expiresAt}</td>
             </tr>

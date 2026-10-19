@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { auditLog, disputes, orders } from "~/mocks/data";
-import { formatDateTime } from "~/mocks/format";
+import { formatMockDateTime } from "~/mocks/format";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -23,7 +23,7 @@ function Dashboard() {
       <ul>
         {auditLog.map((entry) => (
           <li key={entry.id}>
-            {formatDateTime(entry.at)}: {entry.actor} did {entry.action} on {entry.target}
+            {formatMockDateTime(entry.at)}: {entry.actor} did {entry.action} on {entry.target}
           </li>
         ))}
       </ul>
