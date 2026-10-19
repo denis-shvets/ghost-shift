@@ -9,6 +9,13 @@ Orders placed through Phantom Checkout, with their lines, payment and shipping.
 - Capture, refund and cancel are visible but disabled.
 - Platform developers can create test orders at `/developer/create-order`. Products are generated from a seed, and the total uses the store's currency. Anyone else is sent back to `/orders`.
 
+## WebMCP (experimental)
+
+On `/developer/create-order`, a page script registers two tools with `document.modelContext` (or `navigator.modelContext`): `list_stores` and `create_order`. They call the same server functions as the page, so the developer role and row-level security still apply. The tools are removed when you leave the page. Code: [ui/web-mcp-tools.ts](ui/web-mcp-tools.ts).
+
+- The API is experimental. It needs a Chrome origin trial, not a flag (see [the Chrome docs](https://developer.chrome.google.cn/docs/ai/webmcp/imperative-api?hl=en)). Without it, the script does nothing.
+- To check: sign in as a platform developer, open the page, and in DevTools run `document.modelContext` in the console (or look at the registered tools in the WebMCP panel, if your build has one).
+
 ## Data
 
 - Tables `orders` and `order_lines`, defined in [db/schema.ts](db/schema.ts).

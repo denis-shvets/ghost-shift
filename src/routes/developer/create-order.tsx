@@ -1,12 +1,13 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { type SyntheticEvent, useState } from "react";
+import { type SyntheticEvent, useEffect, useState } from "react";
 
 import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
 import { type FakeProduct, generateProducts } from "~/features/orders/model/fake-products";
 import { formatMoney } from "~/features/orders/model/money";
 import { lineTotal, orderTotal } from "~/features/orders/model/order-total";
 import { createOrderFn, fetchStoresFn } from "~/features/orders/server/functions";
+import { registerWebMcpTools } from "~/features/orders/ui/web-mcp-tools";
 
 // Fixed so the server and the browser render the same product list on first load.
 const INITIAL_SEED = 1;
@@ -38,6 +39,16 @@ function CreateOrder() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [lines, setLines] = useState<Line[]>([]);
   const [message, setMessage] = useState("");
+
+  // WebMCP tools exist only while this page is open and the browser supports them.
+  useEffect(
+    () =>
+      registerWebMcpTools({
+        listStores: () => fetchStoresFn(),
+        createOrder: (data) => createOrderOnServer({ data }),
+      }),
+    [createOrderOnServer],
+  );
 
   const products = generateProducts(seed, PRODUCT_COUNT);
   const store = stores.find((candidate) => candidate.id === storeId);
