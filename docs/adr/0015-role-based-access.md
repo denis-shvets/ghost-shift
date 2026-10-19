@@ -34,15 +34,15 @@ The primary keys of `org_members` and `store_assignments` include the role, so o
 
 Minimum roles, created by the migration:
 
-| Role                       | Scope        | Permissions                                        |
-| -------------------------- | ------------ | -------------------------------------------------- |
-| `platform_developer`       | global       | read and edit orders, handle disputes, read stores |
-| `platform_operator`        | global       | read orders and stores                             |
-| `merchant_admin`           | organization | read and edit orders, handle disputes, read stores |
-| `merchant_order_manager`   | organization | read and edit orders, read stores                  |
-| `merchant_dispute_handler` | organization | read orders, handle disputes, read stores          |
-| `agent_first_line`         | store        | read orders and stores                             |
-| `agent_second_line`        | store        | read and edit orders, handle disputes, read stores |
+| Role                       | Scope        | Permissions                                                            |
+| -------------------------- | ------------ | ---------------------------------------------------------------------- |
+| `platform_developer`       | global       | read and edit orders, handle disputes, read stores, read organizations |
+| `platform_operator`        | global       | read orders and stores                                                 |
+| `merchant_admin`           | organization | read and edit orders, handle disputes, read stores                     |
+| `merchant_order_manager`   | organization | read and edit orders, read stores                                      |
+| `merchant_dispute_handler` | organization | read orders, handle disputes, read stores                              |
+| `agent_first_line`         | store        | read orders and stores                                                 |
+| `agent_second_line`        | store        | read and edit orders, handle disputes, read stores                     |
 
 Suggested roles are **documented, not created**. Create one with a migration when a real person needs it:
 

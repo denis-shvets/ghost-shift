@@ -60,7 +60,7 @@ Each role then has permissions, listed in `role_permissions`:
 
 | Role                       | Scope        | Permissions                                        |
 | -------------------------- | ------------ | -------------------------------------------------- |
-| `platform_developer`       | global       | all four                                           |
+| `platform_developer`       | global       | all four, plus read organizations                  |
 | `platform_operator`        | global       | read orders and stores                             |
 | `merchant_admin`           | organization | read and edit orders, handle disputes, read stores |
 | `merchant_order_manager`   | organization | read and edit orders, read stores                  |
@@ -98,6 +98,8 @@ Everything is in one migration, `supabase/migrations/20261018123358_auth_and_acc
 3. **Adds the roles and permissions**, the `has_permission` function and the scoped read policies.
 4. **Sets the grants and the token hook.** Signed-in users can only read, and the hook copies global roles into the token.
 
+A later migration, `supabase/migrations/20261019003455_organizations_read_permission.sql`, narrows the organizations read policy. It adds the `organizations.read` permission, which only `platform_developer` holds, so a platform operator can no longer read organization names. Members still read their own organization.
+
 Point the grants at one thing: a policy only filters rows. It can't stop a role that has no access at all from asking. An anonymous visitor is refused at the grant step with `permission denied`, before any policy looks at a row.
 
 There's a trap here, and the migration says so in a comment. If a role has an update privilege but no update policy, an update doesn't fail. RLS hides every row, so the update quietly changes nothing. So the migration revokes write privileges outright, instead of relying on a missing policy.
@@ -122,7 +124,7 @@ The app connects to Postgres as the `postgres` admin, and admins skip RLS. So a 
 | Email                                 | Access                                                                     | What it's for                                                                                                                                                                                                                            |
 | ------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `developer@ghostshift.test`           | `platform_developer` (global)                                              | Sees every order.                                                                                                                                                                                                                        |
-| `platform-operator@ghostshift.test`   | `platform_operator` (global)                                               | Sees every order and store, without the developer's permissions.                                                                                                                                                                         |
+| `platform-operator@ghostshift.test`   | `platform_operator` (global)                                               | Sees every order and store, without the developer's permissions. Can't read organization names.                                                                                                                                          |
 | `merchant-orders@ghostshift.test`     | `merchant_order_manager` and `merchant_dispute_handler` at Moonlight Goods | Sees and edits Moonlight Goods orders, and handles their disputes (merchant A, with two roles).                                                                                                                                          |
 | `merchant-nordic@ghostshift.test`     | `merchant_dispute_handler` at Nordic Bikes                                 | Sees Nordic Bikes orders and handles disputes, but can't edit them (merchant B).                                                                                                                                                         |
 | `viewer@ghostshift.test`              | none                                                                       | Signed in, but sees nothing. Shows that signing in alone grants nothing.                                                                                                                                                                 |
@@ -175,6 +177,7 @@ Our own server code logs to the `pnpm dev` terminal. A wrong password shows as a
   - an anonymous visitor is refused on orders, order lines and stores (Postgres error `42501`, "insufficient privilege");
   - a merchant sees only their own company's orders, an agent sees only their store, a developer sees everything, and a stranger sees nothing;
   - a person's permissions are the union of their roles, and removing one role removes only its permissions;
+  - a platform operator can't read organization names, a developer can, and a merchant reads only their own company;
   - a store role can't be given at company level, and a company role can't be given at store level;
   - updates are refused for everyone;
   - the token hook copies global roles into the claim.

@@ -31,6 +31,8 @@ export const testAccounts = {
   agent: "33333333-3333-4333-8333-333333333333",
   // platform_developer, a global role.
   developer: "44444444-4444-4444-8444-444444444444",
+  // platform_operator, a global role without organization permissions.
+  operator: "66666666-6666-4666-8666-666666666666",
   // Has no access at all.
   stranger: "55555555-5555-4555-8555-555555555555",
 } as const;
@@ -53,7 +55,8 @@ export async function createTestAccounts(db: Database) {
   }
   await db.execute(
     sql`insert into public.user_roles (user_id, role)
-      values (${testAccounts.developer}::uuid, 'platform_developer')
+      values (${testAccounts.developer}::uuid, 'platform_developer'),
+        (${testAccounts.operator}::uuid, 'platform_operator')
       on conflict do nothing`,
   );
   await db.execute(
