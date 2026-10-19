@@ -5,9 +5,9 @@ const orderLineInput = z
     type: z.enum(["physical", "digital", "shipping_fee", "discount", "surcharge"]),
     sku: z.string().optional(),
     name: z.string().min(1),
-    quantity: z.number().int().positive(),
+    quantity: z.number().int().positive().max(10000),
     // Minor units (cents). Discounts are negative; the database check enforces the same rule.
-    unitPrice: z.number().int(),
+    unitPrice: z.number().int().min(-10_000_000).max(10_000_000),
     // Basis points: 600 means 6%.
     taxRate: z.number().int().min(0).max(10000),
   })

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   char,
   check,
   foreignKey,
@@ -57,9 +58,10 @@ export const orders = pgTable(
     shopperCountry: char({ length: 2 }).notNull(),
     paymentMethod: paymentMethod().notNull(),
     status: orderStatus().notNull(),
-    totalAmount: integer().notNull(),
-    capturedAmount: integer().notNull().default(0),
-    refundedAmount: integer().notNull().default(0),
+    // bigint: a large order can add up to more than the 4-byte integer's limit.
+    totalAmount: bigint({ mode: "number" }).notNull(),
+    capturedAmount: bigint({ mode: "number" }).notNull().default(0),
+    refundedAmount: bigint({ mode: "number" }).notNull().default(0),
     // Temporary: moves to a shipments table when shipping is built.
     shippingCarrier: text().notNull(),
     shippingTracking: text(),
@@ -94,14 +96,15 @@ export const orderLines = pgTable(
     // Tax rate in basis points: 2500 = 25.00 %.
     taxRate: integer().notNull(),
     // Computed by the database, so they can never disagree with price, quantity and rate.
-    totalAmount: integer()
+    // bigint and the ::bigint cast: unit_price * quantity can exceed the 4-byte integer's limit.
+    totalAmount: bigint({ mode: "number" })
       .notNull()
-      .generatedAlwaysAs(sql`unit_price * quantity`),
+      .generatedAlwaysAs(sql`unit_price::bigint * quantity`),
     // The tax included in totalAmount, rounded to the nearest minor unit.
-    totalTaxAmount: integer()
+    totalTaxAmount: bigint({ mode: "number" })
       .notNull()
       .generatedAlwaysAs(
-        sql`round((unit_price * quantity)::numeric * tax_rate / (10000 + tax_rate))::integer`,
+        sql`round((unit_price::bigint * quantity)::numeric * tax_rate / (10000 + tax_rate))::bigint`,
       ),
   },
   (table) => [

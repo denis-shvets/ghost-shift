@@ -65,6 +65,28 @@ describe("createOrderInput", () => {
     ).toBe(true);
   });
 
+  it("accepts the quantity and unit price limits", () => {
+    const atLimit = [
+      { ...line, quantity: 10000 },
+      { ...line, unitPrice: 10_000_000 },
+      { ...line, type: "discount", unitPrice: -10_000_000 },
+    ];
+    for (const edge of atLimit) {
+      expect(createOrderInput.safeParse({ ...valid, lines: [edge] }).success).toBe(true);
+    }
+  });
+
+  it("rejects a quantity or unit price just past the limits", () => {
+    const pastLimit = [
+      { ...line, quantity: 10001 },
+      { ...line, unitPrice: 10_000_001 },
+      { ...line, type: "discount", unitPrice: -10_000_001 },
+    ];
+    for (const over of pastLimit) {
+      expect(createOrderInput.safeParse({ ...valid, lines: [over] }).success).toBe(false);
+    }
+  });
+
   it("rejects a tax rate above 10000 basis points and a quantity below 1", () => {
     expect(
       createOrderInput.safeParse({ ...valid, lines: [{ ...line, taxRate: 10001 }] }).success,

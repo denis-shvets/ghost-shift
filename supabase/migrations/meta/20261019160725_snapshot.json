@@ -1,0 +1,876 @@
+{
+  "id": "2a15c5b0-4173-4f37-810f-3bf02dd89201",
+  "prevId": "c9ecc5e3-54d4-4f50-8271-7959f8e11fb2",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.org_members": {
+      "name": "org_members",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role_scope": {
+          "name": "role_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'organization'"
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_at": {
+          "name": "granted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "org_members_user_fk": {
+          "name": "org_members_user_fk",
+          "tableFrom": "org_members",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "org_members_organization_fk": {
+          "name": "org_members_organization_fk",
+          "tableFrom": "org_members",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "org_members_role_fk": {
+          "name": "org_members_role_fk",
+          "tableFrom": "org_members",
+          "tableTo": "roles",
+          "columnsFrom": [
+            "role",
+            "role_scope"
+          ],
+          "columnsTo": [
+            "name",
+            "scope"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "org_members_pk": {
+          "name": "org_members_pk",
+          "columns": [
+            "user_id",
+            "organization_id",
+            "role"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "org_members_scope_check": {
+          "name": "org_members_scope_check",
+          "value": "\"org_members\".\"role_scope\" = 'organization'"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.permissions": {
+      "name": "permissions",
+      "schema": "",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.role_permissions": {
+      "name": "role_permissions",
+      "schema": "",
+      "columns": {
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "permission": {
+          "name": "permission",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "role_permissions_role_fk": {
+          "name": "role_permissions_role_fk",
+          "tableFrom": "role_permissions",
+          "tableTo": "roles",
+          "columnsFrom": [
+            "role"
+          ],
+          "columnsTo": [
+            "name"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "role_permissions_permission_fk": {
+          "name": "role_permissions_permission_fk",
+          "tableFrom": "role_permissions",
+          "tableTo": "permissions",
+          "columnsFrom": [
+            "permission"
+          ],
+          "columnsTo": [
+            "name"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "role_permissions_pk": {
+          "name": "role_permissions_pk",
+          "columns": [
+            "role",
+            "permission"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.roles": {
+      "name": "roles",
+      "schema": "",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "roles_name_scope_unique": {
+          "name": "roles_name_scope_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name",
+            "scope"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "roles_scope_check": {
+          "name": "roles_scope_check",
+          "value": "\"roles\".\"scope\" in ('global', 'organization', 'store')"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.store_assignments": {
+      "name": "store_assignments",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role_scope": {
+          "name": "role_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'store'"
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_at": {
+          "name": "granted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "store_assignments_user_fk": {
+          "name": "store_assignments_user_fk",
+          "tableFrom": "store_assignments",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "store_assignments_store_fk": {
+          "name": "store_assignments_store_fk",
+          "tableFrom": "store_assignments",
+          "tableTo": "stores",
+          "columnsFrom": [
+            "store_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "store_assignments_role_fk": {
+          "name": "store_assignments_role_fk",
+          "tableFrom": "store_assignments",
+          "tableTo": "roles",
+          "columnsFrom": [
+            "role",
+            "role_scope"
+          ],
+          "columnsTo": [
+            "name",
+            "scope"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "store_assignments_pk": {
+          "name": "store_assignments_pk",
+          "columns": [
+            "user_id",
+            "store_id",
+            "role"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "store_assignments_scope_check": {
+          "name": "store_assignments_scope_check",
+          "value": "\"store_assignments\".\"role_scope\" = 'store'"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.user_roles": {
+      "name": "user_roles",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role_scope": {
+          "name": "role_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'global'"
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_at": {
+          "name": "granted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_roles_user_fk": {
+          "name": "user_roles_user_fk",
+          "tableFrom": "user_roles",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_roles_role_fk": {
+          "name": "user_roles_role_fk",
+          "tableFrom": "user_roles",
+          "tableTo": "roles",
+          "columnsFrom": [
+            "role",
+            "role_scope"
+          ],
+          "columnsTo": [
+            "name",
+            "scope"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_roles_pk": {
+          "name": "user_roles_pk",
+          "columns": [
+            "user_id",
+            "role"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "user_roles_scope_check": {
+          "name": "user_roles_scope_check",
+          "value": "\"user_roles\".\"role_scope\" = 'global'"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.order_lines": {
+      "name": "order_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "order_line_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sku": {
+          "name": "sku",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_rate": {
+          "name": "tax_rate",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_amount": {
+          "name": "total_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "generated": {
+            "as": "unit_price::bigint * quantity",
+            "type": "stored"
+          }
+        },
+        "total_tax_amount": {
+          "name": "total_tax_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "generated": {
+            "as": "round((unit_price::bigint * quantity)::numeric * tax_rate / (10000 + tax_rate))::bigint",
+            "type": "stored"
+          }
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "order_lines_order_fk": {
+          "name": "order_lines_order_fk",
+          "tableFrom": "order_lines",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "order_lines_order_position_unique": {
+          "name": "order_lines_order_position_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "order_id",
+            "position"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "order_lines_quantity_positive_check": {
+          "name": "order_lines_quantity_positive_check",
+          "value": "\"order_lines\".\"quantity\" > 0"
+        },
+        "order_lines_tax_rate_range_check": {
+          "name": "order_lines_tax_rate_range_check",
+          "value": "\"order_lines\".\"tax_rate\" between 0 and 10000"
+        },
+        "order_lines_discount_sign_check": {
+          "name": "order_lines_discount_sign_check",
+          "value": "(\"order_lines\".\"type\" = 'discount') = (\"order_lines\".\"unit_price\" < 0) or \"order_lines\".\"unit_price\" = 0"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.orders": {
+      "name": "orders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shopper_name": {
+          "name": "shopper_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shopper_email": {
+          "name": "shopper_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shopper_country": {
+          "name": "shopper_country",
+          "type": "char(2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_method": {
+          "name": "payment_method",
+          "type": "payment_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "order_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_amount": {
+          "name": "total_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "captured_amount": {
+          "name": "captured_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "refunded_amount": {
+          "name": "refunded_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "shipping_carrier": {
+          "name": "shipping_carrier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shipping_tracking": {
+          "name": "shipping_tracking",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "orders_created_at_id_idx": {
+          "name": "orders_created_at_id_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "orders_store_currency_fk": {
+          "name": "orders_store_currency_fk",
+          "tableFrom": "orders",
+          "tableTo": "stores",
+          "columnsFrom": [
+            "store_id",
+            "currency"
+          ],
+          "columnsTo": [
+            "id",
+            "currency"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "orders_reference_unique": {
+          "name": "orders_reference_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reference"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "orders_currency_format_check": {
+          "name": "orders_currency_format_check",
+          "value": "\"orders\".\"currency\" ~ '^[A-Z]{3}$'"
+        },
+        "orders_shopper_country_format_check": {
+          "name": "orders_shopper_country_format_check",
+          "value": "\"orders\".\"shopper_country\" ~ '^[A-Z]{2}$'"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.organizations": {
+      "name": "organizations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.stores": {
+      "name": "stores",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "market": {
+          "name": "market",
+          "type": "char(2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "store_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "stores_organization_fk": {
+          "name": "stores_organization_fk",
+          "tableFrom": "stores",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "stores_id_currency_unique": {
+          "name": "stores_id_currency_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "currency"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "stores_market_format_check": {
+          "name": "stores_market_format_check",
+          "value": "\"stores\".\"market\" ~ '^[A-Z]{2}$'"
+        },
+        "stores_currency_format_check": {
+          "name": "stores_currency_format_check",
+          "value": "\"stores\".\"currency\" ~ '^[A-Z]{3}$'"
+        }
+      },
+      "isRLSEnabled": true
+    }
+  },
+  "enums": {
+    "public.order_line_type": {
+      "name": "order_line_type",
+      "schema": "public",
+      "values": [
+        "physical",
+        "digital",
+        "shipping_fee",
+        "discount",
+        "surcharge"
+      ]
+    },
+    "public.order_status": {
+      "name": "order_status",
+      "schema": "public",
+      "values": [
+        "authorized",
+        "captured",
+        "part_captured",
+        "refunded",
+        "part_refunded",
+        "canceled",
+        "expired"
+      ]
+    },
+    "public.payment_method": {
+      "name": "payment_method",
+      "schema": "public",
+      "values": [
+        "card",
+        "invoice",
+        "wallet",
+        "bank_transfer"
+      ]
+    },
+    "public.store_status": {
+      "name": "store_status",
+      "schema": "public",
+      "values": [
+        "live",
+        "test"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -43,6 +43,13 @@
       "when": 1792374932241,
       "tag": "20261019015532_orders_create_access",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792426045778,
+      "tag": "20261019160725_orders_amounts_bigint",
+      "breakpoints": true
     }
   ]
 }

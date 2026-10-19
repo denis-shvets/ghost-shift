@@ -243,6 +243,24 @@ After lint, format, types and build, CI starts **only the database container** (
 - `.gitignore` adds `.dev.vars`. `.oxfmtrc.json` stops the formatter from touching generated files. `tsconfig.json` includes the new config and type files.
 - ADRs 0005, 0006, 0009, 0010 and 0012 now describe the real commands, the migrations folder and `withRole`.
 
+### Why amounts are `bigint` now
+
+**File:** `supabase/migrations/20261019160725_orders_amounts_bigint.sql`
+
+**Why:** a plain `integer` in Postgres holds numbers up to 2,147,483,647 (about 2.1 billion). A line's total is `unit_price * quantity`, and with the limits now allowed (quantity up to 10,000, price up to 10,000,000 minor units) one line can reach 100 billion. An order with several such lines can go higher still. With `integer`, the insert fails and the request returns a 500 error.
+
+`bigint` holds numbers up to about 9.2 quintillion, far above any order. The migration does four things:
+
+1. Changes `orders.total_amount`, `captured_amount` and `refunded_amount` to `bigint`.
+2. Changes `order_lines.total_amount` and `total_tax_amount` to `bigint`. Postgres can't change a generated column's formula in place, so the migration drops and re-adds both. They're recalculated from the rows, so no data is lost.
+
+   Each table gets a single `ALTER TABLE` statement that lists all its changes. Changing a column's type makes Postgres copy the whole table, and it locks the table while it does that. One statement per table means one copy and one lock, not one per column.
+
+3. Adds `::bigint` to the formulas. Without it, `unit_price * quantity` is still calculated as an `integer` first and overflows before the result is stored.
+4. Leaves `unit_price` and `quantity` as `integer`. Their own values already fit, and the Zod limits keep them within range.
+
+In `schema.ts`, Drizzle reads these as JavaScript numbers (`mode: "number"`). That's safe up to about 9 quadrillion, far above any order.
+
 ## 4. What's deliberately not done yet
 
 - **Reads follow roles, but nothing changes orders yet.** Each company sees its own orders, and agents see their stores. Write rules come with the write features. See [Sign-in and access](auth-and-policies.md).
