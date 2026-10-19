@@ -5,6 +5,7 @@ import { execSync } from "node:child_process";
 
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
+import { z } from "zod";
 
 // Ids shared with supabase/seed.sql through src/shared/seed/seed-ids.json.
 import seedIds from "../src/shared/seed/seed-ids.json" with { type: "json" };
@@ -12,6 +13,15 @@ import seedIds from "../src/shared/seed/seed-ids.json" with { type: "json" };
 const moonlightGoods = seedIds.organizations.moonlightGoods;
 const nordicBikes = seedIds.organizations.nordicBikes;
 const nordicBikesGermany = seedIds.stores.nordicBikesGermany;
+
+// The agent's address lives in .dev.vars, not in this public repo, so any address works.
+// The script checks it is a valid email and stops with a clear error if it is missing or wrong.
+const agentEmail = z.email().safeParse(process.env.SEED_AGENT_EMAIL);
+if (!agentEmail.success) {
+  throw new Error(
+    "Set SEED_AGENT_EMAIL in .dev.vars to a valid email address (see .dev.vars.example).",
+  );
+}
 
 // A person may hold several roles at the same company or store (ADR 0015).
 const seedUsers = [
@@ -44,10 +54,9 @@ const seedUsers = [
     storeRoles: [],
   },
   { email: "viewer@ghostshift.test", globalRoles: [], organizationRoles: [], storeRoles: [] },
-  // The agent uses the owner's Gmail with a plus-address, so its mail lands in the owner's inbox.
-  // Two roles at one store.
+  // The agent's address comes from SEED_AGENT_EMAIL. Two roles at one store.
   {
-    email: "auth.shvets+orders-agent@gmail.com",
+    email: agentEmail.data,
     globalRoles: [],
     organizationRoles: [],
     storeRoles: [
