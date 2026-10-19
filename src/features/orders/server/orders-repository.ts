@@ -9,6 +9,7 @@ import { isUuid } from "~/shared/ids/is-uuid";
 import { orderLines, orders } from "../db/schema";
 import type { CreateOrderInput } from "../model/create-order-input";
 import type { OrderListInput } from "../model/order-list-input";
+import { orderTotal } from "../model/order-total";
 
 // Runs as the signed-in user, so row-level security decides what they can read.
 // Pages are ordered by (created_at, id), so orders with the same time can't be skipped.
@@ -72,10 +73,10 @@ export async function listOrdersOrFirstPage(db: Database, user: UserClaims, inpu
   return listOrders(db, user, { limit: input.limit });
 }
 
-// Runs as the signed-in user. Stores they can't read are hidden, so the lookup fails the same way.
 // Thrown when the store is missing or not visible to the user (RLS hides it the same way).
 export class StoreNotFoundError extends Error {}
 
+// Runs as the signed-in user. Stores they can't read are hidden, so the lookup fails the same way.
 export function createOrder(db: Database, user: UserClaims, input: CreateOrderInput) {
   return withUser(db, user, async (tx) => {
     const [store] = await tx
@@ -84,7 +85,7 @@ export function createOrder(db: Database, user: UserClaims, input: CreateOrderIn
       .where(eq(stores.id, input.storeId));
     if (!store) throw new StoreNotFoundError("Store not found");
 
-    const totalAmount = input.lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+    const totalAmount = orderTotal(input.lines);
     // shortcut: 8 hex characters, a clash fails on the unique reference constraint, upgrade to a retry if clashes become common
     const reference = `DEV-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 
