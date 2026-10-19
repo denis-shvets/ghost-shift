@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
 
-import { apiErrorText, isLocalUrl } from "./mcp-developer.ts";
+import { apiErrorText, isLocalUrl, productsInput } from "./mcp-developer.ts";
 
 const validOrder = {
   storeId: "00000000-0000-4000-8000-000000000001",
@@ -22,6 +22,18 @@ describe("isLocalUrl", () => {
     expect(isLocalUrl("https://example.com")).toBe(false);
     expect(isLocalUrl("https://abc.supabase.co")).toBe(false);
     expect(isLocalUrl("http://localhost.evil.example")).toBe(false);
+  });
+});
+
+describe("list_sample_products input", () => {
+  it("accepts a count from 1 to 20 and no input", () => {
+    expect(productsInput.safeParse({}).success).toBe(true);
+    expect(productsInput.safeParse({ count: 1 }).success).toBe(true);
+    expect(productsInput.safeParse({ count: 20 }).success).toBe(true);
+  });
+
+  it("rejects a count above 20", () => {
+    expect(productsInput.safeParse({ count: 21 }).success).toBe(false);
   });
 });
 

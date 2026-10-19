@@ -7,7 +7,7 @@ Orders placed through Phantom Checkout, with their lines, payment and shipping.
 - Lists orders, newest first (`/orders`).
 - Shows one order with its store, lines and amounts (`/orders/<uuid>`). An id that isn't a uuid shows "Order not found".
 - Capture, refund and cancel are visible but disabled.
-- Platform developers can create test orders at `/developer/create-order`. Products are generated from a seed, and the total uses the store's currency. Anyone else is sent back to `/orders`.
+- Platform developers can create test orders at `/developer/create-order`. Products come from a fixed list of 20 sample products, and the total uses the store's currency. Anyone else is sent back to `/orders`.
 
 ## WebMCP (experimental)
 

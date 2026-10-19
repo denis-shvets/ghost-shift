@@ -24,7 +24,6 @@
     "mcp:developer": "node --env-file-if-exists=.dev.vars scripts/mcp-developer.ts"
   },
   "dependencies": {
-    "@faker-js/faker": "10.6.0",
     "@supabase/supabase-js": "2.118.0",
     "@tanstack/react-router": "1.170.45",
     "@tanstack/react-start": "1.169.3",

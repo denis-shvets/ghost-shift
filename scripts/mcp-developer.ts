@@ -10,7 +10,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import { z } from "zod";
 
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
-import { generateProducts } from "../src/features/orders/model/fake-products.ts";
+import { SAMPLE_PRODUCTS } from "../src/features/orders/model/sample-products.ts";
 
 // The server must only talk to this machine: it signs in with a real (local) password.
 export function isLocalUrl(url: string): boolean {
@@ -18,8 +18,7 @@ export function isLocalUrl(url: string): boolean {
 }
 
 export const productsInput = z.object({
-  seed: z.number().int().optional(),
-  count: z.number().int().min(1).max(50).optional(),
+  count: z.number().int().min(1).max(20).optional(),
 });
 
 // Readable form of Zod issues, e.g. "shopper.email: Invalid email address; lines: Too small".
@@ -47,8 +46,7 @@ const tools = [
   },
   {
     name: "list_sample_products",
-    description:
-      "List sample products generated from a seed (no network). The same seed gives the same list.",
+    description: "List the 20 sample products (no network). Pass count to get only the first N.",
     inputSchema: z.toJSONSchema(productsInput) as { type: "object" },
   },
   {
@@ -127,7 +125,7 @@ export async function runTool(
     case "list_sample_products": {
       const input = productsInput.safeParse(args);
       if (!input.success) return toolError(input.error.message);
-      return toolText(generateProducts(input.data.seed ?? 1, input.data.count ?? 10));
+      return toolText(SAMPLE_PRODUCTS.slice(0, input.data.count ?? SAMPLE_PRODUCTS.length));
     }
     case "create_order": {
       const input = createOrderInput.safeParse(args);

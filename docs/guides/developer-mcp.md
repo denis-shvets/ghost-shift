@@ -7,7 +7,7 @@ A small local tool that lets a Claude agent create test orders. It runs on your 
 | Tool                   | What it does                                                                                       |
 | ---------------------- | -------------------------------------------------------------------------------------------------- |
 | `list_stores`          | Lists the stores you can create orders in, with their currency. Calls `GET /api/developer/stores`. |
-| `list_sample_products` | Lists sample products from a seed (`seed`, default 1; `count` 1 to 50, default 10). No network.    |
+| `list_sample_products` | Lists the 20 sample products. Optional `count` (1 to 20) returns only the first N. No network.     |
 | `create_order`         | Creates a test order. Calls `POST /api/developer/orders` and returns `{ id, reference }`.          |
 
 ## Start it

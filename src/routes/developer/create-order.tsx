@@ -3,17 +3,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { type SyntheticEvent, useEffect, useState } from "react";
 
 import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
-import { type FakeProduct, generateProducts } from "~/features/orders/model/fake-products";
 import { formatMoney } from "~/features/orders/model/money";
 import { lineTotal, orderTotal } from "~/features/orders/model/order-total";
+import { SAMPLE_PRODUCTS, type SampleProduct } from "~/features/orders/model/sample-products";
 import { createOrderFn, fetchStoresFn } from "~/features/orders/server/functions";
 import { registerWebMcpTools } from "~/features/orders/ui/web-mcp-tools";
 
-// Fixed so the server and the browser render the same product list on first load.
-const INITIAL_SEED = 1;
-const PRODUCT_COUNT = 12;
-
-type Line = FakeProduct & { quantity: number };
+type Line = SampleProduct & { quantity: number };
 
 export const Route = createFileRoute("/developer/create-order")({
   loader: async () => {
@@ -35,7 +31,6 @@ function CreateOrder() {
   const navigate = useNavigate();
 
   const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
-  const [seed, setSeed] = useState(INITIAL_SEED);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [lines, setLines] = useState<Line[]>([]);
   const [message, setMessage] = useState("");
@@ -50,7 +45,6 @@ function CreateOrder() {
     [createOrderOnServer],
   );
 
-  const products = generateProducts(seed, PRODUCT_COUNT);
   const store = stores.find((candidate) => candidate.id === storeId);
   const currency = store?.currency ?? "";
 
@@ -64,7 +58,7 @@ function CreateOrder() {
     );
   }
 
-  function addLine(product: FakeProduct) {
+  function addLine(product: SampleProduct) {
     const quantity = quantities[product.sku] ?? 1;
     setLines((current) => {
       const existing = current.find((line) => line.sku === product.sku);
@@ -112,11 +106,6 @@ function CreateOrder() {
       <h1>Create test order</h1>
 
       <h2>Products</h2>
-      <p>
-        <button type="button" onClick={() => setSeed((current) => current + 1)}>
-          Regenerate products
-        </button>
-      </p>
       <table>
         <thead>
           <tr>
@@ -129,7 +118,7 @@ function CreateOrder() {
           </tr>
         </thead>
         <tbody>
-          {products.map((product) => (
+          {SAMPLE_PRODUCTS.map((product) => (
             <tr key={product.sku}>
               <td>{product.name}</td>
               <td>{product.sku}</td>
