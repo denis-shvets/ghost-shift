@@ -14,7 +14,13 @@ import { SAMPLE_PRODUCTS } from "../src/features/orders/model/sample-products.ts
 
 // The server must only talk to this machine: it signs in with a real (local) password.
 export function isLocalUrl(url: string): boolean {
-  return /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url);
+  try {
+    const parsed = new URL(url);
+    const isHttp = parsed.protocol === "http:" || parsed.protocol === "https:";
+    return isHttp && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
+  } catch {
+    return false;
+  }
 }
 
 export const productsInput = z.object({

@@ -23,6 +23,21 @@ describe("isLocalUrl", () => {
     expect(isLocalUrl("https://abc.supabase.co")).toBe(false);
     expect(isLocalUrl("http://localhost.evil.example")).toBe(false);
   });
+
+  it("uses the real host, not a look-alike in the userinfo or hostname", () => {
+    expect(isLocalUrl("http://localhost:3000@evil.com")).toBe(false);
+    expect(isLocalUrl("http://127.0.0.1@evil.com")).toBe(false);
+    expect(isLocalUrl("http://localhost.evil.com")).toBe(false);
+  });
+
+  it("accepts localhost and 127.0.0.1 with a port or path", () => {
+    expect(isLocalUrl("http://localhost:3000")).toBe(true);
+    expect(isLocalUrl("http://127.0.0.1:54321/x")).toBe(true);
+  });
+
+  it("rejects text that is not a URL", () => {
+    expect(isLocalUrl("not a url")).toBe(false);
+  });
 });
 
 describe("list_sample_products input", () => {
