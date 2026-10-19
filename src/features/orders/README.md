@@ -7,6 +7,7 @@ Orders placed through Phantom Checkout, with their lines, payment and shipping.
 - Lists orders, newest first (`/orders`).
 - Shows one order with its store, lines and amounts (`/orders/<uuid>`). An id that isn't a uuid shows "Order not found".
 - Capture, refund and cancel are visible but disabled.
+- Platform developers can create test orders at `/developer/create-order`. Products are generated from a seed, and the total uses the store's currency. Anyone else is sent back to `/orders`.
 
 ## Data
 
@@ -30,5 +31,6 @@ Orders placed through Phantom Checkout, with their lines, payment and shipping.
 | `server/orders-repository.test.ts` | Tests against the local database            |
 | `server/functions.ts`              | Server functions the routes call            |
 | `model/money.ts`                   | Formatting minor-unit amounts               |
+| `model/order-total.ts`             | Line and order totals for the create page   |
 | `model/order-id-input.ts`          | Zod schema for the order id a caller sends  |
 | `model/tax-rate.ts`                | Formatting basis points as a percentage     |

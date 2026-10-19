@@ -21,6 +21,7 @@ import { Route as RefundsRouteImport } from './routes/refunds'
 import { Route as SettlementsRouteImport } from './routes/settlements'
 import { Route as StoresRouteImport } from './routes/stores'
 import { Route as TeamRouteImport } from './routes/team'
+import { Route as DeveloperCreateOrderRouteImport } from './routes/developer/create-order'
 import { Route as HealthDatabaseRouteImport } from './routes/health/database'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
@@ -85,6 +86,11 @@ const TeamRoute = TeamRouteImport.update({
   path: '/team',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeveloperCreateOrderRoute = DeveloperCreateOrderRouteImport.update({
+  id: '/developer/create-order',
+  path: '/developer/create-order',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HealthDatabaseRoute = HealthDatabaseRouteImport.update({
   id: '/health/database',
   path: '/health/database',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/settlements': typeof SettlementsRoute
   '/stores': typeof StoresRoute
   '/team': typeof TeamRoute
+  '/developer/create-order': typeof DeveloperCreateOrderRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders/': typeof OrdersIndexRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/settlements': typeof SettlementsRoute
   '/stores': typeof StoresRoute
   '/team': typeof TeamRoute
+  '/developer/create-order': typeof DeveloperCreateOrderRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders': typeof OrdersIndexRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/settlements': typeof SettlementsRoute
   '/stores': typeof StoresRoute
   '/team': typeof TeamRoute
+  '/developer/create-order': typeof DeveloperCreateOrderRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders/': typeof OrdersIndexRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/settlements'
     | '/stores'
     | '/team'
+    | '/developer/create-order'
     | '/health/database'
     | '/orders/$orderId'
     | '/orders/'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/settlements'
     | '/stores'
     | '/team'
+    | '/developer/create-order'
     | '/health/database'
     | '/orders/$orderId'
     | '/orders'
@@ -202,6 +213,7 @@ export interface FileRouteTypes {
     | '/settlements'
     | '/stores'
     | '/team'
+    | '/developer/create-order'
     | '/health/database'
     | '/orders/$orderId'
     | '/orders/'
@@ -220,6 +232,7 @@ export interface RootRouteChildren {
   SettlementsRoute: typeof SettlementsRoute
   StoresRoute: typeof StoresRoute
   TeamRoute: typeof TeamRoute
+  DeveloperCreateOrderRoute: typeof DeveloperCreateOrderRoute
   HealthDatabaseRoute: typeof HealthDatabaseRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
@@ -311,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeamRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/developer/create-order': {
+      id: '/developer/create-order'
+      path: '/developer/create-order'
+      fullPath: '/developer/create-order'
+      preLoaderRoute: typeof DeveloperCreateOrderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/health/database': {
       id: '/health/database'
       path: '/health/database'
@@ -348,6 +368,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettlementsRoute: SettlementsRoute,
   StoresRoute: StoresRoute,
   TeamRoute: TeamRoute,
+  DeveloperCreateOrderRoute: DeveloperCreateOrderRoute,
   HealthDatabaseRoute: HealthDatabaseRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   OrdersIndexRoute: OrdersIndexRoute,

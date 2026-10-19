@@ -1,0 +1,251 @@
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { type SyntheticEvent, useState } from "react";
+
+import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
+import { type FakeProduct, generateProducts } from "~/features/orders/model/fake-products";
+import { formatMoney } from "~/features/orders/model/money";
+import { lineTotal, orderTotal } from "~/features/orders/model/order-total";
+import { createOrderFn, fetchStoresFn } from "~/features/orders/server/functions";
+
+// Fixed so the server and the browser render the same product list on first load.
+const INITIAL_SEED = 1;
+const PRODUCT_COUNT = 12;
+
+type Line = FakeProduct & { quantity: number };
+
+export const Route = createFileRoute("/developer/create-order")({
+  loader: async () => {
+    try {
+      return { stores: await fetchStoresFn() };
+    } catch (error) {
+      // Signed-in users without the developer role get a 403 from the server; send them back to the list.
+      if (error instanceof Response && error.status === 403) throw redirect({ to: "/orders" });
+      throw error;
+    }
+  },
+  component: CreateOrder,
+});
+
+// Plain HTML on purpose: no design system yet (ADR 0014).
+function CreateOrder() {
+  const { stores } = Route.useLoaderData();
+  const createOrderOnServer = useServerFn(createOrderFn);
+  const navigate = useNavigate();
+
+  const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
+  const [seed, setSeed] = useState(INITIAL_SEED);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [lines, setLines] = useState<Line[]>([]);
+  const [message, setMessage] = useState("");
+
+  const products = generateProducts(seed, PRODUCT_COUNT);
+  const store = stores.find((candidate) => candidate.id === storeId);
+  const currency = store?.currency ?? "";
+
+  // Intl throws on an empty currency code, so nothing money-related renders without a store.
+  if (stores.length === 0) {
+    return (
+      <>
+        <h1>Create test order</h1>
+        <p>No stores are visible to this account.</p>
+      </>
+    );
+  }
+
+  function addLine(product: FakeProduct) {
+    const quantity = quantities[product.sku] ?? 1;
+    setLines((current) => {
+      const existing = current.find((line) => line.sku === product.sku);
+      if (!existing) return [...current, { ...product, quantity }];
+      return current.map((line) =>
+        line.sku === product.sku ? { ...line, quantity: line.quantity + quantity } : line,
+      );
+    });
+  }
+
+  async function onSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setMessage("");
+    try {
+      const order = await createOrderOnServer({
+        data: {
+          storeId,
+          shopper: {
+            name: String(form.get("shopperName")),
+            email: String(form.get("shopperEmail")),
+            country: String(form.get("shopperCountry")),
+          },
+          // The server validates these values; the select only offers valid options.
+          paymentMethod: String(form.get("paymentMethod")) as CreateOrderInput["paymentMethod"],
+          shippingCarrier: String(form.get("shippingCarrier")),
+          lines: lines.map(({ sku, name, type, unitPrice, taxRate, quantity }) => ({
+            sku,
+            name,
+            type,
+            unitPrice,
+            taxRate,
+            quantity,
+          })),
+        },
+      });
+      await navigate({ to: "/orders/$orderId", params: { orderId: order.id } });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not create the order.");
+    }
+  }
+
+  return (
+    <>
+      <h1>Create test order</h1>
+
+      <h2>Products</h2>
+      <p>
+        <button type="button" onClick={() => setSeed((current) => current + 1)}>
+          Regenerate products
+        </button>
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>SKU</th>
+            <th>Type</th>
+            <th>Unit price</th>
+            <th>Quantity</th>
+            <th>Add</th>
+          </tr>
+        </thead>
+        <tbody>
+          {products.map((product) => (
+            <tr key={product.sku}>
+              <td>{product.name}</td>
+              <td>{product.sku}</td>
+              <td>{product.type}</td>
+              <td>{formatMoney(product.unitPrice, currency)}</td>
+              <td>
+                <label>
+                  Quantity for {product.sku}{" "}
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={quantities[product.sku] ?? 1}
+                    onChange={(event) =>
+                      setQuantities((current) => ({
+                        ...current,
+                        [product.sku]: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+              </td>
+              <td>
+                <button type="button" onClick={() => addLine(product)} disabled={!currency}>
+                  Add
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <form onSubmit={onSubmit}>
+        <h2>Order</h2>
+        <p>
+          <label>
+            Store{" "}
+            <select
+              name="storeId"
+              value={storeId}
+              onChange={(event) => setStoreId(event.target.value)}
+              required
+            >
+              {stores.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name} ({option.currency})
+                </option>
+              ))}
+            </select>
+          </label>
+        </p>
+        <p>
+          <label>
+            Shopper name <input name="shopperName" required />
+          </label>
+        </p>
+        <p>
+          <label>
+            Shopper email <input name="shopperEmail" type="email" required />
+          </label>
+        </p>
+        <p>
+          <label>
+            Shopper country (2 letters){" "}
+            <input name="shopperCountry" required pattern="[A-Z]{2}" maxLength={2} />
+          </label>
+        </p>
+        <p>
+          <label>
+            Payment method{" "}
+            <select name="paymentMethod" defaultValue="card">
+              <option value="card">Card</option>
+              <option value="invoice">Invoice</option>
+              <option value="wallet">Wallet</option>
+              <option value="bank_transfer">Bank transfer</option>
+            </select>
+          </label>
+        </p>
+        <p>
+          <label>
+            Shipping carrier <input name="shippingCarrier" required />
+          </label>
+        </p>
+
+        <h2>Lines</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Type</th>
+              <th>Quantity</th>
+              <th>Unit price</th>
+              <th>Line total</th>
+              <th>Remove</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((line) => (
+              <tr key={line.sku}>
+                <td>{line.name}</td>
+                <td>{line.type}</td>
+                <td>{line.quantity}</td>
+                <td>{formatMoney(line.unitPrice, currency)}</td>
+                <td>{formatMoney(lineTotal(line), currency)}</td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLines((current) => current.filter((other) => other.sku !== line.sku))
+                    }
+                  >
+                    Remove {line.sku}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p>Total: {formatMoney(orderTotal(lines), currency)}</p>
+
+        <p>
+          <button type="submit" disabled={lines.length === 0 || !store}>
+            Create order
+          </button>
+        </p>
+        {message ? <p role="alert">{message}</p> : null}
+      </form>
+    </>
+  );
+}
