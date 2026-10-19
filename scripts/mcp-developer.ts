@@ -86,7 +86,8 @@ const tools = [
   },
   {
     name: "create_order",
-    description: "Create a test order in a store. The currency comes from the store.",
+    description:
+      "Create a test order in a store. The currency comes from the store. Always send both billingAddress and shippingAddress; when they are the same, send the same object twice.",
     inputSchema: z.toJSONSchema(createOrderInput) as { type: "object" },
   },
 ];

@@ -68,7 +68,8 @@ export function registerWebMcpTools(deps: WebMcpDeps): () => void {
 
   register({
     name: "create_order",
-    description: "Create a test order in a store. The server checks the role and the store.",
+    description:
+      "Create a test order in a store. The server checks the role and the store. Always send both billingAddress and shippingAddress; when they are the same, send the same object twice.",
     inputSchema: z.toJSONSchema(createOrderInput),
     execute: async (input) => {
       const parsed = createOrderInput.safeParse(input);

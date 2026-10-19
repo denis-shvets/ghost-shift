@@ -9,10 +9,72 @@ import { lineTotal, orderTotal } from "../model/order-total";
 import { SAMPLE_PRODUCTS, type SampleProduct } from "../model/sample-products";
 import { createOrderFn, fetchStoresFn } from "../server/functions";
 import type { listStoresForOrder } from "../server/orders-repository";
+import { addressFromForm } from "./address-form";
 import { registerWebMcpTools } from "./web-mcp-tools";
 
 type StoreOption = Awaited<ReturnType<typeof listStoresForOrder>>[number];
 type Line = SampleProduct & { quantity: number };
+
+// One address block. The prefix matches the names address-form.ts reads.
+function AddressFields({ prefix, legend }: { prefix: "billing" | "shipping"; legend: string }) {
+  const name = (field: string) => `${prefix}${field}`;
+  return (
+    <fieldset>
+      <legend>{legend}</legend>
+      <p>
+        <label>
+          First name <input name={name("FirstName")} required />
+        </label>
+      </p>
+      <p>
+        <label>
+          Last name <input name={name("LastName")} required />
+        </label>
+      </p>
+      <p>
+        <label>
+          Company (optional) <input name={name("Company")} />
+        </label>
+      </p>
+      <p>
+        <label>
+          Street address <input name={name("StreetAddress")} required />
+        </label>
+      </p>
+      <p>
+        <label>
+          Street address 2 (optional) <input name={name("StreetAddress2")} />
+        </label>
+      </p>
+      <p>
+        <label>
+          Postal code <input name={name("PostalCode")} required />
+        </label>
+      </p>
+      <p>
+        <label>
+          City <input name={name("City")} required />
+        </label>
+      </p>
+      <p>
+        <label>
+          Region (optional) <input name={name("Region")} />
+        </label>
+      </p>
+      <p>
+        <label>
+          Country (2 letters){" "}
+          <input name={name("Country")} required pattern="[A-Z]{2}" maxLength={2} />
+        </label>
+      </p>
+      <p>
+        <label>
+          Phone (optional) <input name={name("Phone")} type="tel" />
+        </label>
+      </p>
+    </fieldset>
+  );
+}
 
 // Plain HTML on purpose: no design system yet (ADR 0014).
 export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
@@ -23,6 +85,7 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [lines, setLines] = useState<Line[]>([]);
   const [message, setMessage] = useState("");
+  const [sameAsBilling, setSameAsBilling] = useState(true);
 
   // WebMCP tools exist only while this page is open and the browser supports them.
   useEffect(
@@ -74,14 +137,9 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setMessage("");
-    const address = {
-      firstName: String(form.get("firstName")),
-      lastName: String(form.get("lastName")),
-      streetAddress: String(form.get("streetAddress")),
-      postalCode: String(form.get("postalCode")),
-      city: String(form.get("city")),
-      country: String(form.get("country")),
-    };
+    const billingAddress = addressFromForm(form, "billing");
+    // When the box is checked the shipping fields are not rendered, so billing is the only address read.
+    const shippingAddress = sameAsBilling ? billingAddress : addressFromForm(form, "shipping");
     try {
       const order = await createOrderOnServer({
         data: {
@@ -90,9 +148,10 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
             firstName: String(form.get("firstName")),
             lastName: String(form.get("lastName")),
             email: String(form.get("email")),
+            phone: String(form.get("phone")) || undefined,
           },
-          billingAddress: address,
-          shippingAddress: address,
+          billingAddress,
+          shippingAddress,
           // The server validates these values; the select only offers valid options.
           paymentMethod: String(form.get("paymentMethod")) as CreateOrderInput["paymentMethod"],
           shippingCarrier: String(form.get("shippingCarrier")),
@@ -199,29 +258,23 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
             Email <input name="email" type="email" required />
           </label>
         </p>
-        <fieldset>
-          <legend>Address</legend>
-          <p>
-            <label>
-              Street address <input name="streetAddress" required />
-            </label>
-          </p>
-          <p>
-            <label>
-              Postal code <input name="postalCode" required />
-            </label>
-          </p>
-          <p>
-            <label>
-              City <input name="city" required />
-            </label>
-          </p>
-          <p>
-            <label>
-              Country (2 letters) <input name="country" required pattern="[A-Z]{2}" maxLength={2} />
-            </label>
-          </p>
-        </fieldset>
+        <p>
+          <label>
+            Phone (optional) <input name="phone" type="tel" />
+          </label>
+        </p>
+        <AddressFields prefix="billing" legend="Billing address" />
+        <p>
+          <label>
+            <input
+              type="checkbox"
+              checked={sameAsBilling}
+              onChange={(event) => setSameAsBilling(event.target.checked)}
+            />{" "}
+            Shipping address same as billing
+          </label>
+        </p>
+        {sameAsBilling ? null : <AddressFields prefix="shipping" legend="Shipping address" />}
         <p>
           <label>
             Payment method{" "}

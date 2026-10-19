@@ -106,6 +106,18 @@ describe("POST /api/developer/orders", () => {
     expect(createOrder).not.toHaveBeenCalled();
   });
 
+  it("returns 400 JSON when shippingAddress is missing", async () => {
+    readCurrentUser.mockResolvedValue(developer);
+    const { shippingAddress: _omitted, ...withoutShipping } = validBody;
+
+    const response = await post(JSON.stringify(withoutShipping));
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.issues).toContainEqual(expect.objectContaining({ path: ["shippingAddress"] }));
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for a body that is not valid JSON", async () => {
     readCurrentUser.mockResolvedValue(developer);
 
