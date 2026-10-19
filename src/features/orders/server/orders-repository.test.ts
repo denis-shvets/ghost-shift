@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -9,9 +9,16 @@ import {
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { createDb } from "~/shared/db/client";
 
-import { orders } from "../db/schema";
+import { orderLines, orders } from "../db/schema";
+import type { CreateOrderInput } from "../model/create-order-input";
 
-import { getOrder, listOrders, listOrdersOrFirstPage } from "./orders-repository";
+import {
+  createOrder,
+  getOrder,
+  listOrders,
+  listOrdersOrFirstPage,
+  listStoresForOrder,
+} from "./orders-repository";
 
 // Runs against the local Supabase database with seed data (`pnpm db:reset`).
 const db = createDb(testDatabaseUrl);
@@ -207,5 +214,122 @@ describe("getOrder", () => {
 
   it("returns null for an id that isn't a uuid, without querying", async () => {
     expect(await getOrder(db, merchant, "ord_1003")).toBeNull();
+  });
+});
+
+// Moonlight Goods Sweden, a SEK store in supabase/seed.sql.
+const swedenStore = "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6";
+
+const newOrder: CreateOrderInput = {
+  storeId: swedenStore,
+  shopper: { name: "Test Developer", email: "dev@example.com", country: "SE" },
+  paymentMethod: "card",
+  shippingCarrier: "PostNord",
+  lines: [
+    {
+      type: "physical",
+      sku: "TEST-1",
+      name: "Test mug",
+      quantity: 2,
+      unitPrice: 1000,
+      taxRate: 2500,
+    },
+    { type: "shipping_fee", name: "Shipping", quantity: 1, unitPrice: 4900, taxRate: 0 },
+    { type: "discount", name: "Welcome", quantity: 1, unitPrice: -500, taxRate: 0 },
+  ],
+};
+
+describe("createOrder", () => {
+  const developer: UserClaims = {
+    sub: testAccounts.developer,
+    global_roles: ["platform_developer"],
+  };
+  // Orders created by these tests, deleted afterwards so the merchant lists stay as seeded.
+  const created: string[] = [];
+
+  afterAll(async () => {
+    await db.delete(orders).where(inArray(orders.id, created));
+  });
+
+  it("creates the order and its lines, with the store's currency and the correct total", async () => {
+    const { id, reference } = await createOrder(db, developer, newOrder);
+    created.push(id);
+
+    expect(reference).toMatch(/^DEV-[0-9A-F]{8}$/);
+
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    expect(order).toMatchObject({
+      reference,
+      storeId: swedenStore,
+      currency: "SEK",
+      status: "authorized",
+      totalAmount: 6400,
+      capturedAmount: 0,
+      refundedAmount: 0,
+      shippingCarrier: "PostNord",
+    });
+
+    const lines = await db
+      .select({
+        position: orderLines.position,
+        name: orderLines.name,
+        totalAmount: orderLines.totalAmount,
+      })
+      .from(orderLines)
+      .where(eq(orderLines.orderId, id))
+      .orderBy(orderLines.position);
+    expect(lines).toEqual([
+      { position: 1, name: "Test mug", totalAmount: 2000 },
+      { position: 2, name: "Shipping", totalAmount: 4900 },
+      { position: 3, name: "Welcome", totalAmount: -500 },
+    ]);
+  });
+
+  it("denies users who can't create orders, and writes nothing", async () => {
+    const countDevOrders = async () =>
+      (await db.select({ id: orders.id }).from(orders).where(like(orders.reference, "DEV-%")))
+        .length;
+    const before = await countDevOrders();
+
+    const denied: UserClaims[] = [
+      { sub: testAccounts.merchantA, global_roles: [] },
+      { sub: testAccounts.agent, global_roles: [] },
+      { sub: testAccounts.operator, global_roles: ["platform_operator"] },
+      { sub: testAccounts.stranger, global_roles: [] },
+    ];
+    for (const user of denied) {
+      await expect(createOrder(db, user, newOrder)).rejects.toThrow();
+    }
+
+    expect(await countDevOrders()).toBe(before);
+  });
+
+  it("hides a store the user can't read as if it didn't exist", async () => {
+    const otherStore = { ...newOrder, storeId: "d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6" };
+    const merchant: UserClaims = { sub: testAccounts.merchantA, global_roles: [] };
+    await expect(createOrder(db, merchant, otherStore)).rejects.toThrow("Store not found");
+  });
+});
+
+describe("listStoresForOrder", () => {
+  it("lists all four seed stores for a platform developer, by name", async () => {
+    const developer: UserClaims = {
+      sub: testAccounts.developer,
+      global_roles: ["platform_developer"],
+    };
+    const stores = await listStoresForOrder(db, developer);
+
+    expect(stores.map((store) => store.name)).toEqual([
+      "Moonlight Goods Finland",
+      "Moonlight Goods Norway",
+      "Moonlight Goods Sweden",
+      "Nordic Bikes Germany",
+    ]);
+    expect(stores[0]).toMatchObject({ currency: "EUR", organizationName: "Moonlight Goods" });
+  });
+
+  it("shows no stores to a user with no access", async () => {
+    const stranger: UserClaims = { sub: testAccounts.stranger, global_roles: [] };
+    expect(await listStoresForOrder(db, stranger)).toEqual([]);
   });
 });

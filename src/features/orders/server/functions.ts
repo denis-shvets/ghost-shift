@@ -2,12 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
 
 import { requireUser } from "~/features/auth/server/session";
+import { requirePlatformDeveloper } from "~/features/access/server/require-platform-developer";
 import { createDb } from "~/shared/db/client";
 import { parseServerEnv } from "~/shared/env/server-env";
 
+import { createOrderInput } from "../model/create-order-input";
 import { orderIdInput } from "../model/order-id-input";
 import { orderListInput } from "../model/order-list-input";
-import { getOrder, listOrdersOrFirstPage } from "./orders-repository";
+import {
+  createOrder,
+  getOrder,
+  listOrdersOrFirstPage,
+  listStoresForOrder,
+} from "./orders-repository";
 
 // Each request gets its own connection, closed when the request ends.
 async function withDb<T>(run: (db: ReturnType<typeof createDb>) => Promise<T>) {
@@ -34,3 +41,18 @@ export const fetchOrder = createServerFn({ method: "GET" })
     const user = await requireUser(parseServerEnv(env));
     return withDb((db) => getOrder(db, user, id));
   });
+
+// Server functions are public HTTP endpoints, so the role check runs here, not only in the page.
+export const createOrderFn = createServerFn({ method: "POST" })
+  .validator(createOrderInput)
+  .handler(async ({ data }) => {
+    const user = await requireUser(parseServerEnv(env));
+    requirePlatformDeveloper(user);
+    return withDb((db) => createOrder(db, user, data));
+  });
+
+export const fetchStoresFn = createServerFn({ method: "GET" }).handler(async () => {
+  const user = await requireUser(parseServerEnv(env));
+  requirePlatformDeveloper(user);
+  return withDb((db) => listStoresForOrder(db, user));
+});
