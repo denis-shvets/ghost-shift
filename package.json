@@ -20,6 +20,7 @@
     "db:reset": "supabase db reset",
     "db:generate": "drizzle-kit generate",
     "db:seed-users": "node --env-file-if-exists=.dev.vars scripts/seed-users.ts",
+    "db:generate-seed": "node scripts/generate-seed-orders.ts",
     "cf:types": "wrangler types --include-runtime=false",
     "mcp:developer": "node --env-file-if-exists=.dev.vars scripts/mcp-developer.ts"
   },
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.64.0",
+    "@faker-js/faker": "10.6.0",
     "@modelcontextprotocol/sdk": "1.31.0",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
