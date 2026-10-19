@@ -11,3 +11,16 @@ export function createAuthClient(
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
 }
+
+// Ends this browser's session at Supabase. Only the access token is stored, so the client
+// has no session to sign out, and the logout route is called directly with the token.
+export async function revokeSession(
+  env: Pick<ServerEnv, "SUPABASE_URL" | "SUPABASE_PUBLISHABLE_KEY">,
+  token: string,
+) {
+  const response = await fetch(`${env.SUPABASE_URL}/auth/v1/logout?scope=local`, {
+    method: "POST",
+    headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(`Supabase logout failed with ${response.status}`);
+}
