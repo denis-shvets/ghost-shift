@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { formatMoney } from "~/features/orders/model/money";
 import { settlements } from "~/mocks/data";
-import { formatMockMoney } from "~/mocks/format";
 
 export const Route = createFileRoute("/settlements")({
   component: Settlements,
@@ -29,10 +29,10 @@ function Settlements() {
               <td>{settlement.payoutDate}</td>
               <td>{settlement.storeId}</td>
               <td>{settlement.orders}</td>
-              <td>{formatMockMoney(settlement.gross)}</td>
-              <td>{formatMockMoney(settlement.fees)}</td>
-              <td>{formatMockMoney(settlement.refunds)}</td>
-              <td>{formatMockMoney(settlement.net)}</td>
+              <td>{formatMoney(settlement.gross.amount * 100, settlement.gross.currency)}</td>
+              <td>{formatMoney(settlement.fees.amount * 100, settlement.fees.currency)}</td>
+              <td>{formatMoney(settlement.refunds.amount * 100, settlement.refunds.currency)}</td>
+              <td>{formatMoney(settlement.net.amount * 100, settlement.net.currency)}</td>
             </tr>
           ))}
         </tbody>

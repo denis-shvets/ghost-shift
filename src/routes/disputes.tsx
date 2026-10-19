@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { formatMoney } from "~/features/orders/model/money";
 import { disputes } from "~/mocks/data";
-import { formatMockMoney } from "~/mocks/format";
 
 export const Route = createFileRoute("/disputes")({
   component: Disputes,
@@ -30,7 +30,7 @@ function Disputes() {
               <td>{dispute.orderId}</td>
               <td>{dispute.type}</td>
               <td>{dispute.reason}</td>
-              <td>{formatMockMoney(dispute.amount)}</td>
+              <td>{formatMoney(dispute.amount.amount * 100, dispute.amount.currency)}</td>
               <td>{dispute.status}</td>
               <td>{dispute.respondBy}</td>
             </tr>
