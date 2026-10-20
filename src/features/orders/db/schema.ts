@@ -69,6 +69,9 @@ export const orders = pgTable(
     // Temporary: moves to a shipments table when shipping is built.
     shippingCarrier: text().notNull(),
     shippingTracking: text(),
+    // When the merchant handed the parcel to the carrier. Empty until then.
+    // Temporary: moves to a shipments table when shipping is built.
+    shippedAt: timestamp({ withTimezone: true }),
   },
   (table) => [
     foreignKey({
@@ -87,6 +90,8 @@ export const orders = pgTable(
       sql`${table.refundedAmount} between 0 and ${table.capturedAmount}`,
     ),
     check("orders_expires_after_created_check", sql`${table.expiresAt} > ${table.createdAt}`),
+    // An empty shipped_at passes: a check only refuses a row when it is false, not unknown.
+    check("orders_shipped_after_created_check", sql`${table.shippedAt} >= ${table.createdAt}`),
     // Emails are stored in lower case, so the search and the index match without lower().
     check(
       "orders_customer_email_lowercase_check",

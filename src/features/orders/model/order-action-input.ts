@@ -29,7 +29,8 @@ const TOOL_DESCRIPTIONS: Record<OrderAction, string> = {
 
 // The capture_order, refund_order and cancel_order tools, shared by MCP and WebMCP, one per
 // variant above. Their input leaves out `action`; the tool adds it back before calling the server.
-// It also leaves out `agentRunId`: no tool starts or ends a run, so a tool caller has no run id to send.
+// It also leaves out `agentRunId`: these tools act outside a run. The orders agent's server
+// (scripts/mcp-agent.ts) adds it back, required, to the capture tool it offers.
 export const ORDER_ACTION_TOOLS = orderActionInput.options.map((option) => {
   const { action, agentRunId: _agentRunId, ...shape } = option.shape;
   return {

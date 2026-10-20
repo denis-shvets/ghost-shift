@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { orderTotal } from "./order-total";
-import { PAYMENT_METHODS } from "./payment-methods";
+import { orderTotal } from "./order-total.ts";
+import { PAYMENT_METHODS } from "./payment-methods.ts";
 
 // The most units one line may hold. The create page caps added quantities at the same value.
 export const MAX_LINE_QUANTITY = 10000;
@@ -64,6 +64,13 @@ export const createOrderInput = z.object({
   shippingAddress: addressInput,
   paymentMethod: z.enum(PAYMENT_METHODS),
   shippingCarrier: z.string().min(1),
+  // The server stamps shipped_at with the order's creation time, so a client can't pick a date.
+  shipped: z
+    .boolean()
+    .optional()
+    .describe(
+      "true: the parcel is already with the carrier, so the orders agent may capture the order.",
+    ),
   lines: z
     .array(orderLineInput)
     .min(1)

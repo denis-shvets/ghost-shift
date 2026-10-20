@@ -44,6 +44,19 @@ describe("orderListInput", () => {
   });
 });
 
+describe("orderListInput shipped filter", () => {
+  it("accepts true and false, as text or as a boolean from the router", () => {
+    expect(orderListInput.parse({ shipped: "true" }).shipped).toBe("true");
+    expect(orderListInput.parse({ shipped: "false" }).shipped).toBe("false");
+    expect(orderListInput.parse({ shipped: true }).shipped).toBe("true");
+  });
+
+  it("treats an empty value as not sent and rejects anything else", () => {
+    expect(orderListInput.parse({ shipped: "" }).shipped).toBeUndefined();
+    expect(orderListInput.safeParse({ shipped: "yes" }).success).toBe(false);
+  });
+});
+
 describe("orderListQuery", () => {
   it("reads a page size sent as text in a query string", () => {
     expect(orderListQuery.parse({ limit: "20" })).toEqual({ limit: 20 });
