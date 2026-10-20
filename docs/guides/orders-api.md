@@ -18,13 +18,15 @@ The routes share one helper, `handleApiRequest` in `src/features/orders/server/a
 
 ## 3. The endpoints
 
-| Method | Path                    | What it does                                                                                                                                                                    | Success | Refusals                                                                                                                                              |
-| ------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/v1/orders`        | Lists orders you can see, newest first. Query: `limit` (1 to 100, default 50), `cursor`, `direction` (`next` or `prev`), `q`, `status`, `storeId`, `paymentMethod` (see below). | 200     | 400 bad query, 401 no token                                                                                                                           |
-| GET    | `/api/v1/orders/:id`    | Reads one order with its lines, addresses and timeline.                                                                                                                         | 200     | 400 id longer than 100 characters, 401 no token, 404 not found, not a uuid, or not visible to you                                                     |
-| POST   | `/api/v1/orders`        | Creates an order. Body: store, customer, addresses, payment method, carrier and lines (see `createOrderInput`).                                                                 | 201     | 400 bad body, 401 no token, 403 your role may not create orders in this store, 404 store not found or not visible to you                              |
-| POST   | `/api/v1/order-actions` | Captures, cancels or refunds one order. Body: `action`, `orderId`, `reason`, and `amount` for capture and refund.                                                               | 200     | 400 bad body or invalid amount, 401 no token, 403 your role may not do this, 404 not visible to you, 409 the order's status or amounts don't allow it |
-| GET    | `/api/v1/stores`        | Lists the stores you can see, with their currency.                                                                                                                              | 200     | 401 no token                                                                                                                                          |
+| Method | Path                     | What it does                                                                                                                                                                    | Success | Refusals                                                                                                                                              |
+| ------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/orders`         | Lists orders you can see, newest first. Query: `limit` (1 to 100, default 50), `cursor`, `direction` (`next` or `prev`), `q`, `status`, `storeId`, `paymentMethod` (see below). | 200     | 400 bad query, 401 no token                                                                                                                           |
+| GET    | `/api/v1/orders/:id`     | Reads one order with its lines, addresses and timeline.                                                                                                                         | 200     | 400 id longer than 100 characters, 401 no token, 404 not found, not a uuid, or not visible to you                                                     |
+| POST   | `/api/v1/orders`         | Creates an order. Body: store, customer, addresses, payment method, carrier and lines (see `createOrderInput`).                                                                 | 201     | 400 bad body, 401 no token, 403 your role may not create orders in this store, 404 store not found or not visible to you                              |
+| POST   | `/api/v1/order-actions`  | Captures, cancels or refunds one order. Body: `action`, `orderId`, `reason`, `amount` for capture and refund, and optionally `agentRunId`.                                      | 200     | 400 bad body or invalid amount, 401 no token, 403 your role may not do this, 404 not visible to you, 409 the order's status or amounts don't allow it |
+| POST   | `/api/v1/agent-runs`     | Starts an agent run for you. Body: `purpose` (1 to 200 characters). Answers `{ id, startedAt }`.                                                                                | 201     | 400 bad body, 401 no token                                                                                                                            |
+| PATCH  | `/api/v1/agent-runs/:id` | Ends one of your runs. Body: `{}` or `{ "summary": "..." }` (up to 2,000 characters).                                                                                           | 200     | 400 bad id or body, 401 no token, 404 not your run or not found, 409 already ended                                                                    |
+| GET    | `/api/v1/stores`         | Lists the stores you can see, with their currency.                                                                                                                              | 200     | 401 no token                                                                                                                                          |
 
 Search and filters on the list, all optional:
 
@@ -35,6 +37,8 @@ Search and filters on the list, all optional:
 
 Filters combine with "and", and they keep working with `cursor` and `direction`. An unknown value is a 400.
 
+An agent working through a job starts a run first and sends its id as `agentRunId` with each action, so the audit log can show which run made each change. A run that isn't yours or has ended is refused with `400`. How runs work: [the agent runs guide](agent-runs.md).
+
 Amounts are in minor units (cents). `amount: 500` means 5.00 in the order's currency. Every money change needs a `reason`.
 
 The last page comes with `nextCursor: null`: stop there. An account that can see no orders gets one empty page. Creation is decided by the database, like capture and refund.
@@ -44,7 +48,7 @@ The last page comes with `nextCursor: null`: stop there. An account that can see
 Set the token and the app's address first:
 
 ```bash
-export ORDERS_TOKEN="<paste the access token here>"
+export API_TOKEN="<paste the access token here>"
 export APP_URL="http://localhost:3000"
 ```
 
@@ -52,16 +56,43 @@ List the newest five orders:
 
 ```bash
 curl -s "$APP_URL/api/v1/orders?limit=5" \
-  -H "Authorization: Bearer $ORDERS_TOKEN"
+  -H "Authorization: Bearer $API_TOKEN"
 ```
 
 Capture 5.00 on one order:
 
 ```bash
 curl -s -X POST "$APP_URL/api/v1/order-actions" \
-  -H "Authorization: Bearer $ORDERS_TOKEN" \
+  -H "Authorization: Bearer $API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"action":"capture","orderId":"<order id from the list>","amount":500,"reason":"Shipped"}'
+```
+
+The same capture inside an agent run. Start the run; the reply has its `id`:
+
+```bash
+curl -s -X POST "$APP_URL/api/v1/agent-runs" \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"purpose":"Capture shipped orders"}'
+```
+
+Act with the run's id:
+
+```bash
+curl -s -X POST "$APP_URL/api/v1/order-actions" \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"capture","orderId":"<order id>","amount":500,"reason":"Shipped","agentRunId":"<run id>"}'
+```
+
+End the run:
+
+```bash
+curl -s -X PATCH "$APP_URL/api/v1/agent-runs/<run id>" \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"summary":"Captured 1 order"}'
 ```
 
 ## 5. How to get a token

@@ -1,4 +1,4 @@
-import { eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -10,7 +10,10 @@ import type { UserClaims } from "~/shared/auth/user-claims";
 import { createDb } from "~/shared/db/client";
 import seedIds from "~/shared/seed/seed-ids.json" with { type: "json" };
 
-import { orderLines, orders } from "../db/schema";
+import { agentRuns } from "~/features/agent-runs/db/schema";
+import { endAgentRun, startAgentRun } from "~/features/agent-runs/server/agent-runs-repository";
+
+import { orderEvents, orderLines, orders } from "../db/schema";
 import type { CreateOrderInput } from "../model/create-order-input";
 
 import {
@@ -536,6 +539,7 @@ describe("applyOrderAction", () => {
 
   afterAll(async () => {
     await db.delete(orders).where(inArray(orders.id, created));
+    await db.delete(agentRuns).where(eq(agentRuns.purpose, "Orders repository test run"));
   });
 
   async function freshOrder() {
@@ -613,5 +617,59 @@ describe("applyOrderAction", () => {
     await expect(
       applyOrderAction(db, merchantB, { action: "cancel", orderId, reason: "Out of stock" }),
     ).rejects.toMatchObject({ status: 403 });
+  });
+
+  describe("inside an agent run", () => {
+    const agent: UserClaims = { sub: testAccounts.agent, global_roles: [] };
+
+    // An order at Nordic Bikes Germany, where the second-line agent may capture.
+    async function agentOrder() {
+      const { id } = await createOrder(db, developer, {
+        ...newOrder,
+        storeId: seedIds.stores.nordicBikesGermany,
+      });
+      created.push(id);
+      return id;
+    }
+
+    it("links the event to the run", async () => {
+      const orderId = await agentOrder();
+      const run = await startAgentRun(db, agent, { purpose: "Orders repository test run" });
+
+      await applyOrderAction(db, agent, {
+        action: "capture",
+        orderId,
+        amount: 100,
+        reason: "Shipped",
+        agentRunId: run.id,
+      });
+
+      const [event] = await db
+        .select({ agentRunId: orderEvents.agentRunId })
+        .from(orderEvents)
+        .where(and(eq(orderEvents.orderId, orderId), eq(orderEvents.action, "captured")));
+      expect(event?.agentRunId).toBe(run.id);
+    });
+
+    it("refuses another user's run and an ended run with 400", async () => {
+      const orderId = await agentOrder();
+      const someoneElses = await startAgentRun(db, developer, {
+        purpose: "Orders repository test run",
+      });
+      const ended = await startAgentRun(db, agent, { purpose: "Orders repository test run" });
+      await endAgentRun(db, agent, ended.id, {});
+
+      for (const agentRunId of [someoneElses.id, ended.id]) {
+        await expect(
+          applyOrderAction(db, agent, {
+            action: "capture",
+            orderId,
+            amount: 100,
+            reason: "Shipped",
+            agentRunId,
+          }),
+        ).rejects.toMatchObject({ status: 400 });
+      }
+    });
   });
 });

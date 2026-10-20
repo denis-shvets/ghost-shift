@@ -73,7 +73,7 @@ When a domain is added: verify it in Resend, change the sender address, and upda
    pnpm db:stop
    ```
 
-The Orders pages read from the database. The other pages still show invented data from `src/mocks/`. New to databases? Read [How the Orders pages read from the database](docs/guides/orders-database.md). Agents can call the orders API with a bearer token: [The orders API for agents](docs/guides/orders-api.md).
+The Orders pages read from the database. The other pages still show invented data from `src/mocks/`. New to databases? Read [How the Orders pages read from the database](docs/guides/orders-database.md). Agents can call the orders API with a bearer token: [The orders API for agents](docs/guides/orders-api.md). Each agent job is recorded as an agent run: [Agent runs](docs/guides/agent-runs.md).
 
 ### Work with the database
 

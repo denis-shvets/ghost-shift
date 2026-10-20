@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +6,8 @@ import {
   testAccounts,
   testDatabaseUrl,
 } from "~/features/access/db/test-accounts";
+import { agentRuns } from "~/features/agent-runs/db/schema";
+import { startAgentRun } from "~/features/agent-runs/server/agent-runs-repository";
 import { orders } from "~/features/orders/db/schema";
 import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
 import { applyOrderAction, createOrder } from "~/features/orders/server/orders-repository";
@@ -29,43 +31,46 @@ const developer: UserClaims = { sub: testAccounts.developer, global_roles: ["pla
 const created: string[] = [];
 afterAll(async () => {
   await db.delete(orders).where(inArray(orders.id, created));
+  await db.delete(agentRuns).where(eq(agentRuns.purpose, "Activity test run"));
 });
+
+// An order for the Swedish store (Moonlight Goods).
+const newOrder: CreateOrderInput = {
+  storeId: seedIds.stores.moonlightSweden,
+  customer: { firstName: "Test", lastName: "Activity", email: "activity@example.com" },
+  billingAddress: {
+    firstName: "Test",
+    lastName: "Activity",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
+  shippingAddress: {
+    firstName: "Test",
+    lastName: "Activity",
+    streetAddress: "Storgatan 1",
+    postalCode: "111 22",
+    city: "Stockholm",
+    country: "SE",
+  },
+  paymentMethod: "card",
+  shippingCarrier: "PostNord",
+  lines: [
+    {
+      type: "physical",
+      sku: "TEST-1",
+      name: "Test mug",
+      quantity: 2,
+      unitPrice: 1000,
+      taxRate: 2500,
+    },
+  ],
+};
 
 // A refund for the Swedish store (Moonlight Goods), made as the merchant, so the log has one.
 async function refundedOrder() {
-  const input: CreateOrderInput = {
-    storeId: seedIds.stores.moonlightSweden,
-    customer: { firstName: "Test", lastName: "Activity", email: "activity@example.com" },
-    billingAddress: {
-      firstName: "Test",
-      lastName: "Activity",
-      streetAddress: "Storgatan 1",
-      postalCode: "111 22",
-      city: "Stockholm",
-      country: "SE",
-    },
-    shippingAddress: {
-      firstName: "Test",
-      lastName: "Activity",
-      streetAddress: "Storgatan 1",
-      postalCode: "111 22",
-      city: "Stockholm",
-      country: "SE",
-    },
-    paymentMethod: "card",
-    shippingCarrier: "PostNord",
-    lines: [
-      {
-        type: "physical",
-        sku: "TEST-1",
-        name: "Test mug",
-        quantity: 2,
-        unitPrice: 1000,
-        taxRate: 2500,
-      },
-    ],
-  };
-  const { id } = await createOrder(db, developer, input);
+  const { id } = await createOrder(db, developer, newOrder);
   created.push(id);
   await applyOrderAction(db, merchant, {
     action: "capture",
@@ -165,6 +170,43 @@ describe("listActivity", () => {
     });
 
     expect(page.events.map((event) => event.id)).toEqual(first.events.map((event) => event.id));
+  });
+
+  it("shows the run's purpose to platform staff and only its id to merchants", async () => {
+    // A capture by the second-line agent at Nordic Bikes Germany, inside a run.
+    const agent: UserClaims = { sub: testAccounts.agent, global_roles: [] };
+    const { id: orderId } = await createOrder(db, developer, {
+      ...newOrder,
+      storeId: seedIds.stores.nordicBikesGermany,
+    });
+    created.push(orderId);
+    const run = await startAgentRun(db, agent, { purpose: "Activity test run" });
+    await applyOrderAction(db, agent, {
+      action: "capture",
+      orderId,
+      amount: 100,
+      reason: "Shipped",
+      agentRunId: run.id,
+    });
+
+    const captureSeenBy = async (user: UserClaims) => {
+      const { events } = await listActivity(db, user, {
+        limit: 50,
+        action: "captured",
+        storeId: seedIds.stores.nordicBikesGermany,
+      });
+      return events.find((event) => event.orderId === orderId);
+    };
+
+    expect(await captureSeenBy(developer)).toMatchObject({
+      agentRunId: run.id,
+      agentRunPurpose: "Activity test run",
+    });
+    // Merchant B handles disputes at Nordic Bikes: reads the event, but not the run.
+    expect(await captureSeenBy({ sub: testAccounts.merchantB, global_roles: [] })).toMatchObject({
+      agentRunId: run.id,
+      agentRunPurpose: null,
+    });
   });
 
   it("shows no events to a user with no access", async () => {

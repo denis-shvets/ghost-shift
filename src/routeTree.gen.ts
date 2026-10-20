@@ -25,9 +25,11 @@ import { Route as DeveloperCreateOrderRouteImport } from './routes/developer/cre
 import { Route as HealthDatabaseRouteImport } from './routes/health/database'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
+import { Route as ApiV1AgentRunsRouteImport } from './routes/api/v1/agent-runs'
 import { Route as ApiV1OrderActionsRouteImport } from './routes/api/v1/order-actions'
 import { Route as ApiV1OrdersRouteImport } from './routes/api/v1/orders'
 import { Route as ApiV1StoresRouteImport } from './routes/api/v1/stores'
+import { Route as ApiV1AgentRunsRunIdRouteImport } from './routes/api/v1/agent-runs.$runId'
 import { Route as ApiV1OrdersOrderIdRouteImport } from './routes/api/v1/orders.$orderId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -110,6 +112,11 @@ const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
   path: '/orders/$orderId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1AgentRunsRoute = ApiV1AgentRunsRouteImport.update({
+  id: '/api/v1/agent-runs',
+  path: '/api/v1/agent-runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV1OrderActionsRoute = ApiV1OrderActionsRouteImport.update({
   id: '/api/v1/order-actions',
   path: '/api/v1/order-actions',
@@ -124,6 +131,11 @@ const ApiV1StoresRoute = ApiV1StoresRouteImport.update({
   id: '/api/v1/stores',
   path: '/api/v1/stores',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1AgentRunsRunIdRoute = ApiV1AgentRunsRunIdRouteImport.update({
+  id: '/$runId',
+  path: '/$runId',
+  getParentRoute: () => ApiV1AgentRunsRoute,
 } as any)
 const ApiV1OrdersOrderIdRoute = ApiV1OrdersOrderIdRouteImport.update({
   id: '/$orderId',
@@ -148,9 +160,11 @@ export interface FileRoutesByFullPath {
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders/': typeof OrdersIndexRoute
+  '/api/v1/agent-runs': typeof ApiV1AgentRunsRouteWithChildren
   '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
   '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
   '/api/v1/stores': typeof ApiV1StoresRoute
+  '/api/v1/agent-runs/$runId': typeof ApiV1AgentRunsRunIdRoute
   '/api/v1/orders/$orderId': typeof ApiV1OrdersOrderIdRoute
 }
 export interface FileRoutesByTo {
@@ -170,9 +184,11 @@ export interface FileRoutesByTo {
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders': typeof OrdersIndexRoute
+  '/api/v1/agent-runs': typeof ApiV1AgentRunsRouteWithChildren
   '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
   '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
   '/api/v1/stores': typeof ApiV1StoresRoute
+  '/api/v1/agent-runs/$runId': typeof ApiV1AgentRunsRunIdRoute
   '/api/v1/orders/$orderId': typeof ApiV1OrdersOrderIdRoute
 }
 export interface FileRoutesById {
@@ -193,9 +209,11 @@ export interface FileRoutesById {
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders/': typeof OrdersIndexRoute
+  '/api/v1/agent-runs': typeof ApiV1AgentRunsRouteWithChildren
   '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
   '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
   '/api/v1/stores': typeof ApiV1StoresRoute
+  '/api/v1/agent-runs/$runId': typeof ApiV1AgentRunsRunIdRoute
   '/api/v1/orders/$orderId': typeof ApiV1OrdersOrderIdRoute
 }
 export interface FileRouteTypes {
@@ -217,9 +235,11 @@ export interface FileRouteTypes {
     | '/health/database'
     | '/orders/$orderId'
     | '/orders/'
+    | '/api/v1/agent-runs'
     | '/api/v1/order-actions'
     | '/api/v1/orders'
     | '/api/v1/stores'
+    | '/api/v1/agent-runs/$runId'
     | '/api/v1/orders/$orderId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -239,9 +259,11 @@ export interface FileRouteTypes {
     | '/health/database'
     | '/orders/$orderId'
     | '/orders'
+    | '/api/v1/agent-runs'
     | '/api/v1/order-actions'
     | '/api/v1/orders'
     | '/api/v1/stores'
+    | '/api/v1/agent-runs/$runId'
     | '/api/v1/orders/$orderId'
   id:
     | '__root__'
@@ -261,9 +283,11 @@ export interface FileRouteTypes {
     | '/health/database'
     | '/orders/$orderId'
     | '/orders/'
+    | '/api/v1/agent-runs'
     | '/api/v1/order-actions'
     | '/api/v1/orders'
     | '/api/v1/stores'
+    | '/api/v1/agent-runs/$runId'
     | '/api/v1/orders/$orderId'
   fileRoutesById: FileRoutesById
 }
@@ -284,6 +308,7 @@ export interface RootRouteChildren {
   HealthDatabaseRoute: typeof HealthDatabaseRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
+  ApiV1AgentRunsRoute: typeof ApiV1AgentRunsRouteWithChildren
   ApiV1OrderActionsRoute: typeof ApiV1OrderActionsRoute
   ApiV1OrdersRoute: typeof ApiV1OrdersRouteWithChildren
   ApiV1StoresRoute: typeof ApiV1StoresRoute
@@ -403,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdersOrderIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/agent-runs': {
+      id: '/api/v1/agent-runs'
+      path: '/api/v1/agent-runs'
+      fullPath: '/api/v1/agent-runs'
+      preLoaderRoute: typeof ApiV1AgentRunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/order-actions': {
       id: '/api/v1/order-actions'
       path: '/api/v1/order-actions'
@@ -424,6 +456,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1StoresRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/agent-runs/$runId': {
+      id: '/api/v1/agent-runs/$runId'
+      path: '/$runId'
+      fullPath: '/api/v1/agent-runs/$runId'
+      preLoaderRoute: typeof ApiV1AgentRunsRunIdRouteImport
+      parentRoute: typeof ApiV1AgentRunsRoute
+    }
     '/api/v1/orders/$orderId': {
       id: '/api/v1/orders/$orderId'
       path: '/$orderId'
@@ -433,6 +472,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ApiV1AgentRunsRouteChildren {
+  ApiV1AgentRunsRunIdRoute: typeof ApiV1AgentRunsRunIdRoute
+}
+
+const ApiV1AgentRunsRouteChildren: ApiV1AgentRunsRouteChildren = {
+  ApiV1AgentRunsRunIdRoute: ApiV1AgentRunsRunIdRoute,
+}
+
+const ApiV1AgentRunsRouteWithChildren = ApiV1AgentRunsRoute._addFileChildren(
+  ApiV1AgentRunsRouteChildren,
+)
 
 interface ApiV1OrdersRouteChildren {
   ApiV1OrdersOrderIdRoute: typeof ApiV1OrdersOrderIdRoute
@@ -463,6 +514,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthDatabaseRoute: HealthDatabaseRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   OrdersIndexRoute: OrdersIndexRoute,
+  ApiV1AgentRunsRoute: ApiV1AgentRunsRouteWithChildren,
   ApiV1OrderActionsRoute: ApiV1OrderActionsRoute,
   ApiV1OrdersRoute: ApiV1OrdersRouteWithChildren,
   ApiV1StoresRoute: ApiV1StoresRoute,

@@ -300,7 +300,7 @@ export async function applyOrderAction(db: Database, user: UserClaims, input: Or
         // Raw SQL skips Drizzle's bigint mapping, and postgres-js returns bigint as text. float8
         // comes back as a number and holds every amount up to Number.MAX_SAFE_INTEGER exactly.
         sql`select status, captured_amount::float8, refunded_amount::float8, uncaptured_amount::float8
-          from public.order_action(${input.orderId}::uuid, ${input.action}, ${amount}::bigint, ${input.reason})`,
+          from public.order_action(${input.orderId}::uuid, ${input.action}, ${amount}::bigint, ${input.reason}, ${input.agentRunId ?? null}::uuid)`,
       );
       if (!row) throw new Error("order_action returned no row");
       return {

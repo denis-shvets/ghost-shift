@@ -13,6 +13,8 @@ import seedIds from "../src/shared/seed/seed-ids.json" with { type: "json" };
 const moonlightGoods = seedIds.organizations.moonlightGoods;
 const nordicBikes = seedIds.organizations.nordicBikes;
 const nordicBikesGermany = seedIds.stores.nordicBikesGermany;
+// A fixed id, so running the script again updates the same sample run.
+const sampleRunId = "5a3b1e00-0000-4000-8000-000000000001";
 
 // The agent's address lives in .dev.vars, not in this public repo, so any address works.
 // The script checks it is a valid email and stops with a clear error if it is missing or wrong.
@@ -74,6 +76,33 @@ const seedUsers = [
     ],
   },
 ];
+
+// One finished agent run for the agent, linked to the three latest captures at its store, so the
+// audit log's Run column shows something locally. The events are seeded, not made by the run.
+// The old sample run is deleted first (its events lose the link), then made again.
+async function seedSampleRun(agentUserId: string) {
+  await db.begin(async (tx) => {
+    await tx`delete from public.agent_runs where id = ${sampleRunId}`;
+    const events = await tx<{ id: string; occurred_at: Date }[]>`
+      select e.id, e.occurred_at
+      from public.order_events e
+      join public.orders o on o.id = e.order_id
+      where o.store_id = ${nordicBikesGermany} and e.action = 'captured'
+      order by e.occurred_at desc, e.id desc
+      limit 3`;
+    if (events.length === 0) return;
+    const times = events.map((event) => event.occurred_at.getTime());
+    const startedAt = new Date(Math.min(...times) - 60_000);
+    const endedAt = new Date(Math.max(...times) + 60_000);
+    // An insert, not an update: the agent_runs_end_now trigger would set ended_at to now().
+    await tx`insert into public.agent_runs (id, agent_user_id, started_at, ended_at, purpose, summary)
+      values (${sampleRunId}, ${agentUserId}, ${startedAt}, ${endedAt},
+        'Sample: capture shipped orders at Nordic Bikes Germany',
+        ${`Captured ${events.length} shipped orders.`})`;
+    await tx`update public.order_events set agent_run_id = ${sampleRunId}
+      where id in ${tx(events.map((event) => event.id))}`;
+  });
+}
 
 // `supabase status -o env` prints lines like KEY="value". Those hold the local URL and keys.
 function readLocalSettings() {
@@ -151,6 +180,8 @@ try {
           values (${userId}, ${assignment.storeId}, ${assignment.role})`;
       }
     });
+
+    if (seedUser.email === agentEmail.data) await seedSampleRun(userId);
 
     const access = [
       ...seedUser.globalRoles,
