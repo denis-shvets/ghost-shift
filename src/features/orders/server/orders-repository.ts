@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { organizations } from "~/features/organizations/db/schema";
 import { stores } from "~/features/stores/db/schema";
@@ -21,7 +21,7 @@ import { authorizationExpiresAt } from "../model/payment-methods";
 export function listOrders(
   db: Database,
   user: UserClaims,
-  { limit, cursor, direction, q, status, storeId, paymentMethod }: OrderListInput,
+  { limit, cursor, direction, q, status, storeId, paymentMethod, shipped }: OrderListInput,
 ) {
   return withUser(db, user, async (tx) => {
     // "prev" reads the orders newer than the cursor. Without a cursor there is nothing to go back from.
@@ -44,6 +44,8 @@ export function listOrders(
         currency: orders.currency,
         totalAmount: orders.totalAmount,
         capturedAmount: orders.capturedAmount,
+        shippingCarrier: orders.shippingCarrier,
+        shippedAt: orders.shippedAt,
       })
       .from(orders)
       .where(
@@ -56,6 +58,8 @@ export function listOrders(
           status ? eq(orders.status, status) : undefined,
           storeId ? eq(orders.storeId, storeId) : undefined,
           paymentMethod ? eq(orders.paymentMethod, paymentMethod) : undefined,
+          shipped === "true" ? isNotNull(orders.shippedAt) : undefined,
+          shipped === "false" ? isNull(orders.shippedAt) : undefined,
         ),
       )
       .orderBy(
@@ -143,6 +147,7 @@ export function createOrder(db: Database, user: UserClaims, input: CreateOrderIn
         capturedAmount: 0,
         refundedAmount: 0,
         shippingCarrier: input.shippingCarrier,
+        shippedAt: input.shipped ? createdAt : null,
       })
       .returning({ id: orders.id, reference: orders.reference });
     if (!order) throw new Error("Order was not created");

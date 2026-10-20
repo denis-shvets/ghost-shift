@@ -88,6 +88,7 @@ export type SeedOrder = {
   refundedAmount: number;
   shippingCarrier: string;
   shippingTracking: string | null;
+  shippedAt: Date | null;
   lines: SeedLine[];
   addresses: SeedAddress[];
   events: SeedEvent[];
@@ -106,6 +107,7 @@ type OrderInput = {
   refunded: number;
   shippingCarrier: string;
   shippingTracking: string | null;
+  shippedAt?: Date;
   sameShipping: boolean;
 };
 
@@ -238,6 +240,7 @@ function makeOrder(input: OrderInput): SeedOrder {
     refundedAmount: input.refunded,
     shippingCarrier: input.shippingCarrier,
     shippingTracking: input.shippingTracking,
+    shippedAt: input.shippedAt ?? null,
     lines,
     addresses,
   };
@@ -342,6 +345,7 @@ function fixedOrders(): SeedOrder[] {
       refunded: 0,
       shippingCarrier: "DHL",
       shippingTracking: null,
+      shippedAt: at("2026-10-17T09:00:00Z"),
       sameShipping: true,
     }),
     // Added scenarios: every status and payment method shows up at least once.
@@ -433,6 +437,8 @@ function fixedOrders(): SeedOrder[] {
       refunded: 0,
       shippingCarrier: "Posti",
       shippingTracking: null,
+      // Shipped but at another company, so the Nordic Bikes agent never sees it.
+      shippedAt: at("2026-10-18T15:00:00Z"),
       sameShipping: true,
     }),
     makeOrder({
@@ -451,6 +457,7 @@ function fixedOrders(): SeedOrder[] {
       refunded: 0,
       shippingCarrier: "DHL",
       shippingTracking: "DHL-4420",
+      shippedAt: at("2026-10-11T08:00:00Z"),
       sameShipping: false,
     }),
     makeOrder({
@@ -468,6 +475,74 @@ function fixedOrders(): SeedOrder[] {
       shippingTracking: null,
       sameShipping: true,
     }),
+  ];
+}
+
+// Work for the orders agent: open Nordic Bikes orders, some shipped. Built after the random
+// orders, so adding them doesn't change the Faker sequence the earlier orders came from.
+function shippedOrders(): SeedOrder[] {
+  const nordic = (
+    id: string,
+    reference: string,
+    status: "authorized" | "part_captured",
+    shippedAt: Date | undefined,
+    carrier: string,
+    captured = 0,
+  ) =>
+    makeOrder({
+      id,
+      reference,
+      createdAt: new Date("2026-10-18T08:00:00Z"),
+      store: DE,
+      customer: {
+        firstName: "Lena",
+        lastName: "Schmidt",
+        email: `${reference.toLowerCase()}@example.com`,
+        phone: null,
+      },
+      // 28 days, so the demo orders stay open for a while after the seed date.
+      paymentMethod: "bank_transfer",
+      status,
+      lines: [
+        {
+          type: "physical",
+          sku: "BIK-PMP-01",
+          name: "Floor pump",
+          quantity: 1,
+          unitPrice: 3990,
+          taxRate: 1900,
+        },
+        {
+          type: "shipping_fee",
+          sku: null,
+          name: `Shipping, ${carrier}`,
+          quantity: 1,
+          unitPrice: 590,
+          taxRate: 1900,
+        },
+      ],
+      captured,
+      refunded: 0,
+      shippingCarrier: carrier,
+      shippingTracking: shippedAt ? `${carrier.toUpperCase()}-${reference.slice(3)}` : null,
+      shippedAt,
+      sameShipping: true,
+    });
+  const shipped = new Date("2026-10-18T16:00:00Z");
+  return [
+    nordic("5b1d0a00-0000-4000-8000-000000002004", "NB-2004", "authorized", shipped, "UPS"),
+    nordic("5b1d0a00-0000-4000-8000-000000002005", "NB-2005", "authorized", shipped, "DHL"),
+    // Not shipped yet, so the agent leaves it.
+    nordic("5b1d0a00-0000-4000-8000-000000002006", "NB-2006", "authorized", undefined, "DHL"),
+    // Shipped, but a person captured part of it. The agent leaves the rest to them.
+    nordic(
+      "5b1d0a00-0000-4000-8000-000000002007",
+      "NB-2007",
+      "part_captured",
+      shipped,
+      "DHL",
+      2000,
+    ),
   ];
 }
 
@@ -576,7 +651,7 @@ export function buildSeedOrders(): SeedOrder[] {
     moonlightCount += 1;
     return randomOrder(index, `MG-${2000 + moonlightCount}`);
   });
-  return [...fixed, ...random];
+  return [...fixed, ...random, ...shippedOrders()];
 }
 
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
@@ -607,6 +682,7 @@ export function toSql(orders: SeedOrder[]): string {
       String(order.refundedAmount),
       quote(order.shippingCarrier),
       nullable(order.shippingTracking),
+      order.shippedAt ? stamp(order.shippedAt) : "null",
     ].join(", "),
   );
   const lineRows = orders.flatMap((order) =>
@@ -677,6 +753,7 @@ export function toSql(orders: SeedOrder[]): string {
         "refunded_amount",
         "shipping_carrier",
         "shipping_tracking",
+        "shipped_at",
       ],
       orderRows,
     ),

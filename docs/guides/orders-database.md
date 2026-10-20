@@ -924,6 +924,36 @@ The search is `reference = q.toUpperCase() or customer_email = q.toLowerCase()`,
 
 A blank or space-only value counts as not sent. That rule lives in `optionalParam` (`src/shared/validation/optional-param.ts`), so the API, the orders page and the refunds page all follow it.
 
+## 6d. When an order shipped: `shipped_at` (2026-10-21)
+
+The orders agent may only capture money for parcels that have left the warehouse, so the database now records when that happened. Migration: `supabase/migrations/*_orders_shipped_at.sql`.
+
+### a. The column, step by step
+
+1. `alter table orders add column shipped_at timestamp with time zone` adds one column to every order. It stores a moment in time with its time zone, like `created_at`.
+2. It has no `not null` and no default, so every existing order gets `null`, meaning "not known to have shipped". Postgres adds a column like this without rewriting the table, so it's instant even on a big table.
+3. The merchant sets it when they hand the parcel to the carrier. It's temporary, like `shipping_carrier`, until shipments get their own table (an order can ship in several parcels).
+
+### b. The check: never before the order existed
+
+`orders_shipped_after_created_check` is `shipped_at >= created_at`. A check only refuses a row when the condition is **false**. With `shipped_at` null, the comparison is "unknown", not false, so unshipped orders pass. A parcel can't ship before its order existed, so a typo like the year 2000 is refused.
+
+### c. Why there's no backfill on the hosted database
+
+A backfill means filling the new column for rows that already exist. We don't, because nobody knows which hosted orders really shipped. A guessed date would make the agent capture customers' money for parcels that may never have left. With null, the agent leaves those orders alone.
+
+### d. Why no new grant and no index
+
+- Grants: `select` and `insert` on `orders` were granted for the whole table, not column by column, so they cover a new column automatically. A grant migration is only needed for a new **table**.
+- Index: the agent's query is `status = 'authorized' and shipped_at is not null`, on a small table. Postgres reads it quickly without one. If the list gets slow, a partial index (`on orders (created_at desc, id desc) where status = 'authorized' and shipped_at is not null`) would fit, like the expiry index in section 5b.
+
+### e. How it's used
+
+- `GET /api/v1/orders?shipped=true` (or `false`) filters on it: `shipped_at is not null` (or `is null`). The list also returns `shippedAt` and `shippingCarrier`.
+- The seed marks a few orders shipped (NB-2001, NB-2002, NB-2004, NB-2005, NB-2007 and MG-1010), so the agent has work after `pnpm db:reset`.
+- The developer create-order page has an **Already shipped** checkbox. When it's ticked, the app sets `shipped_at` to the order's `created_at`, so the order is shipped from the start and the check in section b still holds. The API takes `shipped: true` the same way. The app never accepts a timestamp from the client, because a past or future date would be easy to get wrong.
+- Shipping later, after the order exists, still has no write path. Re-run `pnpm db:reset` to get the demo orders back.
+
 ## 7. What's deliberately not done yet
 
 - **Reads follow roles, and nobody updates orders directly.** Each company sees its own orders, and agents see their stores. Only the expiry job (section 5) and `public.order_action()` (section 6) change orders. See [Sign-in and access](auth-and-policies.md).

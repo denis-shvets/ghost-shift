@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
@@ -27,6 +29,22 @@ const validOrder = {
   shippingCarrier: "Test Carrier",
   lines: [{ type: "physical", name: "Widget", quantity: 2, unitPrice: 1000, taxRate: 1900 }],
 };
+
+describe("starting in plain Node", () => {
+  // pnpm mcp:developer runs without Vite, so every file they import needs its .ts extension.
+  it("loads the MCP server the way pnpm starts it", () => {
+    const output = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        "await import('./scripts/mcp-developer.ts'); console.log('ok')",
+      ],
+      { encoding: "utf8" },
+    );
+    expect(output.trim()).toBe("ok");
+  });
+});
 
 describe("isLocalUrl", () => {
   it("accepts this machine", () => {

@@ -11,6 +11,8 @@
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "noEmit": true,
+    // Lets model files that scripts/ import run in plain Node, which needs the .ts extension.
+    "allowImportingTsExtensions": true,
     "paths": {
       "~/*": ["./src/*"]
     }

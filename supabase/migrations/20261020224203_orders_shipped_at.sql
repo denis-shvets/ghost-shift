@@ -1,0 +1,2 @@
+ALTER TABLE "orders" ADD COLUMN "shipped_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_shipped_after_created_check" CHECK ("orders"."shipped_at" >= "orders"."created_at");

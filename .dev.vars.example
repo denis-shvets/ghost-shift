@@ -9,4 +9,5 @@ SEED_PASSWORD=
 SEED_DEVELOPER_EMAIL=
 # Email address for the seeded agent account (`pnpm db:seed-users`). Any address you can receive mail at,
 # e.g. a Gmail plus-address like yourname+orders-agent@gmail.com. Local only; never commit it.
+# The orders agent's MCP server (`pnpm mcp:agent`) signs in with it.
 SEED_AGENT_EMAIL=

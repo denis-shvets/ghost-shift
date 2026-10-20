@@ -3,6 +3,10 @@
     "ghost-shift-developer": {
       "command": "pnpm",
       "args": ["mcp:developer"]
+    },
+    "ghost-shift-agent": {
+      "command": "pnpm",
+      "args": ["mcp:agent"]
     }
   }
 }

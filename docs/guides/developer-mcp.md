@@ -2,16 +2,18 @@
 
 A small local tool that lets a Claude agent create test orders and capture, cancel or refund them. It runs on your machine, talks to your local app, and signs in as the seeded `platform_developer` account. It never touches the hosted project.
 
+The orders agent has its own server, `ghost-shift-agent` (`pnpm mcp:agent`). It signs in as the agent account: see [the orders agent guide](orders-agent.md).
+
 ## What it offers
 
-| Tool                   | What it does                                                                                   |
-| ---------------------- | ---------------------------------------------------------------------------------------------- |
-| `list_stores`          | Lists the stores you can see, with their currency. Calls `GET /api/v1/stores`.                 |
-| `list_sample_products` | Lists the 20 sample products. Optional `count` (1 to 20) returns only the first N. No network. |
-| `create_order`         | Creates a test order. Calls `POST /api/v1/orders` and returns `{ id, reference }`.             |
-| `capture_order`        | Captures `amount` (minor units) of an order, with a `reason`. Partial captures are allowed.    |
-| `refund_order`         | Refunds `amount` (minor units) of what was captured, with a `reason`.                          |
-| `cancel_order`         | Cancels what is left of the authorization, with a `reason`.                                    |
+| Tool                   | What it does                                                                                                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_stores`          | Lists the stores you can see, with their currency. Calls `GET /api/v1/stores`.                                                                                                      |
+| `list_sample_products` | Lists the 20 sample products. Optional `count` (1 to 20) returns only the first N. No network.                                                                                      |
+| `create_order`         | Creates a test order. Calls `POST /api/v1/orders` and returns `{ id, reference }`. `shipped: true` creates it as already handed to the carrier, so the orders agent can capture it. |
+| `capture_order`        | Captures `amount` (minor units) of an order, with a `reason`. Partial captures are allowed.                                                                                         |
+| `refund_order`         | Refunds `amount` (minor units) of what was captured, with a `reason`.                                                                                                               |
+| `cancel_order`         | Cancels what is left of the authorization, with a `reason`.                                                                                                                         |
 
 The last three call `POST /api/v1/order-actions` with `{ action, orderId, amount?, reason }` and return the order's new `status`, `capturedAmount`, `refundedAmount` and `uncapturedAmount`. The database checks the permission and the rules, and writes a timeline event with the reason.
 

@@ -872,6 +872,16 @@ describe("capture, cancel and refund", () => {
       ).rejects.toMatchObject(checkViolation);
     });
 
+    it("refuses a shipped time before the order was created", async () => {
+      const order = await newOrder();
+      await expect(
+        db
+          .update(orders)
+          .set({ shippedAt: new Date("2000-01-01T00:00:00Z") })
+          .where(eq(orders.id, order.id)),
+      ).rejects.toMatchObject(checkViolation);
+    });
+
     it("still allows changes that don't touch status or money", async () => {
       const order = await newOrder();
       await db.update(orders).set({ shippingTracking: "TRACK-1" }).where(eq(orders.id, order.id));

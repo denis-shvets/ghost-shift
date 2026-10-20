@@ -25,9 +25,9 @@ export function isLocalUrl(url: string): boolean {
 }
 
 // An empty line in .dev.vars counts as unset, so the default applies.
-const unsetIfEmpty = (value: unknown) => (value === "" ? undefined : value);
+export const unsetIfEmpty = (value: unknown) => (value === "" ? undefined : value);
 
-const localUrl = (name: string) =>
+export const localUrl = (name: string) =>
   z
     .string({ error: `${name} is required. Copy .dev.vars.example to .dev.vars.` })
     .refine(isLocalUrl, {
@@ -98,16 +98,16 @@ const tools = [
   })),
 ];
 
-function toolError(text: string) {
+export function toolError(text: string) {
   return { content: [{ type: "text" as const, text }], isError: true };
 }
 
-function toolText(value: unknown) {
+export function toolText(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
 }
 
 // Signs in once, keeps the token in memory, and signs in again only when the token is refused.
-function createApiClient(config: {
+export function createApiClient(config: {
   supabaseUrl: string;
   publishableKey: string;
   appUrl: string;
@@ -126,7 +126,7 @@ function createApiClient(config: {
     });
     if (error || !data.session)
       throw new Error(
-        `Sign-in as ${config.email} failed. Check SEED_PASSWORD and SEED_DEVELOPER_EMAIL, and that db:seed-users ran.`,
+        `Sign-in as ${config.email} failed. Check SEED_PASSWORD and the email in .dev.vars, and that db:seed-users ran.`,
       );
     token = data.session.access_token;
     return token;
@@ -159,11 +159,9 @@ function createApiClient(config: {
 
 class ApiError extends Error {}
 
-export async function runTool(
-  name: string,
-  args: Record<string, unknown>,
-  api: ReturnType<typeof createApiClient>,
-) {
+export type ApiClient = Pick<ReturnType<typeof createApiClient>, "request">;
+
+export async function runTool(name: string, args: Record<string, unknown>, api: ApiClient) {
   switch (name) {
     case "list_stores":
       return toolText(await api.request("/api/v1/stores"));
@@ -203,17 +201,20 @@ function readConfig() {
   };
 }
 
-async function main() {
-  const api = createApiClient(readConfig());
-
-  const server = new Server(
-    { name: "ghost-shift-developer", version: "0.0.0" },
-    { capabilities: { tools: {} } },
-  );
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
+// Serves the tools over stdio. Shared with the agent server (scripts/mcp-agent.ts).
+export async function serveTools(
+  name: string,
+  toolList: { name: string }[],
+  run: (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<ReturnType<typeof toolText | typeof toolError>>,
+) {
+  const server = new Server({ name, version: "0.0.0" }, { capabilities: { tools: {} } });
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolList }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
-      return await runTool(request.params.name, request.params.arguments ?? {}, api);
+      return await run(request.params.name, request.params.arguments ?? {});
     } catch (error) {
       // Never crash the server on a failed call; the agent gets the message instead.
       return toolError(error instanceof Error ? error.message : String(error));
@@ -223,11 +224,17 @@ async function main() {
   await server.connect(new StdioServerTransport());
 }
 
-// Only start when run directly, so tests can import the helpers without a server.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Run main() only when the file is started directly, so tests can import the helpers without a server.
+export function runIfMain(url: string, main: () => Promise<void>) {
+  if (!process.argv[1] || url !== pathToFileURL(process.argv[1]).href) return;
   main().catch((error: unknown) => {
     // stdout belongs to the MCP protocol, so errors go to stderr.
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);
   });
 }
+
+runIfMain(import.meta.url, async () => {
+  const api = createApiClient(readConfig());
+  await serveTools("ghost-shift-developer", tools, (name, args) => runTool(name, args, api));
+});

@@ -22,7 +22,8 @@
     "db:seed-users": "node --env-file-if-exists=.dev.vars scripts/seed-users.ts",
     "db:generate-seed": "node scripts/generate-seed-orders.ts",
     "cf:types": "wrangler types --include-runtime=false",
-    "mcp:developer": "node --env-file-if-exists=.dev.vars scripts/mcp-developer.ts"
+    "mcp:developer": "node --env-file-if-exists=.dev.vars scripts/mcp-developer.ts",
+    "mcp:agent": "node --env-file-if-exists=.dev.vars scripts/mcp-agent.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

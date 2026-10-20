@@ -86,4 +86,4 @@ Agents decide on their own. There are **no human approvals** in the first versio
 3. ~~Which domains go into the first version?~~ Decided 2026-10-17: the first version is a simple scaffold with routes and mocked pages only, to show the structure. Features come later.
 4. ~~Keep shifts and handover notes?~~ Not decided, moved to "Not in scope yet".
 5. ~~Which actions need human approval?~~ Decided 2026-10-17: none for now, agents act on their own.
-6. Which scheduled tasks does the first orders agent run?
+6. Which scheduled tasks does the first orders agent run? _Proposal (2026-10-21), for the owner to accept:_ one task to start with, for Nordic Bikes Germany: capture authorized orders that have shipped. It runs as a scheduled Claude task on the owner's machine. Part-captured orders, cancels and refunds stay with people. The rules are in plain words in [docs/agents/orders-agent.md](agents/orders-agent.md), so the owner can add conditions without code. See [the orders agent guide](guides/orders-agent.md).
