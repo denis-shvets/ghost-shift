@@ -1,18 +1,66 @@
 import { Link } from "@tanstack/react-router";
 
 import { SignOutButton } from "~/features/auth/ui/sign-out-button";
+import type { OrderListInput } from "~/features/orders/model/order-list-input";
 import { formatMoney } from "~/features/orders/model/money";
 import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "~/features/orders/model/order-labels";
+import { ORDER_STATUSES } from "~/features/orders/model/order-statuses";
+import { PAYMENT_METHODS } from "~/features/orders/model/payment-methods";
 import type { fetchOrders } from "~/features/orders/server/functions";
 import { formatMockDateTime } from "~/mocks/format";
 
-type OrderListPageProps = Awaited<ReturnType<typeof fetchOrders>>;
+type OrderListPageProps = Awaited<ReturnType<typeof fetchOrders>> & {
+  filters: Pick<OrderListInput, "q" | "status" | "storeId" | "paymentMethod">;
+};
 
-export function OrderListPage({ orders, nextCursor, prevCursor }: OrderListPageProps) {
+// A GET form: submitting it puts the search and filters in the URL, so the links and the API match the page.
+export function OrderListPage({
+  orders,
+  nextCursor,
+  prevCursor,
+  stores,
+  filters,
+}: OrderListPageProps) {
   return (
     <>
       <h1>Orders</h1>
       <SignOutButton />
+      <form method="get" action="/orders">
+        <label htmlFor="order-search">Reference or email</label>{" "}
+        <input id="order-search" name="q" type="search" defaultValue={filters.q} />{" "}
+        <label htmlFor="order-status">Status</label>{" "}
+        <select id="order-status" name="status" defaultValue={filters.status ?? ""}>
+          <option value="">All</option>
+          {ORDER_STATUSES.map((status) => (
+            <option key={status} value={status}>
+              {ORDER_STATUS_LABELS[status]}
+            </option>
+          ))}
+        </select>{" "}
+        <label htmlFor="order-payment-method">Payment method</label>{" "}
+        <select
+          id="order-payment-method"
+          name="paymentMethod"
+          defaultValue={filters.paymentMethod ?? ""}
+        >
+          <option value="">All</option>
+          {PAYMENT_METHODS.map((method) => (
+            <option key={method} value={method}>
+              {PAYMENT_METHOD_LABELS[method]}
+            </option>
+          ))}
+        </select>{" "}
+        <label htmlFor="order-store">Store</label>{" "}
+        <select id="order-store" name="storeId" defaultValue={filters.storeId ?? ""}>
+          <option value="">All</option>
+          {stores.map((store) => (
+            <option key={store.id} value={store.id}>
+              {store.name}
+            </option>
+          ))}
+        </select>{" "}
+        <button type="submit">Search</button>
+      </form>
       <table>
         <thead>
           <tr>
@@ -49,12 +97,12 @@ export function OrderListPage({ orders, nextCursor, prevCursor }: OrderListPageP
       </table>
       <p>
         {prevCursor && (
-          <Link to="/orders" search={{ cursor: prevCursor, direction: "prev" }}>
+          <Link to="/orders" search={{ ...filters, cursor: prevCursor, direction: "prev" }}>
             Previous page
           </Link>
         )}{" "}
         {nextCursor && (
-          <Link to="/orders" search={{ cursor: nextCursor, direction: "next" }}>
+          <Link to="/orders" search={{ ...filters, cursor: nextCursor, direction: "next" }}>
             Next page
           </Link>
         )}

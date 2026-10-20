@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
 
 import { requireUser } from "~/features/auth/server/session";
+import { listReadableStores } from "~/features/stores/server/stores-repository";
 import { requirePlatformDeveloper } from "~/features/access/server/require-platform-developer";
 import { withDb } from "~/shared/db/request-db";
 import { parseServerEnv } from "~/shared/env/server-env";
@@ -24,7 +25,10 @@ export const fetchOrders = createServerFn({ method: "GET" })
   .validator(orderListInput)
   .handler(async ({ data }) => {
     const user = await requireUser(parseServerEnv(env));
-    return withDb((db) => listOrdersOrFirstPage(db, user, data));
+    return withDb(async (db) => ({
+      ...(await listOrdersOrFirstPage(db, user, data)),
+      stores: await listReadableStores(db, user),
+    }));
   });
 
 // Server functions are public HTTP endpoints, so the input is checked at runtime, not just typed.

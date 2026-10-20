@@ -26,6 +26,22 @@ describe("orderListInput", () => {
     expect(orderListInput.safeParse({ cursor: "MG-1003" }).success).toBe(false);
     expect(orderListInput.safeParse({ cursor, direction: "sideways" }).success).toBe(false);
   });
+
+  it("trims the search text and treats a blank one as not sent", () => {
+    expect(orderListInput.parse({ q: "  MG-1003 " }).q).toBe("MG-1003");
+    expect(orderListInput.parse({ q: "   " }).q).toBeUndefined();
+    expect(orderListInput.parse({ status: "" }).status).toBeUndefined();
+  });
+
+  it("reads a reference that arrives as a number as text", () => {
+    expect(orderListInput.parse({ q: 1003 }).q).toBe("1003");
+  });
+
+  it("rejects an unknown status, payment method or store id", () => {
+    expect(orderListInput.safeParse({ status: "shipped" }).success).toBe(false);
+    expect(orderListInput.safeParse({ paymentMethod: "cash" }).success).toBe(false);
+    expect(orderListInput.safeParse({ storeId: "not-a-uuid" }).success).toBe(false);
+  });
 });
 
 describe("orderListQuery", () => {
@@ -35,5 +51,22 @@ describe("orderListQuery", () => {
 
   it("refuses a page size of 0 in a query string", () => {
     expect(orderListQuery.safeParse({ limit: "0" }).success).toBe(false);
+  });
+
+  it("accepts the filters as text in a query string", () => {
+    expect(
+      orderListQuery.parse({
+        q: "a@b.se",
+        status: "captured",
+        paymentMethod: "card",
+        storeId: cursor,
+      }),
+    ).toEqual({
+      limit: 50,
+      q: "a@b.se",
+      status: "captured",
+      paymentMethod: "card",
+      storeId: cursor,
+    });
   });
 });

@@ -537,7 +537,8 @@ function randomOrder(index: number, reference: string): SeedOrder {
   const customer: Customer = {
     firstName: faker.person.firstName(),
     lastName: faker.person.lastName(),
-    email: faker.internet.email({ provider: "example.com" }),
+    // Lower case, the same as the order API saves emails.
+    email: faker.internet.email({ provider: "example.com" }).toLowerCase(),
     phone: faker.datatype.boolean({ probability: 0.6 }) ? faker.phone.number() : null,
   };
 
