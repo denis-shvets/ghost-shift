@@ -25,6 +25,7 @@ import { Route as DeveloperCreateOrderRouteImport } from './routes/developer/cre
 import { Route as HealthDatabaseRouteImport } from './routes/health/database'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
+import { Route as ApiDeveloperOrderActionsRouteImport } from './routes/api/developer/order-actions'
 import { Route as ApiDeveloperOrdersRouteImport } from './routes/api/developer/orders'
 import { Route as ApiDeveloperStoresRouteImport } from './routes/api/developer/stores'
 
@@ -108,6 +109,12 @@ const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
   path: '/orders/$orderId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDeveloperOrderActionsRoute =
+  ApiDeveloperOrderActionsRouteImport.update({
+    id: '/api/developer/order-actions',
+    path: '/api/developer/order-actions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDeveloperOrdersRoute = ApiDeveloperOrdersRouteImport.update({
   id: '/api/developer/orders',
   path: '/api/developer/orders',
@@ -136,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders/': typeof OrdersIndexRoute
+  '/api/developer/order-actions': typeof ApiDeveloperOrderActionsRoute
   '/api/developer/orders': typeof ApiDeveloperOrdersRoute
   '/api/developer/stores': typeof ApiDeveloperStoresRoute
 }
@@ -156,6 +164,7 @@ export interface FileRoutesByTo {
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders': typeof OrdersIndexRoute
+  '/api/developer/order-actions': typeof ApiDeveloperOrderActionsRoute
   '/api/developer/orders': typeof ApiDeveloperOrdersRoute
   '/api/developer/stores': typeof ApiDeveloperStoresRoute
 }
@@ -177,6 +186,7 @@ export interface FileRoutesById {
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders/': typeof OrdersIndexRoute
+  '/api/developer/order-actions': typeof ApiDeveloperOrderActionsRoute
   '/api/developer/orders': typeof ApiDeveloperOrdersRoute
   '/api/developer/stores': typeof ApiDeveloperStoresRoute
 }
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/health/database'
     | '/orders/$orderId'
     | '/orders/'
+    | '/api/developer/order-actions'
     | '/api/developer/orders'
     | '/api/developer/stores'
   fileRoutesByTo: FileRoutesByTo
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/health/database'
     | '/orders/$orderId'
     | '/orders'
+    | '/api/developer/order-actions'
     | '/api/developer/orders'
     | '/api/developer/stores'
   id:
@@ -239,6 +251,7 @@ export interface FileRouteTypes {
     | '/health/database'
     | '/orders/$orderId'
     | '/orders/'
+    | '/api/developer/order-actions'
     | '/api/developer/orders'
     | '/api/developer/stores'
   fileRoutesById: FileRoutesById
@@ -260,6 +273,7 @@ export interface RootRouteChildren {
   HealthDatabaseRoute: typeof HealthDatabaseRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
+  ApiDeveloperOrderActionsRoute: typeof ApiDeveloperOrderActionsRoute
   ApiDeveloperOrdersRoute: typeof ApiDeveloperOrdersRoute
   ApiDeveloperStoresRoute: typeof ApiDeveloperStoresRoute
 }
@@ -378,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdersOrderIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/developer/order-actions': {
+      id: '/api/developer/order-actions'
+      path: '/api/developer/order-actions'
+      fullPath: '/api/developer/order-actions'
+      preLoaderRoute: typeof ApiDeveloperOrderActionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/developer/orders': {
       id: '/api/developer/orders'
       path: '/api/developer/orders'
@@ -412,6 +433,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthDatabaseRoute: HealthDatabaseRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   OrdersIndexRoute: OrdersIndexRoute,
+  ApiDeveloperOrderActionsRoute: ApiDeveloperOrderActionsRoute,
   ApiDeveloperOrdersRoute: ApiDeveloperOrdersRoute,
   ApiDeveloperStoresRoute: ApiDeveloperStoresRoute,
 }

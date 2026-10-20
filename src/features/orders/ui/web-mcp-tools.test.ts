@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { registerWebMcpTools } from "./web-mcp-tools";
+import { registerOrderActionTools, registerWebMcpTools } from "./web-mcp-tools";
 
 type Registered = {
   name: string;
@@ -115,5 +115,53 @@ describe("registerWebMcpTools", () => {
     expect(createOrder).toHaveBeenCalledWith(
       expect.objectContaining({ storeId: validOrder.storeId }),
     );
+  });
+});
+
+describe("registerOrderActionTools", () => {
+  const orderId = "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922";
+
+  it("registers capture_order, refund_order and cancel_order", () => {
+    const { modelContext, tools } = fakeModelContext();
+    vi.stubGlobal("document", { modelContext });
+
+    registerOrderActionTools(vi.fn());
+
+    expect(tools.map((tool) => tool.name)).toEqual([
+      "capture_order",
+      "refund_order",
+      "cancel_order",
+    ]);
+  });
+
+  it("adds the tool's action and passes the input on", async () => {
+    const { modelContext, tools } = fakeModelContext();
+    vi.stubGlobal("document", { modelContext });
+    const applyOrderAction = vi.fn(async () => ({ status: "captured" }));
+    registerOrderActionTools(applyOrderAction);
+
+    const capture = tools.find((tool) => tool.name === "capture_order");
+    const result = await capture!.execute({ orderId, amount: 500, reason: "Shipped" });
+
+    expect(result.isError).toBeFalsy();
+    expect(applyOrderAction).toHaveBeenCalledWith({
+      action: "capture",
+      orderId,
+      amount: 500,
+      reason: "Shipped",
+    });
+  });
+
+  it("refuses a call without a reason before reaching the server", async () => {
+    const { modelContext, tools } = fakeModelContext();
+    vi.stubGlobal("document", { modelContext });
+    const applyOrderAction = vi.fn();
+    registerOrderActionTools(applyOrderAction);
+
+    const cancel = tools.find((tool) => tool.name === "cancel_order");
+    const result = await cancel!.execute({ orderId });
+
+    expect(result.isError).toBe(true);
+    expect(applyOrderAction).not.toHaveBeenCalled();
   });
 });

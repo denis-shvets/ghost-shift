@@ -8,12 +8,15 @@ import {
 } from "~/features/access/db/test-accounts";
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { createDb } from "~/shared/db/client";
+import seedIds from "~/shared/seed/seed-ids.json" with { type: "json" };
 
 import { orderLines, orders } from "../db/schema";
 import type { CreateOrderInput } from "../model/create-order-input";
 
 import {
+  OrderActionError,
   StoreNotFoundError,
+  applyOrderAction,
   createOrder,
   getOrder,
   listOrders,
@@ -394,5 +397,76 @@ describe("listStoresForOrder", () => {
   it("shows no stores to a user with no access", async () => {
     const stranger: UserClaims = { sub: testAccounts.stranger, global_roles: [] };
     expect(await listStoresForOrder(db, stranger)).toEqual([]);
+  });
+});
+
+describe("applyOrderAction", () => {
+  const developer: UserClaims = {
+    sub: testAccounts.developer,
+    global_roles: ["platform_developer"],
+  };
+  // Orders created by these tests, deleted afterwards so the merchant lists stay as seeded.
+  const created: string[] = [];
+
+  afterAll(async () => {
+    await db.delete(orders).where(inArray(orders.id, created));
+  });
+
+  async function freshOrder() {
+    const { id } = await createOrder(db, developer, newOrder);
+    created.push(id);
+    return id;
+  }
+
+  it("captures and returns the new status and amounts as numbers", async () => {
+    const orderId = await freshOrder();
+    const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
+
+    const result = await applyOrderAction(db, merchant, {
+      action: "capture",
+      orderId,
+      amount: 1000,
+      reason: "Shipped",
+    });
+
+    expect(result).toEqual({
+      id: orderId,
+      status: "part_captured",
+      capturedAmount: 1000,
+      refundedAmount: 0,
+      uncapturedAmount: order!.totalAmount - 1000,
+    });
+  });
+
+  it.each<[string, UserClaims, { amount?: number }, number]>([
+    ["more than is left", merchant, { amount: 999_999_999 }, 409],
+    ["a merchant of another company", { sub: testAccounts.merchantB, global_roles: [] }, {}, 404],
+    ["a user who can't see the order", { sub: testAccounts.stranger, global_roles: [] }, {}, 404],
+  ])("turns a refusal for %s into an OrderActionError", async (_, user, extra, status) => {
+    const orderId = await freshOrder();
+    const error = await applyOrderAction(db, user, {
+      action: "capture",
+      orderId,
+      amount: 1,
+      reason: "Shipped",
+      ...extra,
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(OrderActionError);
+    expect(error).toMatchObject({ status });
+  });
+
+  it("answers 403 to someone who may read the order but not cancel it", async () => {
+    // Merchant B handles disputes at Nordic Bikes: they read its orders but may not move money.
+    const { id: orderId } = await createOrder(db, developer, {
+      ...newOrder,
+      storeId: seedIds.stores.nordicBikesGermany,
+    });
+    created.push(orderId);
+    const merchantB: UserClaims = { sub: testAccounts.merchantB, global_roles: [] };
+
+    await expect(
+      applyOrderAction(db, merchantB, { action: "cancel", orderId, reason: "Out of stock" }),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });

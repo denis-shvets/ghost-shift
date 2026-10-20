@@ -6,7 +6,7 @@ import type { UserClaims } from "~/shared/auth/user-claims";
 import { type Database, createDb } from "~/shared/db/client";
 import { parseServerEnv } from "~/shared/env/server-env";
 
-import { StoreNotFoundError } from "./orders-repository";
+import { OrderActionError, StoreNotFoundError } from "./orders-repository";
 
 export function json(body: unknown, status = 200) {
   return Response.json(body, { status });
@@ -35,6 +35,8 @@ export async function handleDeveloperRequest(
   } catch (error) {
     // A store the user can't see is reported as missing, the same as one that doesn't exist.
     if (error instanceof StoreNotFoundError) return json({ error: "Store not found" }, 404);
+    // A capture, cancel or refund the database refused: its message says why.
+    if (error instanceof OrderActionError) return json({ error: error.message }, error.status);
     // Anything else (a database rule, a reference clash) still answers in JSON, so scripts can read it.
     console.error(error);
     return json({ error: "Internal error" }, 500);

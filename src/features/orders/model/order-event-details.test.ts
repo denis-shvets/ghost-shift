@@ -50,6 +50,21 @@ describe("describeEvent", () => {
     expect(describeEvent(canceled, "SEK")).toBe(`Released SEK${NBSP}100.00`);
   });
 
+  it("adds the reason to a capture and a cancel", () => {
+    const captured: OrderEvent = {
+      ...base,
+      action: "captured",
+      metadata: { amount: 50000, reason: "Shipped" },
+    };
+    const canceled: OrderEvent = {
+      ...base,
+      action: "canceled",
+      metadata: { releasedAmount: 10000, reason: "Out of stock" },
+    };
+    expect(describeEvent(captured, "SEK")).toBe(`Captured SEK${NBSP}500.00 – Shipped`);
+    expect(describeEvent(canceled, "SEK")).toBe(`Released SEK${NBSP}100.00 – Out of stock`);
+  });
+
   it("describes an expired authorization as released, with the reason", () => {
     const expired: OrderEvent = {
       ...base,

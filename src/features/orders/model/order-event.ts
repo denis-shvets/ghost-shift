@@ -4,10 +4,11 @@ type LineQuantity = { position: number; quantity: number };
 
 type MetadataByAction = {
   authorized: { amount: number };
-  captured: { amount: number; lines?: LineQuantity[] };
+  // public.order_action() always writes a reason; older seed events have none.
+  captured: { amount: number; reason?: string; lines?: LineQuantity[] };
   refunded: { amount: number; reason?: string; lines?: LineQuantity[] };
   // The part of the authorization that was let go and can no longer be captured.
-  canceled: { releasedAmount: number };
+  canceled: { releasedAmount: number; reason?: string };
   // Written by public.expire_orders() and the seed.
   expired: { releasedAmount: number; reason: string };
 };

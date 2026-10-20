@@ -592,3 +592,290 @@ describe("expiring authorizations", () => {
     expect(job?.schedule).toBe("*/15 * * * *");
   });
 });
+
+describe("capture, cancel and refund", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const checkViolation = { cause: { code: "23514" } };
+
+  // A fresh 200.00 SEK authorization at Moonlight Sweden, saved as the owner. Removed after the tests.
+  const created: string[] = [];
+  async function newOrder(values: Partial<typeof orders.$inferInsert> = {}) {
+    const [order] = await db
+      .insert(orders)
+      .values({
+        reference: `TEST-${randomUUID()}`,
+        storeId: moonlightSweden,
+        currency: "SEK",
+        customerFirstName: "Test",
+        customerLastName: "Customer",
+        customerEmail: "customer@ghostshift.test",
+        paymentMethod: "card",
+        status: "authorized",
+        totalAmount: 20000,
+        shippingCarrier: "PostNord",
+        ...values,
+      })
+      .returning();
+    created.push(order!.id);
+    return order!;
+  }
+  afterAll(async () => {
+    for (const id of created) await db.delete(orders).where(eq(orders.id, id));
+  });
+
+  // Calls public.order_action as this user, on `on` (a second connection for the concurrency test).
+  function act(
+    userId: string,
+    orderId: string,
+    action: string,
+    amount: number | null,
+    reason: string | null,
+    on = db,
+  ) {
+    return withUser(on, asUser(userId), (tx) =>
+      tx.execute<{ status: OrderStatus }>(
+        sql`select status from public.order_action(${orderId}::uuid, ${action}, ${amount}::bigint, ${reason})`,
+      ),
+    ).then(([row]) => row?.status);
+  }
+
+  async function amountsOf(id: string) {
+    const [row] = await db
+      .select({
+        status: orders.status,
+        captured: orders.capturedAmount,
+        refunded: orders.refundedAmount,
+      })
+      .from(orders)
+      .where(eq(orders.id, id));
+    return row;
+  }
+
+  function eventsOf(id: string) {
+    return db
+      .select()
+      .from(orderEvents)
+      .where(eq(orderEvents.orderId, id))
+      .orderBy(orderEvents.occurredAt, orderEvents.id);
+  }
+
+  it("captures part, then the rest, then refunds it all, with one event per action", async () => {
+    const order = await newOrder();
+    const merchant = testAccounts.merchantA;
+
+    expect(await act(merchant, order.id, "capture", 5000, " First parcel shipped ")).toBe(
+      "part_captured",
+    );
+    expect(await act(merchant, order.id, "capture", 15000, "Second parcel shipped")).toBe(
+      "captured",
+    );
+    expect(await act(merchant, order.id, "refund", 2000, "One mug arrived broken")).toBe(
+      "captured",
+    );
+    expect(await act(merchant, order.id, "refund", 18000, "Customer returned the rest")).toBe(
+      "refunded",
+    );
+
+    expect(await amountsOf(order.id)).toEqual({
+      status: "refunded",
+      captured: 20000,
+      refunded: 20000,
+    });
+    const events = await eventsOf(order.id);
+    expect(events.map((event) => [event.action, event.metadata])).toEqual(
+      expect.arrayContaining([
+        ["captured", { amount: 5000, reason: "First parcel shipped" }],
+        ["captured", { amount: 15000, reason: "Second parcel shipped" }],
+        ["refunded", { amount: 2000, reason: "One mug arrived broken" }],
+        ["refunded", { amount: 18000, reason: "Customer returned the rest" }],
+      ]),
+    );
+    expect(events).toHaveLength(4);
+    // The person who did it, by id and by email.
+    expect(events.every((event) => event.actorUserId === merchant)).toBe(true);
+    expect(events.every((event) => event.actorName === "merchantA@test.ghostshift.test")).toBe(
+      true,
+    );
+  });
+
+  it("cancels what is left of a part-captured authorization and records what was released", async () => {
+    const order = await newOrder();
+    await act(testAccounts.merchantA, order.id, "capture", 5000, "Shipped what was in stock");
+    expect(
+      await act(testAccounts.merchantA, order.id, "cancel", null, "Rest is out of stock"),
+    ).toBe("canceled");
+
+    const events = await eventsOf(order.id);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        action: "canceled",
+        metadata: { releasedAmount: 15000, reason: "Rest is out of stock" },
+      }),
+    );
+    // Captured money can still be refunded after a cancel; the status stays canceled.
+    expect(await act(testAccounts.merchantA, order.id, "refund", 5000, "Returned")).toBe(
+      "canceled",
+    );
+  });
+
+  it("refuses a second cancel, so the timeline gets one event", async () => {
+    const order = await newOrder();
+    await act(testAccounts.merchantA, order.id, "cancel", null, "Customer canceled");
+    await expect(
+      act(testAccounts.merchantA, order.id, "cancel", null, "Clicked twice"),
+    ).rejects.toMatchObject(checkViolation);
+    expect(await eventsOf(order.id)).toHaveLength(1);
+  });
+
+  it.each([
+    ["capture more than is uncaptured", "capture", 20001],
+    ["refund before anything is captured", "refund", 1],
+  ])("refuses to %s", async (_, action, amount) => {
+    const order = await newOrder();
+    await expect(
+      act(testAccounts.merchantA, order.id, action, amount, "Testing limits"),
+    ).rejects.toMatchObject(checkViolation);
+    expect(await eventsOf(order.id)).toEqual([]);
+  });
+
+  it.each([
+    ["no reason", null],
+    ["a blank reason", "   "],
+    ["a reason over 500 characters", "x".repeat(501)],
+  ])("refuses an action with %s", async (_, reason) => {
+    const order = await newOrder();
+    await expect(
+      act(testAccounts.merchantA, order.id, "cancel", null, reason),
+    ).rejects.toMatchObject({ cause: { code: "22023" } });
+  });
+
+  it("refuses to capture once the authorization has run out", async () => {
+    const createdAt = new Date(Date.now() - 10 * DAY);
+    const order = await newOrder({ createdAt, expiresAt: new Date(createdAt.getTime() + DAY) });
+    await expect(
+      act(testAccounts.merchantA, order.id, "capture", 100, "Too late"),
+    ).rejects.toMatchObject(checkViolation);
+  });
+
+  it("refuses to cancel a captured order or capture a canceled one", async () => {
+    const order = await newOrder();
+    await act(testAccounts.merchantA, order.id, "capture", 20000, "Shipped");
+    await expect(
+      act(testAccounts.merchantA, order.id, "cancel", null, "Changed my mind"),
+    ).rejects.toMatchObject(checkViolation);
+
+    const canceled = await newOrder();
+    await act(testAccounts.merchantA, canceled.id, "cancel", null, "Customer canceled");
+    await expect(
+      act(testAccounts.merchantA, canceled.id, "capture", 100, "Shipped anyway"),
+    ).rejects.toMatchObject(checkViolation);
+  });
+
+  it("refuses someone who may read the order but not move money", async () => {
+    // Merchant B only handles disputes at Nordic Bikes.
+    const order = await newOrder({ storeId: nordicBikesGermany, currency: "EUR" });
+    await expect(
+      act(testAccounts.merchantB, order.id, "capture", 100, "Shipped"),
+    ).rejects.toMatchObject(permissionDenied);
+  });
+
+  it("an agent with second-line support may capture at an assigned store", async () => {
+    const order = await newOrder({ storeId: nordicBikesGermany, currency: "EUR" });
+    expect(await act(testAccounts.agent, order.id, "capture", 100, "Shipped")).toBe(
+      "part_captured",
+    );
+  });
+
+  it("reports another company's order as not found", async () => {
+    const order = await newOrder();
+    await expect(
+      act(testAccounts.merchantB, order.id, "cancel", null, "Not mine"),
+    ).rejects.toMatchObject({ cause: { code: "P0002" } });
+    await expect(
+      act(testAccounts.stranger, order.id, "cancel", null, "Not mine"),
+    ).rejects.toMatchObject({ cause: { code: "P0002" } });
+  });
+
+  it("can't be called by anonymous visitors", async () => {
+    const order = await newOrder();
+    await expect(
+      withRole(db, "anon", (tx) =>
+        tx.execute(sql`select public.order_action(${order.id}::uuid, 'cancel', null, 'Anon')`),
+      ),
+    ).rejects.toMatchObject(permissionDenied);
+  });
+
+  it("can't be done around the function, by updating the order directly", async () => {
+    const order = await newOrder();
+    await expect(
+      withUser(db, asUser(testAccounts.merchantA), (tx) =>
+        tx.update(orders).set({ status: "canceled" }).where(eq(orders.id, order.id)),
+      ),
+    ).rejects.toMatchObject(permissionDenied);
+  });
+
+  it("lets only one of two captures at the same moment through when both don't fit", async () => {
+    const order = await newOrder();
+    const second = createDb(testDatabaseUrl);
+    try {
+      const results = await Promise.allSettled([
+        act(testAccounts.merchantA, order.id, "capture", 15000, "First"),
+        act(testAccounts.merchantA, order.id, "capture", 15000, "Second", second),
+      ]);
+      expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+      expect((await amountsOf(order.id))?.captured).toBe(15000);
+    } finally {
+      await second.close();
+    }
+  });
+
+  describe("the status trigger, for every writer including the owner", () => {
+    it.each([
+      ["captured", "canceled", { capturedAmount: 20000 }],
+      ["canceled", "authorized", {}],
+      ["refunded", "captured", { capturedAmount: 20000, refundedAmount: 20000 }],
+    ] as const)("refuses %s -> %s", async (from, to, amounts) => {
+      const order = await newOrder({ status: from, ...amounts });
+      await expect(
+        db.update(orders).set({ status: to }).where(eq(orders.id, order.id)),
+      ).rejects.toMatchObject(checkViolation);
+    });
+
+    it("refuses to lower a captured amount", async () => {
+      const order = await newOrder({ status: "part_captured", capturedAmount: 5000 });
+      await expect(
+        db.update(orders).set({ capturedAmount: 4000 }).where(eq(orders.id, order.id)),
+      ).rejects.toMatchObject(checkViolation);
+    });
+
+    it("refuses a status that doesn't match the amounts", async () => {
+      const order = await newOrder();
+      await expect(
+        db
+          .update(orders)
+          .set({ status: "captured", capturedAmount: 5000 })
+          .where(eq(orders.id, order.id)),
+      ).rejects.toMatchObject(checkViolation);
+    });
+
+    it("refuses captured money on an order that stays authorized", async () => {
+      const order = await newOrder();
+      await expect(
+        db.update(orders).set({ capturedAmount: 5000 }).where(eq(orders.id, order.id)),
+      ).rejects.toMatchObject(checkViolation);
+    });
+
+    it("refuses to expire an authorization that hasn't run out yet", async () => {
+      const order = await newOrder();
+      await expect(
+        db.update(orders).set({ status: "expired" }).where(eq(orders.id, order.id)),
+      ).rejects.toMatchObject(checkViolation);
+    });
+
+    it("still allows changes that don't touch status or money", async () => {
+      const order = await newOrder();
+      await db.update(orders).set({ shippingTracking: "TRACK-1" }).where(eq(orders.id, order.id));
+      expect((await amountsOf(order.id))?.status).toBe("authorized");
+    });
+  });
+});

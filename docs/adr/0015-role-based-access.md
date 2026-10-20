@@ -85,6 +85,7 @@ Roles are named for the job, with a prefix for the side (`platform_`, `merchant_
 - Only read policies exist, plus the first write policies: `orders.create` lets only `platform_developer` insert orders and their lines (`orders_create_access`). Other write policies are added with the features that need them.
 - Nothing shows a person's effective permissions yet. Someone has to read several membership rows to see them.
 - `order_addresses` and `order_events` reuse `orders.read` and `orders.create` through the parent order; no new roles were needed (2026-10-19).
+- Capture, cancel and refund have their own permissions (`orders.capture`, `orders.cancel`, `orders.refund`), given to the roles that hold `orders.edit`. They are checked inside the `security definer` function `public.order_action()`, not by an update policy (2026-10-20).
 
 ## Consequences
 

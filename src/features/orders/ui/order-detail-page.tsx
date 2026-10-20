@@ -1,17 +1,21 @@
-import { Fragment } from "react";
-import { Link } from "@tanstack/react-router";
+import { Fragment, type SyntheticEvent, useEffect, useState } from "react";
+import { Link, useRouter } from "@tanstack/react-router";
 
 import { SignOutButton } from "~/features/auth/ui/sign-out-button";
 import { describeEvent } from "~/features/orders/model/order-event-details";
-import { formatMoney } from "~/features/orders/model/money";
+import { formatMoney, toMajorUnits, toMinorUnits } from "~/features/orders/model/money";
+import { type OrderAction, orderActionInput } from "~/features/orders/model/order-action-input";
+import { availableOrderActions } from "~/features/orders/model/order-actions";
 import {
   ORDER_EVENT_ACTION_LABELS,
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
 } from "~/features/orders/model/order-labels";
 import { formatTaxRate } from "~/features/orders/model/tax-rate";
-import type { fetchOrder } from "~/features/orders/server/functions";
+import { type fetchOrder, orderActionFn } from "~/features/orders/server/functions";
 import { formatMockDateTime } from "~/mocks/format";
+
+import { registerOrderActionTools } from "./web-mcp-tools";
 
 type Order = NonNullable<Awaited<ReturnType<typeof fetchOrder>>>;
 type Address = Order["addresses"][number];
@@ -57,7 +61,101 @@ function isSameAddress(a: Address, b: Address) {
   );
 }
 
-export function OrderDetailPage({ order }: { order: Order }) {
+const ACTION_LABELS: Record<OrderAction, string> = {
+  capture: "Capture",
+  refund: "Refund",
+  cancel: "Cancel authorization",
+};
+
+// One action as a plain form. Amounts are typed in major units (12.50) and sent in minor units.
+// The server checks everything again; its refusal is shown under the form.
+function OrderActionForm({
+  orderId,
+  action,
+  currency,
+  maxAmount,
+}: {
+  orderId: string;
+  action: OrderAction;
+  currency: string;
+  maxAmount: number;
+}) {
+  const router = useRouter();
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const label = ACTION_LABELS[action];
+
+  async function onSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const reason = String(form.get("reason") ?? "");
+    const amount = toMinorUnits(String(form.get("amount") ?? ""));
+    const input = orderActionInput.safeParse(
+      action === "cancel" ? { action, orderId, reason } : { action, orderId, reason, amount },
+    );
+    if (!input.success) {
+      setMessage(input.error.issues.map((issue) => issue.message).join("; "));
+      return;
+    }
+    setMessage("");
+    setBusy(true);
+    try {
+      await orderActionFn({ data: input.data });
+      // Reloads the order, so the amounts, the timeline and these forms show the new state.
+      await router.invalidate();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <h3>{label}</h3>
+      {action !== "cancel" && (
+        <p>
+          <label>
+            Amount ({currency}){" "}
+            <input
+              name="amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              max={toMajorUnits(maxAmount)}
+              defaultValue={toMajorUnits(maxAmount)}
+              required
+            />
+          </label>
+        </p>
+      )}
+      <p>
+        <label>
+          Reason <textarea name="reason" required maxLength={500} />
+        </label>
+      </p>
+      <button type="submit" disabled={busy}>
+        {label}
+      </button>
+      {message && <p role="alert">{message}</p>}
+    </form>
+  );
+}
+
+export function OrderDetailPage({ order, loadedAt }: { order: Order; loadedAt: Date }) {
+  const router = useRouter();
+  // WebMCP tools exist only while this page is open and the browser supports them.
+  // Called directly, not through useServerFn, so a sign-in redirect comes back to the agent as an error.
+  useEffect(
+    () =>
+      registerOrderActionTools(async (data) => {
+        const result = await orderActionFn({ data });
+        await router.invalidate();
+        return result;
+      }),
+    [router],
+  );
+  const actions = availableOrderActions(order, loadedAt);
   const money = (amount: number) => formatMoney(amount, order.currency);
   const billing = order.addresses.find((address) => address.kind === "billing");
   const shipping = order.addresses.find((address) => address.kind === "shipping");
@@ -71,7 +169,7 @@ export function OrderDetailPage({ order }: { order: Order }) {
   const released =
     order.status === "canceled" ||
     order.status === "expired" ||
-    (order.status === "part_captured" && order.expiresAt <= new Date());
+    (order.status === "part_captured" && order.expiresAt <= loadedAt);
   const shippingSameAsBilling =
     billing !== undefined && shipping !== undefined && isSameAddress(billing, shipping);
 
@@ -183,16 +281,23 @@ export function OrderDetailPage({ order }: { order: Order }) {
         </tbody>
       </table>
       <h2>Actions</h2>
-      <p>Mocked: these buttons do nothing yet.</p>
-      <button type="button" disabled>
-        Capture
-      </button>{" "}
-      <button type="button" disabled>
-        Refund
-      </button>{" "}
-      <button type="button" disabled>
-        Cancel
-      </button>
+      {actions.length === 0 && <p>No actions are possible on this order.</p>}
+      {actions.map((action) => {
+        const maxAmount =
+          action === "refund"
+            ? order.capturedAmount - order.refundedAmount
+            : order.uncapturedAmount;
+        // The key changes with the amount, so the form starts fresh after each action.
+        return (
+          <OrderActionForm
+            key={`${action}-${maxAmount}`}
+            orderId={order.id}
+            action={action}
+            currency={order.currency}
+            maxAmount={maxAmount}
+          />
+        );
+      })}
     </>
   );
 }
