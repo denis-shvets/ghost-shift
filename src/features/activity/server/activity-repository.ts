@@ -97,3 +97,11 @@ export async function listActivityOrFirstPage(
     storeId: input.storeId,
   });
 }
+
+// For the store filter. Stores only, no organizations join: operators and agents can read stores
+// but not organization names, and the join would hide every store from them.
+export function listReadableStores(db: Database, user: UserClaims) {
+  return withUser(db, user, (tx) =>
+    tx.select({ id: stores.id, name: stores.name }).from(stores).orderBy(asc(stores.name)),
+  );
+}

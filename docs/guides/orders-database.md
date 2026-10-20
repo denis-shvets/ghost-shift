@@ -870,7 +870,14 @@ The existing index `order_events_order_occurred_at_idx` covers one order's timel
 
 ### e. Filters for later
 
-`action` and `storeId` are optional. The audit log keeps them in the URL (for example `/audit-log?action=refunded`), so they survive paging and a filtered link can be shared. The refunds page will link to it with them. Zod checks both in `src/features/activity/model/activity-list-input.ts`, so a bad value never reaches the database.
+`action` and `storeId` are optional. The audit log keeps them in the URL (for example `/audit-log?action=refunded`), so they survive paging and a filtered link can be shared. Zod checks both in `src/features/activity/model/activity-list-input.ts`, so a bad value never reaches the database.
+
+The refunds page (`/refunds`) makes no new events query. In plain steps:
+
+1. The server calls the same `listActivity` with `action` fixed to `refunded`, so the caller cannot pick another action.
+2. The store filter is `storeId` in the URL. The "All stores" option sends an empty value, and Zod turns that into "not set".
+3. The store choices come from `listReadableStores`, a small query on the `stores` table only. RLS (`stores.read`) limits it to the stores the viewer can read.
+4. It does not join `organizations`. A platform operator or an agent may read stores but not organization names, so an inner join would hide every store from them.
 
 ## 7. What's deliberately not done yet
 

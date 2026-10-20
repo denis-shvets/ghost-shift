@@ -104,17 +104,6 @@ export const orders: Order[] = [
   },
 ];
 
-export const refunds = [
-  {
-    id: "ref_201",
-    orderId: "ord_1003",
-    amount: eur(40),
-    reason: "Night lamp arrived broken",
-    createdAt: "2026-10-16T09:00:00Z",
-    by: "agent.orders",
-  },
-];
-
 export const disputes = [
   {
     id: "dis_301",
