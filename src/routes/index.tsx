@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { auditLog, disputes, orders } from "~/mocks/data";
 import { formatMockDateTime } from "~/mocks/format";
+import { MockNotice } from "~/features/layout/ui/mock-notice";
 
 export const Route = createFileRoute("/")({
+  head: () => ({ meta: [{ title: "Dashboard · Ghost Shift" }] }),
   component: Dashboard,
 });
 
@@ -14,6 +16,7 @@ function Dashboard() {
   return (
     <>
       <h1>Dashboard</h1>
+      <MockNotice />
       <ul>
         <li>Orders today: {orders.length}</li>
         <li>Waiting for capture: {toCapture}</li>

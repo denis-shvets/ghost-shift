@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { formatMoney } from "~/features/orders/model/money";
 import { settlements } from "~/mocks/data";
+import { MockNotice } from "~/features/layout/ui/mock-notice";
 
 export const Route = createFileRoute("/settlements")({
+  head: () => ({ meta: [{ title: "Settlements · Ghost Shift" }] }),
   component: Settlements,
 });
 
@@ -11,6 +13,7 @@ function Settlements() {
   return (
     <>
       <h1>Settlements</h1>
+      <MockNotice />
       <table>
         <thead>
           <tr>

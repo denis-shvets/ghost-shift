@@ -305,7 +305,7 @@ CREATE TABLE "order_addresses" (
 
 **The composite primary key:** `(order_id, kind)` is the key. A primary key is the column (or pair) that identifies a row. Here the pair must be unique, so one order can have only one `billing` row and one `shipping` row. A third address is refused by the database. The key also makes "the billing address of order X" a single, fast lookup.
 
-**Why two rows, not two columns on `orders`:** the create form has a "same as billing" checkbox. When it is ticked, both rows are still stored, with the same values. The app does this, so later code never has to ask "is there a shipping address, or should I use billing?". A separate table is also easy to restrict later. A policy on `order_addresses` alone can hide addresses from a support role, without touching the order's own columns.
+**Why two rows, not two columns on `orders`:** the create form has a "billing same as shipping" checkbox. When it is ticked, the shipping values are copied into the billing row, and both rows are still stored with the same values. The app does this, so later code never has to ask "is there a shipping address, or should I use billing?". A separate table is also easy to restrict later. A policy on `order_addresses` alone can hide addresses from a support role, without touching the order's own columns.
 
 **Steps the app follows when an order is created:**
 

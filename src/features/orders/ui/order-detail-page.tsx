@@ -1,7 +1,6 @@
 import { Fragment, type SyntheticEvent, useEffect, useState } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 
-import { SignOutButton } from "~/features/auth/ui/sign-out-button";
 import { describeEvent } from "~/features/orders/model/order-event-details";
 import { formatMoney, toMajorUnits, toMinorUnits } from "~/features/orders/model/money";
 import { type OrderAction, orderActionInput } from "~/features/orders/model/order-action-input";
@@ -178,7 +177,6 @@ export function OrderDetailPage({ order, loadedAt }: { order: Order; loadedAt: D
       <p>
         <Link to="/orders">Back to orders</Link>
       </p>
-      <SignOutButton />
       <h1>Order {order.reference}</h1>
       <dl>
         <dt>Store</dt>

@@ -5,6 +5,7 @@ import { fetchRefunds } from "~/features/activity/server/functions";
 import { RefundsPage } from "~/features/activity/ui/refunds-page";
 
 export const Route = createFileRoute("/refunds")({
+  head: () => ({ meta: [{ title: "Refunds · Ghost Shift" }] }),
   validateSearch: activityListInput.pick({
     cursor: true,
     direction: true,

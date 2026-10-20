@@ -85,7 +85,7 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [lines, setLines] = useState<Line[]>([]);
   const [message, setMessage] = useState("");
-  const [sameAsBilling, setSameAsBilling] = useState(true);
+  const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
 
   // WebMCP tools exist only while this page is open and the browser supports them.
   useEffect(
@@ -137,9 +137,11 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setMessage("");
-    const billingAddress = addressFromForm(form, "billing");
-    // When the box is checked the shipping fields are not rendered, so billing is the only address read.
-    const shippingAddress = sameAsBilling ? billingAddress : addressFromForm(form, "shipping");
+    const shippingAddress = addressFromForm(form, "shipping");
+    // When the box is checked the billing fields are not rendered, so shipping is the only address read.
+    const billingAddress = billingSameAsShipping
+      ? shippingAddress
+      : addressFromForm(form, "billing");
     try {
       const order = await createOrderOnServer({
         data: {
@@ -263,18 +265,18 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
             Phone (optional) <input name="phone" type="tel" />
           </label>
         </p>
-        <AddressFields prefix="billing" legend="Billing address" />
+        <AddressFields prefix="shipping" legend="Shipping address" />
         <p>
           <label>
             <input
               type="checkbox"
-              checked={sameAsBilling}
-              onChange={(event) => setSameAsBilling(event.target.checked)}
+              checked={billingSameAsShipping}
+              onChange={(event) => setBillingSameAsShipping(event.target.checked)}
             />{" "}
-            Shipping address same as billing
+            Billing address same as shipping
           </label>
         </p>
-        {sameAsBilling ? null : <AddressFields prefix="shipping" legend="Shipping address" />}
+        {billingSameAsShipping ? null : <AddressFields prefix="billing" legend="Billing address" />}
         <p>
           <label>
             Payment method{" "}

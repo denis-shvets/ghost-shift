@@ -3,12 +3,6 @@
 
 export type Money = { amount: number; currency: "SEK" | "EUR" | "NOK" | "GBP" };
 
-export const merchant = {
-  id: "mer_001",
-  name: "Moonlight Goods",
-  provider: "Phantom Checkout",
-};
-
 export const stores = [
   { id: "sto_se", name: "Moonlight Goods Sweden", market: "SE", currency: "SEK", status: "live" },
   { id: "sto_fi", name: "Moonlight Goods Finland", market: "FI", currency: "EUR", status: "live" },

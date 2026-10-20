@@ -1,23 +1,9 @@
 import type { ReactNode } from "react";
 
-import { HeadContent, Link, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 
-import { merchant } from "~/mocks/data";
-
-const navigation = [
-  { to: "/", label: "Dashboard" },
-  { to: "/orders", label: "Orders" },
-  { to: "/refunds", label: "Refunds" },
-  { to: "/disputes", label: "Disputes" },
-  { to: "/settlements", label: "Settlements" },
-  { to: "/payment-links", label: "Payment links" },
-  { to: "/insights", label: "Insights" },
-  { to: "/stores", label: "Stores" },
-  { to: "/team", label: "Team and agents" },
-  { to: "/audit-log", label: "Audit log" },
-  { to: "/developers", label: "Developers" },
-  { to: "/emails", label: "Emails sent" },
-] as const;
+import { fetchCurrentUser } from "~/features/layout/server/functions";
+import { AppLayout } from "~/features/layout/ui/app-layout";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -27,30 +13,20 @@ export const Route = createRootRoute({
       { title: "Ghost Shift" },
     ],
   }),
+  // Sign-in and sign-out reload the page, so the user rarely changes between navigations.
+  staleTime: 60_000,
+  loader: () => fetchCurrentUser(),
   component: RootComponent,
   notFoundComponent: () => <p>Page not found.</p>,
 });
 
 function RootComponent() {
+  const user = Route.useLoaderData();
   return (
     <RootDocument>
-      <header>
-        <strong>Ghost Shift</strong> · {merchant.name} on {merchant.provider}
-      </header>
-      <nav aria-label="Main">
-        <ul>
-          {navigation.map((item) => (
-            <li key={item.to}>
-              <Link to={item.to} activeOptions={{ exact: item.to === "/" }}>
-                {item.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <main>
+      <AppLayout user={user}>
         <Outlet />
-      </main>
+      </AppLayout>
     </RootDocument>
   );
 }

@@ -4,6 +4,8 @@ import { fetchOrder } from "~/features/orders/server/functions";
 import { OrderDetailPage } from "~/features/orders/ui/order-detail-page";
 
 export const Route = createFileRoute("/orders/$orderId")({
+  // shortcut: the title doesn't show the order reference, because loaderData is typed as missing in head(). Revisit when TanStack types it.
+  head: () => ({ meta: [{ title: "Order · Ghost Shift" }] }),
   loader: async ({ params }) => {
     const order = await fetchOrder({ data: params.orderId });
     if (!order) throw notFound();

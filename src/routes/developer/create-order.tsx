@@ -4,6 +4,7 @@ import { fetchStoresFn } from "~/features/orders/server/functions";
 import { CreateOrderPage } from "~/features/orders/ui/create-order-page";
 
 export const Route = createFileRoute("/developer/create-order")({
+  head: () => ({ meta: [{ title: "Create test order · Ghost Shift" }] }),
   loader: async () => {
     try {
       return { stores: await fetchStoresFn() };

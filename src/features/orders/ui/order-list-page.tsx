@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 
-import { SignOutButton } from "~/features/auth/ui/sign-out-button";
 import type { OrderListInput } from "~/features/orders/model/order-list-input";
 import { formatMoney } from "~/features/orders/model/money";
 import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "~/features/orders/model/order-labels";
@@ -24,7 +23,6 @@ export function OrderListPage({
   return (
     <>
       <h1>Orders</h1>
-      <SignOutButton />
       <form method="get" action="/orders">
         <label htmlFor="order-search">Reference or email</label>{" "}
         <input id="order-search" name="q" type="search" defaultValue={filters.q} />{" "}
