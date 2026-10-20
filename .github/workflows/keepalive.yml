@@ -6,6 +6,7 @@ name: Keep Supabase awake
 on:
   schedule:
     - cron: "0 12 * * *"
+      timezone: "Europe/Stockholm" # 12:00 Stockholm time, every day
   workflow_dispatch:
 
 permissions:
