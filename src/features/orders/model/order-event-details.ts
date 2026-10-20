@@ -7,20 +7,22 @@ function describeLines(lines: OrderEventMetadata<"captured">["lines"]) {
   return ` (lines ${lines.map((line) => line.position).join(", ")})`;
 }
 
+// " – Damaged" when the event has a reason; empty when it has none.
+function withReason(reason: string | undefined) {
+  return reason ? ` – ${reason}` : "";
+}
+
 // One readable sentence for a timeline row. The switch lets TypeScript narrow each action's metadata.
 export function describeEvent(event: OrderEvent, currency: string): string {
   switch (event.action) {
     case "authorized":
       return `Amount ${formatMoney(event.metadata.amount, currency)}`;
     case "captured":
-      return `Captured ${formatMoney(event.metadata.amount, currency)}${describeLines(event.metadata.lines)}`;
-    case "refunded": {
-      const reason = event.metadata.reason ? ` – ${event.metadata.reason}` : "";
-      return `Refunded ${formatMoney(event.metadata.amount, currency)}${reason}${describeLines(event.metadata.lines)}`;
-    }
+      return `Captured ${formatMoney(event.metadata.amount, currency)}${withReason(event.metadata.reason)}${describeLines(event.metadata.lines)}`;
+    case "refunded":
+      return `Refunded ${formatMoney(event.metadata.amount, currency)}${withReason(event.metadata.reason)}${describeLines(event.metadata.lines)}`;
     case "canceled":
-      return `Released ${formatMoney(event.metadata.releasedAmount, currency)}`;
     case "expired":
-      return `Released ${formatMoney(event.metadata.releasedAmount, currency)} – ${event.metadata.reason}`;
+      return `Released ${formatMoney(event.metadata.releasedAmount, currency)}${withReason(event.metadata.reason)}`;
   }
 }

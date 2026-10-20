@@ -670,7 +670,7 @@ then
 end if;
 ```
 
-Today one change is allowed: `authorized → expired`. Any other change is refused with the same error a check constraint gives. So an expired order can't come back, and a captured order can't be expired. Unlike row-level security, the trigger also applies to the owner. When capture, cancel and refund are built, they add their pairs to this list.
+Today one change is allowed: `authorized → expired`. Any other change is refused with the same error a check constraint gives. So an expired order can't come back, and a captured order can't be expired. Unlike row-level security, the trigger also applies to the owner. Capture, cancel and refund added their moves to this function: see section 6c.
 
 ### g. The pages
 
@@ -688,13 +688,154 @@ One case still reads the date: a part-captured order past `expires_at` stays `pa
 - The trigger refuses wrong status changes.
 - The schedule exists.
 
-## 6. What's deliberately not done yet
+## 6. Capture, cancel and refund (2026-10-20)
 
-- **Reads follow roles, and only the system changes orders.** Each company sees its own orders, and agents see their stores. The expiry job (section 5) is the only thing that updates orders. Write rules for people come with the write features. See [Sign-in and access](auth-and-policies.md).
-- **Only inserts, and only for developers.** Platform developers can create orders. Capture, refund and cancel are still disabled buttons.
+Migration: `supabase/migrations/20261020003438_orders_capture_cancel_refund.sql`. It lands after the expiry migration (section 5) and builds on its trigger.
+
+Three actions move money on an order. Each one needs a reason, and every reason ends up on the timeline:
+
+- **Capture:** take money from the authorization, all at once or in parts.
+- **Cancel:** let go of what is left of the authorization. Money already captured stays captured.
+- **Refund:** give captured money back, all at once or in parts.
+
+### a. Where the amounts live
+
+`orders` already had `captured_amount`, `refunded_amount` and the computed `uncaptured_amount` (section 4e), plus two check constraints:
+
+- `orders_captured_amount_range_check`: captured is between 0 and the total.
+- `orders_refunded_amount_range_check`: refunded is between 0 and what was captured.
+
+These two already enforce "never capture more than was authorized, never refund more than was captured". So the running totals stay on `orders`, and each single capture or refund is one `order_events` row with its amount and reason.
+
+The other option was a `captures` table and a `refunds` table, with one row per capture or refund. It was not chosen:
+
+- A check constraint sees one row only. "The rows for this order add up to no more than the total" would need yet another trigger.
+- The timeline already keeps one row per action, so the history exists.
+- The risk with totals is that they disagree with the events. That can't happen here, because one function changes both in the same transaction, and nothing else may (section d).
+
+A separate table becomes worth it when a capture needs its own data, for example a settlement id or the lines it covered.
+
+### b. Three new permissions
+
+```sql
+insert into public.permissions (name, description) values
+  ('orders.capture', …), ('orders.cancel', …), ('orders.refund', …);
+```
+
+These are given to the four roles that already had `orders.edit`: `platform_developer`, `merchant_admin`, `merchant_order_manager` and `agent_second_line`. First-line agents, platform operators and dispute handlers can still read orders, but they can't move money. The insert uses a `cross join`, which pairs every role with every permission, so the 12 rows aren't typed out one by one. See [Sign-in and access](auth-and-policies.md) for the full table.
+
+### c. The trigger now knows every move
+
+The trigger from section 5f is replaced (`create or replace function`) with the full rules. It also fires on every update now, not just when `status` changes, because a second partial capture changes only `captured_amount`:
+
+```sql
+drop trigger orders_status_transition_check on public.orders;
+create trigger orders_status_transition_check
+  before update on public.orders
+  for each row execute function public.orders_status_transition_check();
+```
+
+The status moves it allows:
+
+| From            | To                          | Only when                               |
+| --------------- | --------------------------- | --------------------------------------- |
+| `authorized`    | `part_captured`, `captured` | the authorization hasn't run out        |
+| `authorized`    | `canceled`                  | always                                  |
+| `authorized`    | `expired`                   | the authorization has run out (the job) |
+| `part_captured` | `captured`                  | the authorization hasn't run out        |
+| `part_captured` | `canceled`                  | always                                  |
+| `captured`      | `refunded`                  | everything captured has been refunded   |
+
+And the money rules, in the same function:
+
+1. `captured_amount` and `refunded_amount` never go down.
+2. `captured_amount` grows only while the order is `authorized` or `part_captured`, and before `expires_at`.
+3. When status or money changes, the status must match the amounts: `authorized` means nothing is captured (the app always changes the status with a capture; the rule stops any other writer, like a script or a manual fix), `captured` means everything is captured, `part_captured` means some but not all, and `refunded` means all captured money went back.
+
+A refund on a `part_captured`, `canceled` or `expired` order keeps its status. The status follows the authorization (section 4i), and the order page adds "(partially refunded)" or "(refunded)".
+
+The trigger runs for everyone, including the owner and pg_cron. So the expiry job and these actions share one set of rules, kept in one place.
+
+### d. One function does each action
+
+```sql
+create or replace function public.order_action(p_order_id uuid, p_action text, p_amount bigint, p_reason text)
+returns public.orders
+language plpgsql
+security definer
+set search_path = ''
+```
+
+Signed-in users still have no `update` grant on `orders`, and the event insert policy still allows only `authorized` events. So how can a merchant capture? Through this function, which is the only way in. Step by step:
+
+1. **`security definer`** means the function runs with its owner's rights (`postgres`), not the caller's. That is how it can update `orders` and add events when the caller can't. Because row-level security doesn't apply to the owner, the function checks access itself. `set search_path = ''` makes every name inside it fully written out (`public.orders`), so nobody can slip in a look-alike table.
+2. **Checks the input.** The reason is trimmed and must be 1 to 500 characters. Capture and refund need an amount above 0. Otherwise it raises `invalid_parameter_value` (code `22023`).
+3. **Finds and locks the order.**
+   ```sql
+   select * into v_order from public.orders o
+   where o.id = p_order_id and public.has_permission('orders.read', o.store_id)
+   for update;
+   ```
+   `for update` locks this one row until the transaction ends. If two people capture at the same moment, the second waits, then reads the amount the first one left. Without the lock, both could read "200.00 left" and both capture 150.00. An order the caller can't read gets "Order not found" (`no_data_found`, code `P0002`), the same as one that doesn't exist, so the answer doesn't reveal other companies' orders.
+4. **Checks the permission** with `has_permission('orders.' || p_action, store_id)`. Without it the caller gets `insufficient_privilege` (code `42501`).
+5. **Refuses a cancel on an order that is no longer open** (`authorized` or `part_captured`), with `check_violation`. The trigger can't do this: staying on the same status is always allowed there, so `canceled` to `canceled` would pass, and a double-click, a second tab or an agent retrying `cancel_order` would write a second "Released …" event. With the `for update` lock, a second cancel at the same moment waits for the first, then sees `canceled` and is refused.
+6. **Gives readable errors** for the common mistakes: an amount larger than what is left to capture or refund. The check constraints would refuse these anyway, but with a less readable message.
+7. **Updates the order.** For example, a capture:
+   ```sql
+   update public.orders o
+   set captured_amount = o.captured_amount + p_amount,
+     status = case when o.captured_amount + p_amount = o.total_amount then 'captured' else 'part_captured' end
+   where o.id = p_order_id
+   returning * into v_order;
+   ```
+   The trigger (section c) and the check constraints run on this update. If any rule fails, everything is undone.
+8. **Writes the timeline event**: `actor_user_id` is `auth.uid()` (the signed-in person), `actor_name` is their email, read from `auth.users`, and `metadata` is `{ amount, reason }` or, for a cancel, `{ releasedAmount, reason }`.
+9. **Returns the updated order.**
+
+Steps 7 and 8 run in one transaction. An order can't change without its timeline row, and a timeline row can't exist without the change.
+
+```sql
+revoke execute on function public.order_action(uuid, text, bigint, text) from public, anon;
+grant execute on function public.order_action(uuid, text, bigint, text) to authenticated;
+```
+
+Anonymous visitors can't call it. Signed-in users can, and the function decides the rest. That also holds for someone who calls Supabase's REST API directly with their own token.
+
+### e. From the error to the caller
+
+`applyOrderAction` in `server/orders-repository.ts` calls the function inside `withUser` and turns the Postgres error codes into HTTP statuses:
+
+| Code    | Name                      | HTTP | Example                                       |
+| ------- | ------------------------- | ---- | --------------------------------------------- |
+| `22023` | `invalid_parameter_value` | 400  | Blank reason                                  |
+| `42501` | `insufficient_privilege`  | 403  | A dispute handler tries to capture            |
+| `P0002` | `no_data_found`           | 404  | Another company's order                       |
+| `23514` | `check_violation`         | 409  | Capturing a canceled order, or too much money |
+
+The order page shows the message under the form. The developer API answers `{ "error": "…" }` with the status. The MCP tools pass the message on to the agent.
+
+Any other error (a timeout, a deadlock) is logged on the server. The page and WebMCP only get "Something went wrong", and the developer API answers "Internal error". The raw error's message holds the SQL and its parameters, so it must not reach the browser.
+
+### f. Tests
+
+`src/features/orders/db/schema.test.ts`, block "capture, cancel and refund":
+
+- Part capture, then the rest, then two refunds, with one event each, carrying the email and the reason.
+- A cancel records what it released, and captured money can still be refunded after it.
+- A second cancel is refused, so the timeline gets one cancel event.
+- Too large amounts, blank reasons, captures after expiry and wrong moves are refused.
+- A dispute handler gets 403, another company gets "not found", anonymous visitors can't call it, and a direct `update` is refused.
+- Two captures at the same moment that don't both fit: only one goes through.
+- The trigger refuses wrong moves even for the owner, including captured money on an order that stays `authorized`, and still allows updates that don't touch status or money.
+
+## 7. What's deliberately not done yet
+
+- **Reads follow roles, and nobody updates orders directly.** Each company sees its own orders, and agents see their stores. Only the expiry job (section 5) and `public.order_action()` (section 6) change orders. See [Sign-in and access](auth-and-policies.md).
+- **Only developers create orders.** Other edits, such as the shipping address or tracking number, have no write path yet.
+- **Whole amounts only.** Captures and refunds don't record which lines they covered (`metadata.lines` stays empty for new events).
 - The dashboard and other pages still use `src/mocks/data.ts`.
 
-## 7. Try it yourself
+## 8. Try it yourself
 
 With `pnpm db:start` and `pnpm dev` running:
 
@@ -738,14 +879,31 @@ With `pnpm db:start` and `pnpm dev` running:
 
    Because the job runs locally, seed orders change over time: the fixed orders MG-1001 and NB-2001 are seeded as Authorized, but expire on 2026-10-24 and 2026-10-23. After those dates they show as Expired within 15 minutes of `pnpm db:reset`.
 
-8. Put everything back with `pnpm db:reset`.
+8. Capture as a merchant, the way the app does it. `set_config` plays the signed-in user (merchant A from the test accounts, after `pnpm test` has run once):
 
-## 8. Where to read more
+   ```sql
+   begin;
+   set local role authenticated;
+   select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-111111111111"}', true);
+   select status, captured_amount from public.order_action(
+     (select id from orders where reference = 'MG-1001'), 'capture', 1000, 'First parcel shipped');
+   select action, actor_name, metadata from order_events
+     where order_id = (select id from orders where reference = 'MG-1001') order by occurred_at;
+   rollback;
+   ```
+
+   Try it again with `''` as the reason, or `99999999` as the amount, and read the errors. `rollback` undoes it all.
+
+9. Put everything back with `pnpm db:reset`.
+
+## 9. Where to read more
 
 - [Supabase: Postgres basics](https://supabase.com/docs/guides/database/overview)
 - [Supabase: Row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
 - [Supabase Cron (pg_cron)](https://supabase.com/docs/guides/cron)
 - [Postgres: Trigger functions](https://www.postgresql.org/docs/current/plpgsql-trigger.html)
+- [Postgres: `security definer` functions](https://www.postgresql.org/docs/current/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY)
+- [Postgres: Row locks (`for update`)](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS)
 - [Postgres: Data-modifying statements in `with`](https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING)
 - [Drizzle: Schema declaration](https://orm.drizzle.team/docs/sql-schema-declaration)
 - [Drizzle: Migrations](https://orm.drizzle.team/docs/migrations)

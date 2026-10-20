@@ -10,6 +10,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import { z } from "zod";
 
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
+import { ORDER_ACTION_TOOLS } from "../src/features/orders/model/order-action-input.ts";
 import { SAMPLE_PRODUCTS } from "../src/features/orders/model/sample-products.ts";
 
 // The server must only talk to this machine: it signs in with a real (local) password.
@@ -90,6 +91,11 @@ const tools = [
       "Create a test order in a store. The currency comes from the store. Always send both billingAddress and shippingAddress; when they are the same, send the same object twice.",
     inputSchema: z.toJSONSchema(createOrderInput) as { type: "object" },
   },
+  ...ORDER_ACTION_TOOLS.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: z.toJSONSchema(tool.input) as { type: "object" },
+  })),
 ];
 
 function toolError(text: string) {
@@ -171,8 +177,17 @@ export async function runTool(
       return toolText(
         await api.request("/api/developer/orders", { method: "POST", body: JSON.stringify(args) }),
       );
-    default:
-      return toolError(`Unknown tool: ${name}`);
+    default: {
+      // capture_order, refund_order, cancel_order. The API validates the input and adds nothing.
+      const action = ORDER_ACTION_TOOLS.find((tool) => tool.name === name)?.action;
+      if (!action) return toolError(`Unknown tool: ${name}`);
+      return toolText(
+        await api.request("/api/developer/order-actions", {
+          method: "POST",
+          body: JSON.stringify({ ...args, action }),
+        }),
+      );
+    }
   }
 }
 

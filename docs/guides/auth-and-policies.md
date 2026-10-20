@@ -58,17 +58,19 @@ The roles themselves are listed in `roles`, with their scope. A role's scope lim
 
 Each role then has permissions, listed in `role_permissions`:
 
-| Role                       | Scope        | Permissions                                         |
-| -------------------------- | ------------ | --------------------------------------------------- |
-| `platform_developer`       | global       | all four, plus read organizations and create orders |
-| `platform_operator`        | global       | read orders and stores                              |
-| `merchant_admin`           | organization | read and edit orders, handle disputes, read stores  |
-| `merchant_order_manager`   | organization | read and edit orders, read stores                   |
-| `merchant_dispute_handler` | organization | read orders, handle disputes, read stores           |
-| `agent_first_line`         | store        | read orders and stores                              |
-| `agent_second_line`        | store        | read and edit orders, handle disputes, read stores  |
+| Role                       | Scope        | Permissions                                                    |
+| -------------------------- | ------------ | -------------------------------------------------------------- |
+| `platform_developer`       | global       | all of the below, plus read organizations and create orders    |
+| `platform_operator`        | global       | read orders and stores                                         |
+| `merchant_admin`           | organization | read and edit orders, move money, handle disputes, read stores |
+| `merchant_order_manager`   | organization | read and edit orders, move money, read stores                  |
+| `merchant_dispute_handler` | organization | read orders, handle disputes, read stores                      |
+| `agent_first_line`         | store        | read orders and stores                                         |
+| `agent_second_line`        | store        | read and edit orders, move money, handle disputes, read stores |
 
-Merchant A holds two roles at Moonlight Goods, so it can edit orders and handle disputes there. Merchant B holds one role at Nordic Bikes, so it can handle disputes there but not edit orders. The agent holds both support levels on one store, so it can edit orders there, but only at that store.
+"Move money" is three permissions: `orders.capture`, `orders.cancel` and `orders.refund` (added 2026-10-20, section 4). They went to exactly the roles that could already edit orders.
+
+Merchant A holds two roles at Moonlight Goods, so it can edit orders, move money and handle disputes there. Merchant B holds one role at Nordic Bikes, so it can handle disputes there but not edit orders or move money. The agent holds both support levels on one store, so it can edit orders and move money there, but only at that store.
 
 The token carries only the global roles, as the `global_roles` claim. Organization and store roles are checked in the database for each query, so changing them takes effect immediately, not after the token refreshes.
 
@@ -120,6 +122,27 @@ create policy "developers can create order lines" on public.order_lines
 Read it as "a new line may be saved when its order exists, the user can see it, and the user has `orders.create` for its store". Being able to _read_ the order is not enough. A merchant can read their own orders, and without the `has_permission` part they could add lines to an order that was already paid.
 
 The migration is `supabase/migrations/20261019015532_orders_create_access.sql`. It inserts the permission, gives it to `platform_developer` only, grants insert (never update or delete) and adds the two policies above.
+
+### Writes through a function: capture, cancel and refund
+
+Capture, cancel and refund don't use an update policy. Signed-in users still have no update grant on `orders`. Instead they call one database function, `public.order_action(order_id, action, amount, reason)`, which is `security definer`: it runs with the table owner's rights, so it can change the order and add the timeline event that the caller can't.
+
+Because row-level security doesn't apply to the owner, the function asks `has_permission` itself, in the same way a policy would:
+
+```sql
+-- An order the caller can't read is "not found", like a policy hiding it.
+where o.id = p_order_id and public.has_permission('orders.read', o.store_id)
+-- Then the action's own permission: orders.capture, orders.cancel or orders.refund.
+if not public.has_permission('orders.' || p_action, v_order.store_id) then
+  raise exception … using errcode = 'insufficient_privilege';
+```
+
+Why a function instead of an update policy:
+
+- A policy can say who may update a row, but not which columns change or by how much. The function changes only the amounts and status, by the amount asked for.
+- The function also writes the timeline event with the caller's email and the reason, in the same transaction. Since it is the only way in, no capture can happen without a reason on record, even through Supabase's REST API.
+
+The migration is `supabase/migrations/20261020003438_orders_capture_cancel_refund.sql`. The [orders database guide, section 6](orders-database.md#6-capture-cancel-and-refund-2026-10-20) walks through it.
 
 ## 5. The policy changes, in order
 
@@ -211,7 +234,8 @@ Our own server code logs to the `pnpm dev` terminal. A wrong password shows as a
   - a person's permissions are the union of their roles, and removing one role removes only its permissions;
   - a platform operator can't read organization names, a developer can, and a merchant reads only their own company;
   - a store role can't be given at company level, and a company role can't be given at store level;
-  - updates are refused for everyone;
+  - direct updates are refused for everyone;
+  - capture, cancel and refund through `order_action` follow the permissions: a dispute handler is refused, another company's order is "not found", and an agent with second-line support may capture at their store;
   - the token hook copies global roles into the claim.
 - `src/features/orders/server/orders-repository.test.ts` runs the real order queries as a merchant, including one order that belongs to another company.
 - `src/shared/env/server-env.test.ts`, `src/shared/auth/user-claims.test.ts` and `src/features/auth/model/login-input.test.ts` cover the input checks.
@@ -224,7 +248,8 @@ Run them with `pnpm db:start`, `pnpm db:reset`, then `pnpm test`.
 
 - **Sessions last one hour, then the user signs in again.** The login token expires after an hour, and the app doesn't refresh it yet. Refreshing needs a second cookie and a refresh step on each request.
 - **Sign-out only clears the cookie.** The token stays valid until it expires, because the server doesn't revoke it. Revoking all of a user's sessions needs one extra call, to add later.
-- **Only platform developers can create orders.** Capture, refund and cancel still have no write rules, so nobody can change existing orders through the API yet.
+- **Only platform developers can create orders.** Existing orders change only through capture, cancel and refund (section 4) and the expiry job.
+- **The developer API and MCP server are for platform developers only.** Agent accounts with store roles can use the order page, but not the API yet (ADR 0007).
 - **Limit by amount isn't built.** A rule like "refund up to 500" needs an attribute check on top of the roles. That's the next step if you need it (see ADR 0015).
 - **Effective permissions aren't shown anywhere.** Someone has to read several membership rows to see what a person can do. A view can list them later (see ADR 0015).
 - **No admin screen for memberships.** The seed script and SQL manage who has which role. A screen comes later.

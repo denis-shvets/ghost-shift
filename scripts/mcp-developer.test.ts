@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
 
-import { apiErrorText, configInput, isLocalUrl, productsInput } from "./mcp-developer.ts";
+import { apiErrorText, configInput, isLocalUrl, productsInput, runTool } from "./mcp-developer.ts";
 
 const validOrder = {
   storeId: "00000000-0000-4000-8000-000000000001",
@@ -116,5 +116,24 @@ describe("configInput", () => {
     expect(configInput.safeParse({ ...env, SEED_PASSWORD: "" }).success).toBe(false);
     expect(configInput.safeParse({ ...env, APP_URL: "https://example.com" }).success).toBe(false);
     expect(configInput.safeParse({ ...env, SEED_DEVELOPER_EMAIL: "nope" }).success).toBe(false);
+  });
+});
+
+describe("order action tools", () => {
+  it("send the action with the agent's input to the order-actions endpoint", async () => {
+    const request = vi.fn(async () => ({ status: "canceled" }));
+    const args = { orderId: "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922", reason: "Out of stock" };
+
+    await runTool("cancel_order", args, { request });
+
+    expect(request).toHaveBeenCalledWith("/api/developer/order-actions", {
+      method: "POST",
+      body: JSON.stringify({ ...args, action: "cancel" }),
+    });
+  });
+
+  it("still refuses a tool that doesn't exist", async () => {
+    const result = await runTool("void_order", {}, { request: vi.fn() });
+    expect(result).toMatchObject({ isError: true });
   });
 });

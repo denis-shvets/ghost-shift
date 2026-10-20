@@ -7,8 +7,9 @@ export const Route = createFileRoute("/orders/$orderId")({
   loader: async ({ params }) => {
     const order = await fetchOrder({ data: params.orderId });
     if (!order) throw notFound();
-    return order;
+    // Taken here so the server render and the browser's hydration agree on which actions show.
+    return { order, loadedAt: new Date() };
   },
-  component: () => <OrderDetailPage order={Route.useLoaderData()} />,
+  component: () => <OrderDetailPage {...Route.useLoaderData()} />,
   notFoundComponent: () => <p>Order not found.</p>,
 });

@@ -7,9 +7,12 @@ import { createDb } from "~/shared/db/client";
 import { parseServerEnv } from "~/shared/env/server-env";
 
 import { createOrderInput } from "../model/create-order-input";
+import { orderActionInput } from "../model/order-action-input";
 import { orderIdInput } from "../model/order-id-input";
 import { orderListInput } from "../model/order-list-input";
 import {
+  OrderActionError,
+  applyOrderAction,
   createOrder,
   getOrder,
   listOrdersOrFirstPage,
@@ -56,3 +59,19 @@ export const fetchStoresFn = createServerFn({ method: "GET" }).handler(async () 
   requirePlatformDeveloper(user);
   return withDb((db) => listStoresForOrder(db, user));
 });
+
+// Capture, cancel or refund. No role check here: the database decides who may do which action.
+// A refusal comes back as an Error with the database's message, so the page and WebMCP can show it.
+// Anything else only goes to the log: its message holds the SQL and the input.
+export const orderActionFn = createServerFn({ method: "POST" })
+  .validator(orderActionInput)
+  .handler(async ({ data }) => {
+    const user = await requireUser(parseServerEnv(env));
+    return withDb((db) =>
+      applyOrderAction(db, user, data).catch((error: unknown) => {
+        if (error instanceof OrderActionError) throw new Error(error.message);
+        console.error(error);
+        throw new Error("Something went wrong");
+      }),
+    );
+  });

@@ -8,8 +8,10 @@ import { isUuid } from "~/shared/ids/is-uuid";
 
 import { orderAddresses, orderEvents, orderLines, orders } from "../db/schema";
 import type { CreateOrderInput } from "../model/create-order-input";
+import type { OrderActionInput } from "../model/order-action-input";
 import type { OrderEvent, OrderEventMetadata } from "../model/order-event";
 import type { OrderListInput } from "../model/order-list-input";
+import type { OrderStatus } from "../model/order-statuses";
 import { orderTotal } from "../model/order-total";
 import { authorizationExpiresAt } from "../model/payment-methods";
 
@@ -236,4 +238,57 @@ export async function getOrder(db: Database, user: UserClaims, id: string) {
       events: events as OrderEvent[],
     };
   });
+}
+
+// A capture, cancel or refund the database refused, with the HTTP status that fits.
+export class OrderActionError extends Error {
+  constructor(
+    message: string,
+    readonly status: 400 | 403 | 404 | 409,
+  ) {
+    super(message);
+  }
+}
+
+// Postgres error codes that public.order_action() raises on purpose, and what they mean to a caller.
+const ACTION_ERROR_STATUS: Record<string, OrderActionError["status"]> = {
+  "22023": 400, // invalid_parameter_value: blank reason, amount not above 0
+  "42501": 403, // insufficient_privilege: may read the order, but not do this
+  P0002: 404, // no_data_found: missing, or not readable by this user
+  "23514": 409, // check_violation: the order's status or amounts don't allow it
+};
+
+// Runs as the signed-in user. The database function checks the permission, changes the amounts
+// and writes the timeline event in one transaction, so this only passes the input on.
+export async function applyOrderAction(db: Database, user: UserClaims, input: OrderActionInput) {
+  const amount = input.action === "cancel" ? null : input.amount;
+  try {
+    return await withUser(db, user, async (tx) => {
+      const [row] = await tx.execute<{
+        status: OrderStatus;
+        captured_amount: number;
+        refunded_amount: number;
+        uncaptured_amount: number;
+      }>(
+        // Raw SQL skips Drizzle's bigint mapping, and postgres-js returns bigint as text. float8
+        // comes back as a number and holds every amount up to Number.MAX_SAFE_INTEGER exactly.
+        sql`select status, captured_amount::float8, refunded_amount::float8, uncaptured_amount::float8
+          from public.order_action(${input.orderId}::uuid, ${input.action}, ${amount}::bigint, ${input.reason})`,
+      );
+      if (!row) throw new Error("order_action returned no row");
+      return {
+        id: input.orderId,
+        status: row.status,
+        capturedAmount: row.captured_amount,
+        refundedAmount: row.refunded_amount,
+        uncapturedAmount: row.uncaptured_amount,
+      };
+    });
+  } catch (error) {
+    // Drizzle wraps the Postgres error, so the code and message sit on its `cause`.
+    const cause = (error as { cause?: { code?: string; message?: string } }).cause;
+    const status = cause?.code ? ACTION_ERROR_STATUS[cause.code] : undefined;
+    if (status && cause?.message) throw new OrderActionError(cause.message, status);
+    throw error;
+  }
 }
