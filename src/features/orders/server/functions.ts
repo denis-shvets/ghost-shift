@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 
 import { requireUser } from "~/features/auth/server/session";
 import { requirePlatformDeveloper } from "~/features/access/server/require-platform-developer";
-import { createDb } from "~/shared/db/client";
+import { withDb } from "~/shared/db/request-db";
 import { parseServerEnv } from "~/shared/env/server-env";
 
 import { createOrderInput } from "../model/create-order-input";
@@ -18,16 +18,6 @@ import {
   listOrdersOrFirstPage,
   listStoresForOrder,
 } from "./orders-repository";
-
-// Each request gets its own connection, closed when the request ends.
-async function withDb<T>(run: (db: ReturnType<typeof createDb>) => Promise<T>) {
-  const db = createDb(parseServerEnv(env).DATABASE_URL);
-  try {
-    return await run(db);
-  } finally {
-    await db.close();
-  }
-}
 
 // Server functions are public HTTP endpoints, so the page size and cursor are checked here.
 export const fetchOrders = createServerFn({ method: "GET" })

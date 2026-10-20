@@ -12,3 +12,6 @@ dist/
 
 # Local secrets for Wrangler
 .dev.vars
+
+# TanStack Start generated files
+.tanstack/

@@ -1,38 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { auditLog } from "~/mocks/data";
-import { formatMockDateTime } from "~/mocks/format";
+import { activityListInput } from "~/features/activity/model/activity-list-input";
+import { fetchActivity } from "~/features/activity/server/functions";
+import { ActivityPage } from "~/features/activity/ui/activity-page";
 
 export const Route = createFileRoute("/audit-log")({
-  component: AuditLog,
+  validateSearch: activityListInput.pick({
+    cursor: true,
+    direction: true,
+    action: true,
+    storeId: true,
+  }),
+  loaderDeps: ({ search }) => ({
+    cursor: search.cursor,
+    direction: search.direction,
+    action: search.action,
+    storeId: search.storeId,
+  }),
+  loader: ({ deps }) => fetchActivity({ data: deps }),
+  component: () => <ActivityPage {...Route.useLoaderData()} />,
 });
-
-function AuditLog() {
-  return (
-    <>
-      <h1>Audit log</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>When</th>
-            <th>Who</th>
-            <th>Action</th>
-            <th>Target</th>
-            <th>Reason</th>
-          </tr>
-        </thead>
-        <tbody>
-          {auditLog.map((entry) => (
-            <tr key={entry.id}>
-              <td>{formatMockDateTime(entry.at)}</td>
-              <td>{entry.actor}</td>
-              <td>{entry.action}</td>
-              <td>{entry.target}</td>
-              <td>{entry.reason}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
-  );
-}

@@ -828,6 +828,50 @@ Any other error (a timeout, a deadlock) is logged on the server. The page and We
 - Two captures at the same moment that don't both fit: only one goes through.
 - The trigger refuses wrong moves even for the owner, including captured money on an order that stays `authorized`, and still allows updates that don't touch status or money.
 
+## 6b. The activity log (2026-10-20)
+
+The `/audit-log` page used to be a mock. Now it reads every row in `order_events` that the signed-in person may see, across all stores, newest first. No new table or column was needed: each order's timeline already holds this data.
+
+### a. How the query reads events across orders
+
+The query lives in `src/features/activity/server/activity-repository.ts`. In plain words:
+
+1. Start from `order_events`, one row per thing that happened to an order.
+2. Join `orders` on the order id, so each event knows its reference, currency and store.
+3. Left join `stores` on the store id, so each event knows the store name. It is a left join so that only the `orders` policy decides visibility: a store the viewer can't read leaves the name empty instead of hiding the event.
+4. Filter, only if the caller asked: `action = 'refunded'`, and/or `orders.store_id = …`.
+5. Sort by `occurred_at` and `id`, newest first.
+6. Take one row more than the page size, so the page knows whether another page exists.
+
+The join to `orders` is an inner join. An event whose order the viewer can't read is dropped with it, so an event never appears without its order.
+
+### b. Why only the events the viewer may read come back
+
+The query never checks the viewer's company. Row-level security does that. The query runs inside `withUser`, which signs the connection in as the viewer. The policy "members can read events of orders they can read" on `order_events` says an event is visible only if its `orders` row is visible, and `orders` already has its own store-by-store policy. So a Moonlight Goods merchant never sees Nordic Bikes' events, and a user with no access gets an empty list. If a later filter forgets a check, the database still hides the rows.
+
+Every table in a query applies its own policy. An inner join to `stores` would also require `stores.read`, so a user who could read orders but not stores would see an empty log. The left join avoids that: a store you can't read only leaves the store name empty.
+
+### c. How keyset paging works here
+
+Page numbers break when new events arrive between two clicks: a row moves to the next page and shows twice, or never. Keyset paging avoids this. The cursor is the id of the last event on the page, and the next page is "the events older than that one".
+
+Many events share one `occurred_at` (the seed writes them in bursts), so the sort key is the pair `(occurred_at, id)`. The database compares pairs, so ties are broken by `id` and nothing is skipped.
+
+- **Next page:** rows whose pair is less than the cursor event's pair, newest first.
+- **Previous page:** rows whose pair is greater, sorted oldest first so the nearest come first, then flipped back to newest first.
+
+The cursor's pair is read by a sub-select in the same query (the `anchor`), so there is no second round trip. The cursor event is also read under RLS. If the viewer can't see it, for example because its order was deleted, the anchor is empty and the page would come back empty with no links. So an empty page with a cursor falls back to the first page (`listActivityOrFirstPage`), the same way the orders list does.
+
+### d. The missing index (a shortcut)
+
+The sort wants an index on `order_events (occurred_at, id)`, and there isn't one yet. Each page sorts every event the viewer can see. That is fine while the log is small. When it gets slow, add the index in a new migration; never edit an applied one. The code carries a `shortcut:` comment for this, so `/ponytail-debt` lists it.
+
+The existing index `order_events_order_occurred_at_idx` covers one order's timeline, not the whole log, so this query can't use it.
+
+### e. Filters for later
+
+`action` and `storeId` are optional. The audit log keeps them in the URL (for example `/audit-log?action=refunded`), so they survive paging and a filtered link can be shared. The refunds page will link to it with them. Zod checks both in `src/features/activity/model/activity-list-input.ts`, so a bad value never reaches the database.
+
 ## 7. What's deliberately not done yet
 
 - **Reads follow roles, and nobody updates orders directly.** Each company sees its own orders, and agents see their stores. Only the expiry job (section 5) and `public.order_action()` (section 6) change orders. See [Sign-in and access](auth-and-policies.md).
