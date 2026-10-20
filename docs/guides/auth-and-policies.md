@@ -238,6 +238,7 @@ Our own server code logs to the `pnpm dev` terminal. A wrong password shows as a
   - capture, cancel and refund through `order_action` follow the permissions: a dispute handler is refused, another company's order is "not found", and an agent with second-line support may capture at their store;
   - the token hook copies global roles into the claim.
 - `src/features/orders/server/orders-repository.test.ts` runs the real order queries as a merchant, including one order that belongs to another company.
+- The same file checks that a second-line agent can capture while a first-line-only agent gets `403`, using the `firstLineAgent` account in `test-accounts.ts`.
 - `src/shared/env/server-env.test.ts`, `src/shared/auth/user-claims.test.ts` and `src/features/auth/model/login-input.test.ts` cover the input checks.
 
 The access tests create their own accounts with fixed ids, in `src/features/access/db/test-accounts.ts`. They need only the database, not the Auth service, so CI can run them.
@@ -249,7 +250,7 @@ Run them with `pnpm db:start`, `pnpm db:reset`, then `pnpm test`.
 - **Sessions last one hour, then the user signs in again.** The login token expires after an hour, and the app doesn't refresh it yet. Refreshing needs a second cookie and a refresh step on each request.
 - **Sign-out only clears the cookie.** The token stays valid until it expires, because the server doesn't revoke it. Revoking all of a user's sessions needs one extra call, to add later.
 - **Only platform developers can create orders.** Existing orders change only through capture, cancel and refund (section 4) and the expiry job.
-- **The developer API and MCP server are for platform developers only.** Agent accounts with store roles can use the order page, but not the API yet (ADR 0007).
+- **The create-order page is for platform developers only.** The page checks the role so other people do not see a developer tool; the database still decides who may create (`orders.create`). The orders API under `/api/v1/` is open to any signed-in user, and the database decides what each one may do. See [The orders API for agents](orders-api.md).
 - **Limit by amount isn't built.** A rule like "refund up to 500" needs an attribute check on top of the roles. That's the next step if you need it (see ADR 0015).
 - **Effective permissions aren't shown anywhere.** Someone has to read several membership rows to see what a person can do. A view can list them later (see ADR 0015).
 - **No admin screen for memberships.** The seed script and SQL manage who has which role. A screen comes later.

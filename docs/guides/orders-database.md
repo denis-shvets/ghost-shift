@@ -812,9 +812,9 @@ Anonymous visitors can't call it. Signed-in users can, and the function decides 
 | `P0002` | `no_data_found`           | 404  | Another company's order                       |
 | `23514` | `check_violation`         | 409  | Capturing a canceled order, or too much money |
 
-The order page shows the message under the form. The developer API answers `{ "error": "…" }` with the status. The MCP tools pass the message on to the agent.
+The order page shows the message under the form. The orders API (`/api/v1/`) answers `{ "error": "…" }` with the status. The MCP tools pass the message on to the agent.
 
-Any other error (a timeout, a deadlock) is logged on the server. The page and WebMCP only get "Something went wrong", and the developer API answers "Internal error". The raw error's message holds the SQL and its parameters, so it must not reach the browser.
+Any other error (a timeout, a deadlock) is logged on the server. The page and WebMCP only get "Something went wrong", and the orders API (`/api/v1/`) answers "Internal error". The raw error's message holds the SQL and its parameters, so it must not reach the browser.
 
 ### f. Tests
 

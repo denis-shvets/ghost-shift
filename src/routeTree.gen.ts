@@ -25,9 +25,10 @@ import { Route as DeveloperCreateOrderRouteImport } from './routes/developer/cre
 import { Route as HealthDatabaseRouteImport } from './routes/health/database'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
-import { Route as ApiDeveloperOrderActionsRouteImport } from './routes/api/developer/order-actions'
-import { Route as ApiDeveloperOrdersRouteImport } from './routes/api/developer/orders'
-import { Route as ApiDeveloperStoresRouteImport } from './routes/api/developer/stores'
+import { Route as ApiV1OrderActionsRouteImport } from './routes/api/v1/order-actions'
+import { Route as ApiV1OrdersRouteImport } from './routes/api/v1/orders'
+import { Route as ApiV1StoresRouteImport } from './routes/api/v1/stores'
+import { Route as ApiV1OrdersOrderIdRouteImport } from './routes/api/v1/orders.$orderId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -109,21 +110,25 @@ const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
   path: '/orders/$orderId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDeveloperOrderActionsRoute =
-  ApiDeveloperOrderActionsRouteImport.update({
-    id: '/api/developer/order-actions',
-    path: '/api/developer/order-actions',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiDeveloperOrdersRoute = ApiDeveloperOrdersRouteImport.update({
-  id: '/api/developer/orders',
-  path: '/api/developer/orders',
+const ApiV1OrderActionsRoute = ApiV1OrderActionsRouteImport.update({
+  id: '/api/v1/order-actions',
+  path: '/api/v1/order-actions',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDeveloperStoresRoute = ApiDeveloperStoresRouteImport.update({
-  id: '/api/developer/stores',
-  path: '/api/developer/stores',
+const ApiV1OrdersRoute = ApiV1OrdersRouteImport.update({
+  id: '/api/v1/orders',
+  path: '/api/v1/orders',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1StoresRoute = ApiV1StoresRouteImport.update({
+  id: '/api/v1/stores',
+  path: '/api/v1/stores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1OrdersOrderIdRoute = ApiV1OrdersOrderIdRouteImport.update({
+  id: '/$orderId',
+  path: '/$orderId',
+  getParentRoute: () => ApiV1OrdersRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -143,9 +148,10 @@ export interface FileRoutesByFullPath {
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders/': typeof OrdersIndexRoute
-  '/api/developer/order-actions': typeof ApiDeveloperOrderActionsRoute
-  '/api/developer/orders': typeof ApiDeveloperOrdersRoute
-  '/api/developer/stores': typeof ApiDeveloperStoresRoute
+  '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
+  '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
+  '/api/v1/stores': typeof ApiV1StoresRoute
+  '/api/v1/orders/$orderId': typeof ApiV1OrdersOrderIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -164,9 +170,10 @@ export interface FileRoutesByTo {
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders': typeof OrdersIndexRoute
-  '/api/developer/order-actions': typeof ApiDeveloperOrderActionsRoute
-  '/api/developer/orders': typeof ApiDeveloperOrdersRoute
-  '/api/developer/stores': typeof ApiDeveloperStoresRoute
+  '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
+  '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
+  '/api/v1/stores': typeof ApiV1StoresRoute
+  '/api/v1/orders/$orderId': typeof ApiV1OrdersOrderIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -186,9 +193,10 @@ export interface FileRoutesById {
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/orders/': typeof OrdersIndexRoute
-  '/api/developer/order-actions': typeof ApiDeveloperOrderActionsRoute
-  '/api/developer/orders': typeof ApiDeveloperOrdersRoute
-  '/api/developer/stores': typeof ApiDeveloperStoresRoute
+  '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
+  '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
+  '/api/v1/stores': typeof ApiV1StoresRoute
+  '/api/v1/orders/$orderId': typeof ApiV1OrdersOrderIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -209,9 +217,10 @@ export interface FileRouteTypes {
     | '/health/database'
     | '/orders/$orderId'
     | '/orders/'
-    | '/api/developer/order-actions'
-    | '/api/developer/orders'
-    | '/api/developer/stores'
+    | '/api/v1/order-actions'
+    | '/api/v1/orders'
+    | '/api/v1/stores'
+    | '/api/v1/orders/$orderId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -230,9 +239,10 @@ export interface FileRouteTypes {
     | '/health/database'
     | '/orders/$orderId'
     | '/orders'
-    | '/api/developer/order-actions'
-    | '/api/developer/orders'
-    | '/api/developer/stores'
+    | '/api/v1/order-actions'
+    | '/api/v1/orders'
+    | '/api/v1/stores'
+    | '/api/v1/orders/$orderId'
   id:
     | '__root__'
     | '/'
@@ -251,9 +261,10 @@ export interface FileRouteTypes {
     | '/health/database'
     | '/orders/$orderId'
     | '/orders/'
-    | '/api/developer/order-actions'
-    | '/api/developer/orders'
-    | '/api/developer/stores'
+    | '/api/v1/order-actions'
+    | '/api/v1/orders'
+    | '/api/v1/stores'
+    | '/api/v1/orders/$orderId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -273,9 +284,9 @@ export interface RootRouteChildren {
   HealthDatabaseRoute: typeof HealthDatabaseRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
-  ApiDeveloperOrderActionsRoute: typeof ApiDeveloperOrderActionsRoute
-  ApiDeveloperOrdersRoute: typeof ApiDeveloperOrdersRoute
-  ApiDeveloperStoresRoute: typeof ApiDeveloperStoresRoute
+  ApiV1OrderActionsRoute: typeof ApiV1OrderActionsRoute
+  ApiV1OrdersRoute: typeof ApiV1OrdersRouteWithChildren
+  ApiV1StoresRoute: typeof ApiV1StoresRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -392,29 +403,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdersOrderIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/developer/order-actions': {
-      id: '/api/developer/order-actions'
-      path: '/api/developer/order-actions'
-      fullPath: '/api/developer/order-actions'
-      preLoaderRoute: typeof ApiDeveloperOrderActionsRouteImport
+    '/api/v1/order-actions': {
+      id: '/api/v1/order-actions'
+      path: '/api/v1/order-actions'
+      fullPath: '/api/v1/order-actions'
+      preLoaderRoute: typeof ApiV1OrderActionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/developer/orders': {
-      id: '/api/developer/orders'
-      path: '/api/developer/orders'
-      fullPath: '/api/developer/orders'
-      preLoaderRoute: typeof ApiDeveloperOrdersRouteImport
+    '/api/v1/orders': {
+      id: '/api/v1/orders'
+      path: '/api/v1/orders'
+      fullPath: '/api/v1/orders'
+      preLoaderRoute: typeof ApiV1OrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/developer/stores': {
-      id: '/api/developer/stores'
-      path: '/api/developer/stores'
-      fullPath: '/api/developer/stores'
-      preLoaderRoute: typeof ApiDeveloperStoresRouteImport
+    '/api/v1/stores': {
+      id: '/api/v1/stores'
+      path: '/api/v1/stores'
+      fullPath: '/api/v1/stores'
+      preLoaderRoute: typeof ApiV1StoresRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/orders/$orderId': {
+      id: '/api/v1/orders/$orderId'
+      path: '/$orderId'
+      fullPath: '/api/v1/orders/$orderId'
+      preLoaderRoute: typeof ApiV1OrdersOrderIdRouteImport
+      parentRoute: typeof ApiV1OrdersRoute
     }
   }
 }
+
+interface ApiV1OrdersRouteChildren {
+  ApiV1OrdersOrderIdRoute: typeof ApiV1OrdersOrderIdRoute
+}
+
+const ApiV1OrdersRouteChildren: ApiV1OrdersRouteChildren = {
+  ApiV1OrdersOrderIdRoute: ApiV1OrdersOrderIdRoute,
+}
+
+const ApiV1OrdersRouteWithChildren = ApiV1OrdersRoute._addFileChildren(
+  ApiV1OrdersRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -433,9 +463,9 @@ const rootRouteChildren: RootRouteChildren = {
   HealthDatabaseRoute: HealthDatabaseRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   OrdersIndexRoute: OrdersIndexRoute,
-  ApiDeveloperOrderActionsRoute: ApiDeveloperOrderActionsRoute,
-  ApiDeveloperOrdersRoute: ApiDeveloperOrdersRoute,
-  ApiDeveloperStoresRoute: ApiDeveloperStoresRoute,
+  ApiV1OrderActionsRoute: ApiV1OrderActionsRoute,
+  ApiV1OrdersRoute: ApiV1OrdersRouteWithChildren,
+  ApiV1StoresRoute: ApiV1StoresRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

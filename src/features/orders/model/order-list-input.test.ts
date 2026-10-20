@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { orderListInput } from "./order-list-input";
+import { orderListInput, orderListQuery } from "./order-list-input";
 
 const cursor = "a04509c1-b524-494a-8662-8d6ed7bcfc8d";
 
@@ -25,5 +25,15 @@ describe("orderListInput", () => {
   it("rejects a cursor that isn't an order id, or an unknown direction", () => {
     expect(orderListInput.safeParse({ cursor: "MG-1003" }).success).toBe(false);
     expect(orderListInput.safeParse({ cursor, direction: "sideways" }).success).toBe(false);
+  });
+});
+
+describe("orderListQuery", () => {
+  it("reads a page size sent as text in a query string", () => {
+    expect(orderListQuery.parse({ limit: "20" })).toEqual({ limit: 20 });
+  });
+
+  it("refuses a page size of 0 in a query string", () => {
+    expect(orderListQuery.safeParse({ limit: "0" }).success).toBe(false);
   });
 });

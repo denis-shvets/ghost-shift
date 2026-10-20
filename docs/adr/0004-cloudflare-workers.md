@@ -35,6 +35,7 @@ Rejected: Render (sleeps), Netlify (credit-based free plan), Vercel Hobby (fine,
 - **100,000 requests a day.** Agents polling often can use this up.
 - **10 ms CPU time per request.** Waiting on the database or `fetch` doesn't count, but heavy server-side rendering or big JSON work can hit it. Keep server code light.
 - 128 MB memory, 50 subrequests per request.
+- **Rate limiting.** The Rate Limiting binding is used for `/health/database` (per IP, 10 requests every 10 seconds) and for `/api/v1` (per user, 60 requests a minute). Its counts are approximate and it is not an accounting system. Cloudflare's limits for it are listed in its docs; confirm the free-plan terms there before relying on it.
 - No custom domain, so the URL is `*.workers.dev` (see [0002](0002-free-and-open-source.md)).
 
 ## Consequences

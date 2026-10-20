@@ -10,7 +10,9 @@ const { readCurrentUser, applyOrderAction, close } = vi.hoisted(() => ({
   close: vi.fn(),
 }));
 
-vi.mock("cloudflare:workers", () => ({ env: {} }));
+vi.mock("cloudflare:workers", () => ({
+  env: { API_LIMITER: { limit: async () => ({ success: true }) } },
+}));
 
 vi.mock("~/shared/env/server-env", () => ({
   parseServerEnv: () => ({ DATABASE_URL: "postgresql://unused" }),
@@ -29,17 +31,15 @@ vi.mock("~/features/orders/server/orders-repository", async (importOriginal) => 
 
 const { OrderActionError } = await import("~/features/orders/server/orders-repository");
 
-const developer: UserClaims = {
-  sub: "22222222-2222-4222-8222-222222222222",
-  global_roles: ["platform_developer"],
-};
+// An agent with no global roles: the database decides what they may do, not the app.
+const agent: UserClaims = { sub: "33333333-3333-4333-8333-333333333333", global_roles: [] };
 
 const orderId = "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922";
 const capture = { action: "capture", orderId, amount: 500, reason: "Shipped" };
 
 // The route's POST handler, called the way TanStack Start calls it.
 function post(body: BodyInit) {
-  const request = new Request("http://localhost/api/developer/order-actions", {
+  const request = new Request("http://localhost/api/v1/order-actions", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body,
@@ -53,10 +53,19 @@ function post(body: BodyInit) {
 beforeEach(() => {
   vi.clearAllMocks();
   close.mockResolvedValue(undefined);
-  readCurrentUser.mockResolvedValue(developer);
+  readCurrentUser.mockResolvedValue(agent);
 });
 
-describe("POST /api/developer/order-actions", () => {
+describe("POST /api/v1/order-actions", () => {
+  it("returns 401 JSON when nobody is signed in", async () => {
+    readCurrentUser.mockResolvedValue(null);
+
+    const response = await post(JSON.stringify(capture));
+
+    expect(response.status).toBe(401);
+    expect(applyOrderAction).not.toHaveBeenCalled();
+  });
+
   it("returns 400 with the Zod issues when the reason is missing", async () => {
     const response = await post(JSON.stringify({ action: "cancel", orderId }));
 
@@ -70,11 +79,12 @@ describe("POST /api/developer/order-actions", () => {
 
   it("returns 400 for a body that is not valid JSON", async () => {
     const response = await post("{");
+
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "Invalid JSON" });
   });
 
-  it("runs the action as the caller and returns the new amounts", async () => {
+  it("runs the action as a user with no global roles, not refused with 403", async () => {
     const result = { id: orderId, status: "part_captured", capturedAmount: 500 };
     applyOrderAction.mockResolvedValue(result);
 
@@ -82,7 +92,7 @@ describe("POST /api/developer/order-actions", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(result);
-    expect(applyOrderAction).toHaveBeenCalledWith(expect.anything(), developer, capture);
+    expect(applyOrderAction).toHaveBeenCalledWith(expect.anything(), agent, capture);
     expect(close).toHaveBeenCalled();
   });
 

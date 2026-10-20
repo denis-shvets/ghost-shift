@@ -7,12 +7,19 @@
   "observability": {
     "enabled": true,
   },
-  // Caps callers of /health/database at 10 requests per 10 seconds per IP.
+  // Rate limits. Counts are approximate across locations; the code picks which binding to call.
+  // HEALTH_LIMITER caps /health/database at 10 requests per 10 seconds per IP.
+  // API_LIMITER caps each signed-in user on /api/v1 at 60 requests a minute.
   "ratelimits": [
     {
       "name": "HEALTH_LIMITER",
       "namespace_id": "1001",
       "simple": { "limit": 10, "period": 10 },
+    },
+    {
+      "name": "API_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 60, "period": 60 },
     },
   ],
 }
