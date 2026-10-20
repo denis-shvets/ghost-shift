@@ -467,7 +467,7 @@ There is no `update` or `delete` grant. Postgres refuses the change before RLS e
 | `captured`   | `{ amount, lines? }`, where `lines` is a list of `{ position, quantity }` |
 | `refunded`   | `{ amount, reason?, lines? }`                                             |
 | `canceled`   | `{ releasedAmount }`, the part of the authorization let go                |
-| `expired`    | `{ releasedAmount }`, the part of the authorization that ran out          |
+| `expired`    | `{ releasedAmount, reason }`, the part of the authorization that ran out  |
 
 **Why the database checks only that it's an object:**
 
@@ -572,19 +572,129 @@ Always show each number per currency. Summing SEK and EUR together is wrong.
 
 #### Open points
 
-- **Nothing sets `status` to `expired` yet.** An order whose `expires_at` has passed stays `authorized` (or `part_captured`) in the database until something changes it. Until then, the pages show such an order as Expired (`model/display-status.ts`), so the database and the page can disagree. A scheduled job that works on the free plan (ADR 0002) should set the real status.
 - **GDPR erasure and retention:** customer names, emails and addresses are personal data. We need rules for deleting them on request and for how long to keep them.
 - **An index for search by reference or email.** `reference` is unique, so it has an index already. Searching by `customer_email` does not.
 - **The status and the amounts are not matched by the database.** For example, nothing stops `status = 'captured'` with `captured_amount = 0`. Only the range checks in section f apply.
 - **Idempotency keys for API-created orders.** A retried request could create the same order twice. A key sent with each request would let the database refuse the duplicate.
 
-## 5. What's deliberately not done yet
+## 5. The expiry job (2026-10-20)
 
-- **Reads follow roles, but nothing changes orders yet.** Each company sees its own orders, and agents see their stores. Write rules come with the write features. See [Sign-in and access](auth-and-policies.md).
+An authorization only lasts so long: 7 days for card, Amex, Apple Pay and Google Pay, and 28 days for the rest (`expires_at`, section 4f). Before this change, nothing ever set `status = 'expired'`, so the pages guessed it from the date. Now the database does it itself, every 15 minutes. Everything is in one migration: `supabase/migrations/20261020001345_expire_orders.sql`. Why the database runs it, and not a Worker or an agent, is in [ADR 0016](../adr/0016-scheduled-jobs-pg-cron.md).
+
+### a. Which orders expire
+
+Only orders with `status = 'authorized'` (nothing captured) whose `expires_at` has passed.
+
+- **Part captured** orders are left alone. Money was taken, so calling them "expired" would hide that. The rest of the authorization just can't be captured any more: the order page labels it Released instead of Uncaptured once `expires_at` has passed (section g). Capture has to check `expires_at` when it's built.
+- **Captured, canceled, refunded, expired** orders are already done with their authorization.
+
+### b. The index
+
+```sql
+create index orders_authorized_expires_at_idx on orders (expires_at) where status = 'authorized';
+```
+
+This is a **partial index**: it only holds the rows that match its `where`. The job asks for exactly those rows (`status = 'authorized' and expires_at <= now()`), so Postgres reads the index from the oldest expiry up to now and stops. Without it, every run would read every order, and most orders are long since captured or expired. Drizzle writes this line, because the index is declared in `schema.ts`; the rest of the migration is hand-written below it.
+
+### c. pg_cron: a timer inside the database
+
+```sql
+create extension if not exists pg_cron with schema pg_catalog;
+select cron.schedule('expire-orders', '*/15 * * * *', 'select public.expire_orders()');
+```
+
+1. An **extension** is an add-on that ships with Postgres. `create extension` switches it on. Supabase includes `pg_cron` on the free plan.
+2. `cron.schedule` saves a job: a name, a schedule and the SQL to run. `*/15 * * * *` is cron's way of writing "every 15 minutes". The five fields are minute, hour, day of month, month and day of week, and `*/15` means "every 15th minute".
+3. The job runs as `postgres`, the owner of the tables.
+4. If the same name is scheduled again, the job is updated instead of being added twice.
+
+You can see the job with `select * from cron.job;` and its past runs with `select * from cron.job_run_details order by start_time desc;`.
+
+### d. The function: one statement, two writes
+
+```sql
+with expired as (
+  update public.orders set status = 'expired'
+  where status = 'authorized' and expires_at <= now()
+  returning id, created_at, expires_at, uncaptured_amount
+), events as (
+  insert into public.order_events (order_id, occurred_at, action, actor_name, metadata)
+  select id, expires_at, 'expired', 'System', jsonb_build_object(
+    'releasedAmount', uncaptured_amount,
+    'reason', format('Authorization expired after %s days', round(extract(epoch from expires_at - created_at) / 86400))
+  )
+  from expired
+  returning 1
+)
+select count(*)::integer from events;
+```
+
+Read it step by step:
+
+1. `with expired as (update … returning …)` changes the status, and `returning` hands the changed rows to the next step, like a temporary table named `expired`. This is called a CTE (common table expression).
+2. `events as (insert … select … from expired)` writes one timeline row for each of those orders.
+3. The last `select` counts them, so a manual run tells you how many orders expired.
+
+**Why one statement:** Postgres runs a statement completely or not at all. An order can't end up `expired` with no timeline row, even if something fails halfway.
+
+**Why it can't double up:** an `update` locks the rows it changes. If two runs overlap, the second one waits for those locks, then checks `status = 'authorized'` again. The orders are `expired` by then, so it skips them.
+
+**The timeline row:**
+
+| Column          | Value                        | Why                                                                     |
+| --------------- | ---------------------------- | ----------------------------------------------------------------------- |
+| `occurred_at`   | `expires_at`                 | When it actually ran out, not when the job noticed                      |
+| `actor_user_id` | `null`                       | No person did it                                                        |
+| `actor_name`    | `System`                     | The same name the seed uses for expiries                                |
+| `metadata`      | `{ releasedAmount, reason }` | The amount let go, and for example "Authorization expired after 7 days" |
+
+`expires_at - created_at` subtracts two timestamps, which gives an interval such as `7 days`. `extract(epoch from …)` turns it into seconds, and dividing by 86 400 (seconds in a day) and rounding gives whole days. Rounding matters: a plain `extract(day from …)` would cut 6 days 23 hours down to 6. So the 7/28-day rule isn't written out a second time. The seed (`scripts/generate-seed-orders.ts`) writes the same reason for its expired orders.
+
+### e. Who may run it
+
+```sql
+revoke execute on function public.expire_orders() from public, anon, authenticated, service_role;
+```
+
+A new function in `public` can be called by everyone, and Supabase also grants it to `anon`, `authenticated` and `service_role` (the admin key). Without this line, any signed-in user could expire orders early through the API. Now only the owner can call it, and that includes pg_cron. Row-level security doesn't apply to the owner, so `orders` needs no update policy. Signed-in users still can't update orders at all.
+
+### f. A trigger guards the status
+
+A `check` constraint only sees the row as it will be saved. It can't ask "what was the status before?". A **trigger** can: it's a function Postgres runs automatically on every update, and it gets both the old row (`old`) and the new one (`new`).
+
+```sql
+if new.status is distinct from old.status
+  and (old.status, new.status) not in (('authorized', 'expired'))
+then
+  raise exception … using errcode = 'check_violation';
+end if;
+```
+
+Today one change is allowed: `authorized → expired`. Any other change is refused with the same error a check constraint gives. So an expired order can't come back, and a captured order can't be expired. Unlike row-level security, the trigger also applies to the owner. When capture, cancel and refund are built, they add their pairs to this list.
+
+### g. The pages
+
+The pages now show `status` as the database stores it. The old helper that guessed "expired" from the date (`model/display-status.ts`) is gone. Between two runs (at most 15 minutes), an order can still show Authorized just after its expiry time. The timeline shows "Released SEK 230.00 – Authorization expired after 7 days".
+
+One case still reads the date: a part-captured order past `expires_at` stays `part_captured` (section a), but the order page labels its uncaptured amount **Released**, because that money can't be captured any more.
+
+### h. Tests
+
+`src/features/orders/db/schema.test.ts`, block "expiring authorizations". Each test adds its own orders inside a transaction and rolls it back, so the seed isn't changed. The tests check:
+
+- An expired order gets exactly one event, even after two runs.
+- Open and part-captured orders are left alone.
+- A developer can't call the function.
+- The trigger refuses wrong status changes.
+- The schedule exists.
+
+## 6. What's deliberately not done yet
+
+- **Reads follow roles, and only the system changes orders.** Each company sees its own orders, and agents see their stores. The expiry job (section 5) is the only thing that updates orders. Write rules for people come with the write features. See [Sign-in and access](auth-and-policies.md).
 - **Only inserts, and only for developers.** Platform developers can create orders. Capture, refund and cancel are still disabled buttons.
 - The dashboard and other pages still use `src/mocks/data.ts`.
 
-## 6. Try it yourself
+## 7. Try it yourself
 
 With `pnpm db:start` and `pnpm dev` running:
 
@@ -618,12 +728,25 @@ With `pnpm db:start` and `pnpm dev` running:
    explain select reference from orders order by created_at desc, id desc limit 51;
    ```
    Look for `orders_created_at_id_idx` in the plan. On a table this small Postgres may still choose a plain scan, because it's faster than the index here. That's fine: the index is for when the table grows.
-7. Put everything back with `pnpm db:reset`.
+7. Run the expiry job by hand instead of waiting 15 minutes:
 
-## 7. Where to read more
+   ```sql
+   select public.expire_orders();
+   ```
+
+   It returns how many orders it expired. Run it again and it returns 0. The local database runs the job every 15 minutes too, so the first manual run may already return 0. Find expired orders with `select reference from orders o join order_events e on e.order_id = o.id where e.action = 'expired' and e.metadata ? 'reason';` and open one in the app: the timeline ends with "Authorization expired after 7 days" (or 28).
+
+   Because the job runs locally, seed orders change over time: the fixed orders MG-1001 and NB-2001 are seeded as Authorized, but expire on 2026-10-24 and 2026-10-23. After those dates they show as Expired within 15 minutes of `pnpm db:reset`.
+
+8. Put everything back with `pnpm db:reset`.
+
+## 8. Where to read more
 
 - [Supabase: Postgres basics](https://supabase.com/docs/guides/database/overview)
 - [Supabase: Row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
+- [Supabase Cron (pg_cron)](https://supabase.com/docs/guides/cron)
+- [Postgres: Trigger functions](https://www.postgresql.org/docs/current/plpgsql-trigger.html)
+- [Postgres: Data-modifying statements in `with`](https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING)
 - [Drizzle: Schema declaration](https://orm.drizzle.team/docs/sql-schema-declaration)
 - [Drizzle: Migrations](https://orm.drizzle.team/docs/migrations)
 - [TanStack Start: Server functions](https://tanstack.com/start/latest/docs/framework/react/guide/server-functions)

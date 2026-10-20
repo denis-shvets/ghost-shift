@@ -2,7 +2,6 @@ import { Fragment } from "react";
 import { Link } from "@tanstack/react-router";
 
 import { SignOutButton } from "~/features/auth/ui/sign-out-button";
-import { displayStatus } from "~/features/orders/model/display-status";
 import { describeEvent } from "~/features/orders/model/order-event-details";
 import { formatMoney } from "~/features/orders/model/money";
 import {
@@ -62,14 +61,17 @@ export function OrderDetailPage({ order }: { order: Order }) {
   const money = (amount: number) => formatMoney(amount, order.currency);
   const billing = order.addresses.find((address) => address.kind === "billing");
   const shipping = order.addresses.find((address) => address.kind === "shipping");
-  const status = displayStatus(order);
   const refundNote =
-    order.refundedAmount === 0 || status === "refunded"
+    order.refundedAmount === 0 || order.status === "refunded"
       ? ""
       : order.refundedAmount < order.capturedAmount
         ? " (partially refunded)"
         : " (refunded)";
-  const released = status === "canceled" || status === "expired";
+  // The job leaves part-captured orders as they are, but the rest of their authorization still runs out.
+  const released =
+    order.status === "canceled" ||
+    order.status === "expired" ||
+    (order.status === "part_captured" && order.expiresAt <= new Date());
   const shippingSameAsBilling =
     billing !== undefined && shipping !== undefined && isSameAddress(billing, shipping);
 
@@ -85,7 +87,7 @@ export function OrderDetailPage({ order }: { order: Order }) {
         <dd>{order.storeName}</dd>
         <dt>Status</dt>
         <dd>
-          {ORDER_STATUS_LABELS[status]}
+          {ORDER_STATUS_LABELS[order.status]}
           {refundNote}
         </dd>
         <dt>Created</dt>

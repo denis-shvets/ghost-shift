@@ -8,7 +8,8 @@ type MetadataByAction = {
   refunded: { amount: number; reason?: string; lines?: LineQuantity[] };
   // The part of the authorization that was let go and can no longer be captured.
   canceled: { releasedAmount: number };
-  expired: { releasedAmount: number };
+  // Written by public.expire_orders() and the seed.
+  expired: { releasedAmount: number; reason: string };
 };
 
 // The database enum reads this list. Every action needs a metadata shape above, or this fails typecheck.

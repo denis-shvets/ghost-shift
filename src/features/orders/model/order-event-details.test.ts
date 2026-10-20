@@ -41,14 +41,23 @@ describe("describeEvent", () => {
     expect(describeEvent(full, "SEK")).toBe(`Refunded SEK${NBSP}200.00 – Damaged (lines 3)`);
   });
 
-  it("describes a canceled or expired authorization as released", () => {
+  it("describes a canceled authorization as released", () => {
     const canceled: OrderEvent = {
       ...base,
       action: "canceled",
       metadata: { releasedAmount: 10000 },
     };
-    const expired: OrderEvent = { ...base, action: "expired", metadata: { releasedAmount: 0 } };
     expect(describeEvent(canceled, "SEK")).toBe(`Released SEK${NBSP}100.00`);
-    expect(describeEvent(expired, "SEK")).toBe(`Released SEK${NBSP}0.00`);
+  });
+
+  it("describes an expired authorization as released, with the reason", () => {
+    const expired: OrderEvent = {
+      ...base,
+      action: "expired",
+      metadata: { releasedAmount: 23000, reason: "Authorization expired after 7 days" },
+    };
+    expect(describeEvent(expired, "SEK")).toBe(
+      `Released SEK${NBSP}230.00 – Authorization expired after 7 days`,
+    );
   });
 });

@@ -7,6 +7,7 @@ import {
   testAccounts,
   testDatabaseUrl,
 } from "~/features/access/db/test-accounts";
+import type { OrderStatus } from "~/features/orders/model/order-statuses";
 import { organizations } from "~/features/organizations/db/schema";
 import { stores } from "~/features/stores/db/schema";
 import type { UserClaims } from "~/shared/auth/user-claims";
@@ -446,6 +447,20 @@ describe("creating orders", () => {
   });
 });
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Runs as the owner inside a transaction that is rolled back, so the test leaves no rows behind.
+async function inRollback(run: (tx: Tx) => Promise<void>) {
+  await db
+    .transaction(async (tx) => {
+      await run(tx);
+      tx.rollback();
+    })
+    .catch((error: unknown) => {
+      if (!(error instanceof TransactionRollbackError)) throw error;
+    });
+}
+
 describe("access token hook", () => {
   // Makes its own user inside a transaction that is rolled back, so the test leaves no rows
   // behind and needs no seeded accounts (CI runs only the database, not Auth).
@@ -453,30 +468,127 @@ describe("access token hook", () => {
     const userId = randomUUID();
     let roles: string[] | undefined;
 
-    await db
-      .transaction(async (tx) => {
-        await tx.execute(
-          sql`insert into auth.users (id, email, raw_app_meta_data)
+    await inRollback(async (tx) => {
+      await tx.execute(
+        sql`insert into auth.users (id, email, raw_app_meta_data)
             values (${userId}::uuid, 'hook-test@ghostshift.test', '{}'::jsonb)`,
-        );
-        await tx.execute(
-          sql`insert into public.user_roles (user_id, role) values (${userId}::uuid, 'platform_developer')`,
-        );
-        const [row] = await tx.execute<{ claims: { global_roles: string[] } }>(
-          sql`select public.custom_access_token_hook(
+      );
+      await tx.execute(
+        sql`insert into public.user_roles (user_id, role) values (${userId}::uuid, 'platform_developer')`,
+      );
+      const [row] = await tx.execute<{ claims: { global_roles: string[] } }>(
+        sql`select public.custom_access_token_hook(
             jsonb_build_object(
               'user_id', ${userId}::text,
               'claims', jsonb_build_object('sub', ${userId}::text)
             )
           ) -> 'claims' as claims`,
-        );
-        roles = row?.claims.global_roles;
-        tx.rollback();
-      })
-      .catch((error: unknown) => {
-        if (!(error instanceof TransactionRollbackError)) throw error;
-      });
+      );
+      roles = row?.claims.global_roles;
+    });
 
     expect(roles).toEqual(["platform_developer"]);
+  });
+});
+
+describe("expiring authorizations", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  // expire_orders() also expires any past-due seed orders inside inRollback, and that is rolled back too.
+
+  // A card order created `daysAgo` days ago, so its authorization ran out 7 days after that.
+  async function addOrder(tx: Tx, daysAgo: number, status: OrderStatus, capturedAmount = 0) {
+    const createdAt = new Date(Date.now() - daysAgo * DAY);
+    const [order] = await tx
+      .insert(orders)
+      .values({
+        reference: `TEST-${randomUUID()}`,
+        createdAt,
+        expiresAt: new Date(createdAt.getTime() + 7 * DAY),
+        storeId: moonlightSweden,
+        currency: "SEK",
+        customerFirstName: "Test",
+        customerLastName: "Customer",
+        customerEmail: "customer@ghostshift.test",
+        paymentMethod: "card",
+        status,
+        totalAmount: 20000,
+        capturedAmount,
+        shippingCarrier: "PostNord",
+      })
+      .returning();
+    return order!;
+  }
+
+  async function expireOrders(tx: Tx) {
+    await tx.execute(sql`select public.expire_orders()`);
+  }
+
+  function statusOf(tx: Tx, id: string) {
+    return tx
+      .select({ status: orders.status })
+      .from(orders)
+      .where(eq(orders.id, id))
+      .then(([row]) => row?.status);
+  }
+
+  it("expires an authorization that has run out, with one timeline event from the system", async () => {
+    await inRollback(async (tx) => {
+      const order = await addOrder(tx, 10, "authorized");
+      await expireOrders(tx);
+      // A second run must not add a second event.
+      await expireOrders(tx);
+
+      expect(await statusOf(tx, order.id)).toBe("expired");
+      const events = await tx.select().from(orderEvents).where(eq(orderEvents.orderId, order.id));
+      expect(events).toEqual([
+        expect.objectContaining({
+          action: "expired",
+          actorUserId: null,
+          actorName: "System",
+          occurredAt: order.expiresAt,
+          metadata: { releasedAmount: 20000, reason: "Authorization expired after 7 days" },
+        }),
+      ]);
+    });
+  });
+
+  it("leaves open authorizations and part-captured orders alone", async () => {
+    await inRollback(async (tx) => {
+      const open = await addOrder(tx, 1, "authorized");
+      const partCaptured = await addOrder(tx, 10, "part_captured", 5000);
+      await expireOrders(tx);
+
+      expect(await statusOf(tx, open.id)).toBe("authorized");
+      expect(await statusOf(tx, partCaptured.id)).toBe("part_captured");
+    });
+  });
+
+  it("can't be run by signed-in users, not even a developer", async () => {
+    await expect(
+      withUser(db, asUser(testAccounts.developer), (tx) =>
+        tx.execute(sql`select public.expire_orders()`),
+      ),
+    ).rejects.toMatchObject(permissionDenied);
+  });
+
+  // Postgres error 23514 is "check_violation", raised by the orders_status_transition_check trigger.
+  it.each([
+    ["expired", "authorized"],
+    ["captured", "expired"],
+  ] as const)("refuses %s -> %s, even for the owner", async (from, to) => {
+    await expect(
+      inRollback(async (tx) => {
+        const order = await addOrder(tx, 10, from, from === "captured" ? 20000 : 0);
+        await tx.update(orders).set({ status: to }).where(eq(orders.id, order.id));
+      }),
+    ).rejects.toMatchObject({ cause: { code: "23514" } });
+  });
+
+  it("runs every 15 minutes", async () => {
+    const [job] = await db.execute<{ schedule: string }>(
+      sql`select schedule from cron.job where jobname = 'expire-orders'`,
+    );
+    expect(job?.schedule).toBe("*/15 * * * *");
   });
 });

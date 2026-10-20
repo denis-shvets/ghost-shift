@@ -6,6 +6,7 @@ Orders placed through Phantom Checkout, with their lines, payment and shipping.
 
 - Lists orders, newest first, with status, payment method and amounts (`/orders`).
 - Shows one order with its customer, billing and shipping addresses, amounts, lines and a timeline of events (`/orders/<uuid>`). An id that isn't a uuid shows "Order not found".
+- Authorizations expire on their own: every 15 minutes the database moves `authorized` orders past `expires_at` to `expired` and adds a timeline event with the reason. Part-captured orders keep their status, but the order page labels the uncaptured rest Released once it has expired. How it works: [the orders database guide, section 5](../../../docs/guides/orders-database.md#5-the-expiry-job-2026-10-20).
 - Capture, refund and cancel are visible but disabled.
 - Platform developers can create test orders at `/developer/create-order`. Products come from a fixed list of 20 sample products, and the total uses the store's currency. Anyone else is sent back to `/orders`.
 

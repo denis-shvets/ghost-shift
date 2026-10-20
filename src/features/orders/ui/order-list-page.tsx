@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
 import { SignOutButton } from "~/features/auth/ui/sign-out-button";
-import { displayStatus } from "~/features/orders/model/display-status";
 import { formatMoney } from "~/features/orders/model/money";
 import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "~/features/orders/model/order-labels";
 import type { fetchOrders } from "~/features/orders/server/functions";
@@ -40,7 +39,7 @@ export function OrderListPage({ orders, nextCursor, prevCursor }: OrderListPageP
                 {order.customerFirstName} {order.customerLastName}
               </td>
               <td>{PAYMENT_METHOD_LABELS[order.paymentMethod]}</td>
-              <td>{ORDER_STATUS_LABELS[displayStatus(order)]}</td>
+              <td>{ORDER_STATUS_LABELS[order.status]}</td>
               <td>{formatMoney(order.totalAmount, order.currency)}</td>
               <td>{formatMoney(order.capturedAmount, order.currency)}</td>
               <td>{formatMockDateTime(order.expiresAt.toISOString())}</td>
