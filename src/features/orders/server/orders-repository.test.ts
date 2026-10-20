@@ -15,6 +15,7 @@ import type { CreateOrderInput } from "../model/create-order-input";
 
 import {
   OrderActionError,
+  OrderCreateForbiddenError,
   StoreNotFoundError,
   applyOrderAction,
   createOrder,
@@ -357,14 +358,18 @@ describe("createOrder", () => {
         .length;
     const before = await countDevOrders();
 
-    const denied: UserClaims[] = [
-      { sub: testAccounts.merchantA, global_roles: [] },
-      { sub: testAccounts.agent, global_roles: [] },
-      { sub: testAccounts.operator, global_roles: ["platform_operator"] },
-      { sub: testAccounts.stranger, global_roles: [] },
+    // Who can see the Sweden store gets 403 (no orders.create); who can't see it gets "not found".
+    const denied: [UserClaims, typeof OrderCreateForbiddenError | typeof StoreNotFoundError][] = [
+      [{ sub: testAccounts.merchantA, global_roles: [] }, OrderCreateForbiddenError],
+      [{ sub: testAccounts.agent, global_roles: [] }, StoreNotFoundError],
+      [
+        { sub: testAccounts.operator, global_roles: ["platform_operator"] },
+        OrderCreateForbiddenError,
+      ],
+      [{ sub: testAccounts.stranger, global_roles: [] }, StoreNotFoundError],
     ];
-    for (const user of denied) {
-      await expect(createOrder(db, user, newOrder)).rejects.toThrow();
+    for (const [user, expected] of denied) {
+      await expect(createOrder(db, user, newOrder)).rejects.toBeInstanceOf(expected);
     }
 
     expect(await countDevOrders()).toBe(before);
@@ -454,6 +459,25 @@ describe("applyOrderAction", () => {
 
     expect(error).toBeInstanceOf(OrderActionError);
     expect(error).toMatchObject({ status });
+  });
+
+  it("lets a second-line agent capture, and refuses a first-line agent with 403", async () => {
+    const { id: orderId } = await createOrder(db, developer, {
+      ...newOrder,
+      storeId: seedIds.stores.nordicBikesGermany,
+    });
+    created.push(orderId);
+    const capture = { action: "capture" as const, orderId, amount: 100, reason: "Shipped" };
+
+    const result = await applyOrderAction(
+      db,
+      { sub: testAccounts.agent, global_roles: [] },
+      capture,
+    );
+    expect(result).toMatchObject({ id: orderId, capturedAmount: 100 });
+
+    const firstLine: UserClaims = { sub: testAccounts.firstLineAgent, global_roles: [] };
+    await expect(applyOrderAction(db, firstLine, capture)).rejects.toMatchObject({ status: 403 });
   });
 
   it("answers 403 to someone who may read the order but not cancel it", async () => {

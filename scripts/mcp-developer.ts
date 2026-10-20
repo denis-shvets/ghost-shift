@@ -1,6 +1,6 @@
-// Local MCP server (stdio) for creating test orders through the developer API (ADR 0007).
+// Local MCP server (stdio) for creating test orders through the orders API (ADR 0007).
 // Claude Code starts it from .mcp.json. It signs in as the seeded developer account, then calls
-// /api/developer/* with a bearer token. Run `pnpm dev` first, then the server is ready to use.
+// /api/v1/* with a bearer token. Run `pnpm dev` first, then the server is ready to use.
 import { pathToFileURL } from "node:url";
 
 import { createClient } from "@supabase/supabase-js";
@@ -77,7 +77,7 @@ export function apiErrorText(status: number, body: unknown): string {
 const tools = [
   {
     name: "list_stores",
-    description: "List the stores you can create orders in, with their currency.",
+    description: "List the stores you can see, with their currency.",
     inputSchema: { type: "object" as const, properties: {} },
   },
   {
@@ -146,7 +146,7 @@ function createApiClient(config: {
 
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok) throw new ApiError(apiErrorText(response.status, body));
-    // Every developer API answer is JSON, so anything else is the wrong server, not a success.
+    // Every orders API answer is JSON, so anything else is the wrong server, not a success.
     if (body === null)
       throw new ApiError(
         `HTTP ${response.status}: the response was not JSON. Is APP_URL the Ghost Shift dev server?`,
@@ -166,7 +166,7 @@ export async function runTool(
 ) {
   switch (name) {
     case "list_stores":
-      return toolText(await api.request("/api/developer/stores"));
+      return toolText(await api.request("/api/v1/stores"));
     case "list_sample_products": {
       const input = productsInput.safeParse(args);
       if (!input.success) return toolError(`Invalid input: ${issueText(input.error.issues)}`);
@@ -175,14 +175,14 @@ export async function runTool(
     // The API validates the order; its 400 issues reach the agent through apiErrorText.
     case "create_order":
       return toolText(
-        await api.request("/api/developer/orders", { method: "POST", body: JSON.stringify(args) }),
+        await api.request("/api/v1/orders", { method: "POST", body: JSON.stringify(args) }),
       );
     default: {
       // capture_order, refund_order, cancel_order. The API validates the input and adds nothing.
       const action = ORDER_ACTION_TOOLS.find((tool) => tool.name === name)?.action;
       if (!action) return toolError(`Unknown tool: ${name}`);
       return toolText(
-        await api.request("/api/developer/order-actions", {
+        await api.request("/api/v1/order-actions", {
           method: "POST",
           body: JSON.stringify({ ...args, action }),
         }),

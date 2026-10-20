@@ -9,3 +9,8 @@ export const orderListInput = z.object({
 });
 
 export type OrderListInput = z.infer<typeof orderListInput>;
+
+// Query strings are text, so limit is turned into a number first. Pagination is by cursor, not page number.
+export const orderListQuery = orderListInput.extend({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});

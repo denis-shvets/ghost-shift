@@ -126,7 +126,7 @@ describe("order action tools", () => {
 
     await runTool("cancel_order", args, { request });
 
-    expect(request).toHaveBeenCalledWith("/api/developer/order-actions", {
+    expect(request).toHaveBeenCalledWith("/api/v1/order-actions", {
       method: "POST",
       body: JSON.stringify({ ...args, action: "cancel" }),
     });

@@ -29,6 +29,8 @@ export const testAccounts = {
   merchantB: "22222222-2222-4222-8222-222222222222",
   // agent_first_line and agent_second_line at Nordic Bikes Germany only.
   agent: "33333333-3333-4333-8333-333333333333",
+  // agent_first_line only at Nordic Bikes Germany. Cannot capture, cancel or refund.
+  firstLineAgent: "77777777-7777-4777-8777-777777777777",
   // platform_developer, a global role.
   developer: "44444444-4444-4444-8444-444444444444",
   // platform_operator, a global role without organization permissions.
@@ -69,7 +71,8 @@ export async function createTestAccounts(db: Database) {
   await db.execute(
     sql`insert into public.store_assignments (user_id, store_id, role) values
       (${testAccounts.agent}::uuid, ${nordicBikesGermany}::uuid, 'agent_first_line'),
-      (${testAccounts.agent}::uuid, ${nordicBikesGermany}::uuid, 'agent_second_line')
+      (${testAccounts.agent}::uuid, ${nordicBikesGermany}::uuid, 'agent_second_line'),
+      (${testAccounts.firstLineAgent}::uuid, ${nordicBikesGermany}::uuid, 'agent_first_line')
       on conflict do nothing`,
   );
 }

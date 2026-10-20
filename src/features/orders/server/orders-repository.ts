@@ -83,14 +83,24 @@ export async function listOrdersOrFirstPage(db: Database, user: UserClaims, inpu
 // Thrown when the store is missing or not visible to the user (RLS hides it the same way).
 export class StoreNotFoundError extends Error {}
 
+// Thrown when the user can see the store but may not create orders in it (no orders.create).
+export class OrderCreateForbiddenError extends Error {}
+
 // Runs as the signed-in user. Stores they can't read are hidden, so the lookup fails the same way.
 export function createOrder(db: Database, user: UserClaims, input: CreateOrderInput) {
   return withUser(db, user, async (tx) => {
+    // Ask the same function the insert policy uses, so a refusal is a clear 403, not a raw 42501.
+    // The policy still guards the insert on its own.
     const [store] = await tx
-      .select({ id: stores.id, currency: stores.currency })
+      .select({
+        id: stores.id,
+        currency: stores.currency,
+        canCreate: sql<boolean>`public.has_permission('orders.create', ${stores.id})`,
+      })
       .from(stores)
       .where(eq(stores.id, input.storeId));
     if (!store) throw new StoreNotFoundError("Store not found");
+    if (!store.canCreate) throw new OrderCreateForbiddenError("Forbidden");
 
     const totalAmount = orderTotal(input.lines);
     // shortcut: 8 hex characters, a clash fails on the unique reference constraint, upgrade to a retry if clashes become common

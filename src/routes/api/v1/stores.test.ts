@@ -10,7 +10,9 @@ const { readCurrentUser, listStoresForOrder, close } = vi.hoisted(() => ({
   close: vi.fn(),
 }));
 
-vi.mock("cloudflare:workers", () => ({ env: {} }));
+vi.mock("cloudflare:workers", () => ({
+  env: { API_LIMITER: { limit: async () => ({ success: true }) } },
+}));
 
 vi.mock("~/shared/env/server-env", () => ({
   parseServerEnv: () => ({ DATABASE_URL: "postgresql://unused" }),
@@ -27,7 +29,6 @@ vi.mock("~/features/orders/server/orders-repository", async (importOriginal) => 
   listStoresForOrder,
 }));
 
-const merchant: UserClaims = { sub: "11111111-1111-4111-8111-111111111111", global_roles: [] };
 const developer: UserClaims = {
   sub: "22222222-2222-4222-8222-222222222222",
   global_roles: ["platform_developer"],
@@ -35,7 +36,7 @@ const developer: UserClaims = {
 
 // The route's GET handler, called the way TanStack Start calls it.
 function get() {
-  const request = new Request("http://localhost/api/developer/stores");
+  const request = new Request("http://localhost/api/v1/stores");
   const handler = Route.options.server?.handlers as unknown as {
     GET: (ctx: { request: Request }) => Promise<Response>;
   };
@@ -47,22 +48,13 @@ beforeEach(() => {
   close.mockResolvedValue(undefined);
 });
 
-describe("GET /api/developer/stores", () => {
+describe("GET /api/v1/stores", () => {
   it("returns 401 JSON when nobody is signed in", async () => {
     readCurrentUser.mockResolvedValue(null);
 
     const response = await get();
 
     expect(response.status).toBe(401);
-    expect(listStoresForOrder).not.toHaveBeenCalled();
-  });
-
-  it("returns 403 JSON for a merchant who is not a platform developer", async () => {
-    readCurrentUser.mockResolvedValue(merchant);
-
-    const response = await get();
-
-    expect(response.status).toBe(403);
     expect(listStoresForOrder).not.toHaveBeenCalled();
   });
 

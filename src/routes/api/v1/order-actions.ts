@@ -1,15 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { orderActionInput } from "~/features/orders/model/order-action-input";
-import { handleDeveloperRequest, json } from "~/features/orders/server/developer-api";
+import { handleApiRequest, json } from "~/features/orders/server/api-request";
 import { applyOrderAction } from "~/features/orders/server/orders-repository";
 
 // Capture, cancel or refund one order. The body says which, with the order id and a reason.
-export const Route = createFileRoute("/api/developer/order-actions")({
+// Any signed-in user may call it; the database decides whether this user may do the action.
+export const Route = createFileRoute("/api/v1/order-actions")({
   server: {
     handlers: {
       POST: ({ request }) =>
-        handleDeveloperRequest(async (db, user) => {
+        handleApiRequest(async (db, user) => {
           const body = await request.json().catch(() => undefined);
           if (body === undefined) return json({ error: "Invalid JSON" }, 400);
 

@@ -46,6 +46,8 @@ export const fetchOrder = createServerFn({ method: "GET" })
   });
 
 // Server functions are public HTTP endpoints, so the role check runs here, not only in the page.
+// It only keeps the developer page for platform developers. Who may create an order is still decided
+// by the database (orders.create), the same as POST /api/v1/orders.
 export const createOrderFn = createServerFn({ method: "POST" })
   .validator(createOrderInput)
   .handler(async ({ data }) => {
