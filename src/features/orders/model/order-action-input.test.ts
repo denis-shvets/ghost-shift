@@ -18,6 +18,13 @@ describe("orderActionInput", () => {
     ).toBe(true);
   });
 
+  it("takes an optional agent run id", () => {
+    const agentRunId = "5a3b1e00-0000-4000-8000-000000000001";
+    expect(
+      orderActionInput.parse({ action: "cancel", orderId, reason: "Out of stock", agentRunId }),
+    ).toEqual({ action: "cancel", orderId, reason: "Out of stock", agentRunId });
+  });
+
   it.each([
     ["no reason", { action: "cancel", orderId }],
     ["a blank reason", { action: "cancel", orderId, reason: "   " }],
@@ -27,6 +34,7 @@ describe("orderActionInput", () => {
     ["a fractional amount", { action: "capture", orderId, amount: 1.5, reason: "Shipped" }],
     ["a bad order id", { action: "cancel", orderId: "MG-1001", reason: "Out of stock" }],
     ["an unknown action", { action: "void", orderId, reason: "Because" }],
+    ["a bad agent run id", { action: "cancel", orderId, reason: "Because", agentRunId: "run-1" }],
   ])("refuses %s", (_, input) => {
     expect(orderActionInput.safeParse(input).success).toBe(false);
   });
@@ -44,5 +52,6 @@ describe("ORDER_ACTION_TOOLS", () => {
       orderId,
       reason: "Out of stock",
     });
+    expect(Object.keys(cancel.input.shape)).not.toContain("agentRunId");
   });
 });

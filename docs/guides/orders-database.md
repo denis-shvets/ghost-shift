@@ -800,6 +800,8 @@ grant execute on function public.order_action(uuid, text, bigint, text) to authe
 
 Anonymous visitors can't call it. Signed-in users can, and the function decides the rest. That also holds for someone who calls Supabase's REST API directly with their own token.
 
+> **Replaced (2026-10-21):** `order_action()` now takes a fifth argument, `p_agent_run_id uuid default null`, which links the event to an agent run. The four-argument function above was dropped and the new one granted the same way. The steps above are unchanged. Why the drop and the new grant were needed: [Agent runs, sections 6 and 7](agent-runs.md#6-why-the-run-check-lives-in-order_action-migration-orders_action_agent_run).
+
 ### e. From the error to the caller
 
 `applyOrderAction` in `server/orders-repository.ts` calls the function inside `withUser` and turns the Postgres error codes into HTTP statuses:

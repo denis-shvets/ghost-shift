@@ -27,6 +27,7 @@ export function ActivityPage({ events, nextCursor, prevCursor }: ActivityPagePro
             <th>Action</th>
             <th>Amount</th>
             <th>Reason</th>
+            <th>Run</th>
             <th>Store</th>
             <th>Order</th>
           </tr>
@@ -39,6 +40,10 @@ export function ActivityPage({ events, nextCursor, prevCursor }: ActivityPagePro
               <td>{ORDER_EVENT_ACTION_LABELS[event.action]}</td>
               <td>{formatMoney(amountOf(event), event.currency)}</td>
               <td>{"reason" in event.metadata ? event.metadata.reason : null}</td>
+              <td>
+                {event.agentRunPurpose ??
+                  (event.agentRunId && `Run ${event.agentRunId.slice(0, 8)}`)}
+              </td>
               <td>{event.storeName}</td>
               <td>
                 <Link to="/orders/$orderId" params={{ orderId: event.orderId }}>

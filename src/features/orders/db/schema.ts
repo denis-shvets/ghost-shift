@@ -17,6 +17,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
 
+import { agentRuns } from "~/features/agent-runs/db/schema";
 import { stores } from "~/features/stores/db/schema";
 
 import { ORDER_EVENT_ACTIONS } from "../model/order-event";
@@ -193,6 +194,8 @@ export const orderEvents = pgTable(
     actorName: text().notNull(),
     // Shape per action: OrderEventMetadata in model/order-event.ts.
     metadata: jsonb().notNull().default({}),
+    // The agent run that made this change. Empty for people acting outside a run.
+    agentRunId: uuid(),
   },
   (table) => [
     foreignKey({
@@ -205,7 +208,16 @@ export const orderEvents = pgTable(
       columns: [table.actorUserId],
       foreignColumns: [authUsers.id],
     }).onDelete("set null"),
+    foreignKey({
+      name: "order_events_agent_run_fk",
+      columns: [table.agentRunId],
+      foreignColumns: [agentRuns.id],
+    }).onDelete("set null"),
     check("order_events_metadata_object_check", sql`jsonb_typeof(${table.metadata}) = 'object'`),
     index("order_events_order_occurred_at_idx").on(table.orderId, table.occurredAt),
+    // "Events of one run". Most events have no run, so only the linked ones are indexed.
+    index("order_events_agent_run_idx")
+      .on(table.agentRunId)
+      .where(sql`${table.agentRunId} is not null`),
   ],
 ).enableRLS();

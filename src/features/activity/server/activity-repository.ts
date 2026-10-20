@@ -1,5 +1,6 @@
 import { and, desc, asc, eq, sql } from "drizzle-orm";
 
+import { agentRuns } from "~/features/agent-runs/db/schema";
 import { orderEvents, orders } from "~/features/orders/db/schema";
 import type { OrderEvent } from "~/features/orders/model/order-event";
 import { stores } from "~/features/stores/db/schema";
@@ -15,6 +16,9 @@ export type ActivityEvent = OrderEvent & {
   currency: string;
   storeId: string;
   storeName: string | null;
+  agentRunId: string | null;
+  // Empty when the viewer can't read the run: only its agent and platform staff can.
+  agentRunPurpose: string | null;
 };
 
 // Runs as the signed-in user, so row-level security decides which events they can read.
@@ -42,11 +46,14 @@ export function listActivity(
         currency: orders.currency,
         storeId: orders.storeId,
         storeName: stores.name,
+        agentRunId: orderEvents.agentRunId,
+        agentRunPurpose: agentRuns.purpose,
       })
       .from(orderEvents)
       .innerJoin(orders, eq(orders.id, orderEvents.orderId))
       // Left join: only the orders policy decides which events show; a store the viewer can't read leaves the name empty.
       .leftJoin(stores, eq(stores.id, orders.storeId))
+      .leftJoin(agentRuns, eq(agentRuns.id, orderEvents.agentRunId))
       .where(
         and(
           cursor
