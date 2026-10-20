@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { formatMoney } from "~/features/orders/model/money";
 import { paymentLinks } from "~/mocks/data";
+import { MockNotice } from "~/features/layout/ui/mock-notice";
 
 export const Route = createFileRoute("/payment-links")({
+  head: () => ({ meta: [{ title: "Payment links · Ghost Shift" }] }),
   component: PaymentLinks,
 });
 
@@ -11,6 +13,7 @@ function PaymentLinks() {
   return (
     <>
       <h1>Payment links</h1>
+      <MockNotice />
       <button type="button" disabled>
         Create payment link
       </button>

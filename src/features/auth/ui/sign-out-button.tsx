@@ -12,7 +12,8 @@ export function SignOutButton() {
       onSubmit={async (event) => {
         event.preventDefault();
         await signOutOnServer();
-        await navigate({ to: "/login" });
+        // A full reload, so the header is drawn once, signed out, instead of in two steps.
+        await navigate({ to: "/login", reloadDocument: true });
       }}
     >
       <button type="submit">Sign out</button>

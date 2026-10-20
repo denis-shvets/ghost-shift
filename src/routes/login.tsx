@@ -5,6 +5,7 @@ import { type SyntheticEvent, useState } from "react";
 import { signIn } from "~/features/auth/server/functions";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({ meta: [{ title: "Sign in · Ghost Shift" }] }),
   component: Login,
 });
 
@@ -21,7 +22,8 @@ function Login() {
       data: { email: String(form.get("email")), password: String(form.get("password")) },
     });
     if (result.ok) {
-      await navigate({ to: "/orders" });
+      // A full reload, so the server draws the header once with the new cookie instead of in two steps.
+      await navigate({ to: "/", reloadDocument: true });
     } else {
       setMessage(result.message);
     }

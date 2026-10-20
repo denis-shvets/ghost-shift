@@ -5,6 +5,7 @@ import { fetchActivity } from "~/features/activity/server/functions";
 import { ActivityPage } from "~/features/activity/ui/activity-page";
 
 export const Route = createFileRoute("/audit-log")({
+  head: () => ({ meta: [{ title: "Audit log · Ghost Shift" }] }),
   validateSearch: activityListInput.pick({
     cursor: true,
     direction: true,

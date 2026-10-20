@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { apiKeys, webhooks } from "~/mocks/data";
+import { MockNotice } from "~/features/layout/ui/mock-notice";
 
 export const Route = createFileRoute("/developers")({
+  head: () => ({ meta: [{ title: "Developers · Ghost Shift" }] }),
   component: Developers,
 });
 
@@ -10,6 +12,7 @@ function Developers() {
   return (
     <>
       <h1>Developers</h1>
+      <MockNotice />
       <h2>API keys</h2>
       <table>
         <thead>

@@ -51,7 +51,7 @@ export const addressInput = z.object({
 export type AddressInput = z.infer<typeof addressInput>;
 
 // What a developer sends to create a test order. Later server code takes the currency from the store.
-// Both addresses are required; the page copies billing into shipping when they are the same.
+// Both addresses are required; the page copies shipping into billing when they are the same.
 export const createOrderInput = z.object({
   storeId: z.uuid(),
   customer: z.object({

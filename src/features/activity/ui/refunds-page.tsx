@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 
-import { SignOutButton } from "~/features/auth/ui/sign-out-button";
 import type { fetchRefunds } from "~/features/activity/server/functions";
 import { formatMoney } from "~/features/orders/model/money";
 import { formatMockDateTime } from "~/mocks/format";
@@ -12,7 +11,6 @@ export function RefundsPage({ events, nextCursor, prevCursor, stores, storeId }:
   return (
     <>
       <h1>Refunds</h1>
-      <SignOutButton />
       <form key={storeId ?? ""} method="get" action="/refunds">
         <label>
           Store{" "}

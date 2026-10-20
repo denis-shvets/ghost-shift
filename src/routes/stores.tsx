@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { stores } from "~/mocks/data";
+import { MockNotice } from "~/features/layout/ui/mock-notice";
 
 export const Route = createFileRoute("/stores")({
+  head: () => ({ meta: [{ title: "Stores · Ghost Shift" }] }),
   component: Stores,
 });
 
@@ -10,6 +12,7 @@ function Stores() {
   return (
     <>
       <h1>Stores</h1>
+      <MockNotice />
       <table>
         <thead>
           <tr>

@@ -15,3 +15,6 @@ dist/
 
 # TanStack Start generated files
 .tanstack/
+
+# Local preview server config for the desktop app
+.claude/launch.json

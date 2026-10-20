@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 
-import { SignOutButton } from "~/features/auth/ui/sign-out-button";
 import type { ActivityEvent } from "~/features/activity/server/activity-repository";
 import { formatMoney } from "~/features/orders/model/money";
 import { ORDER_EVENT_ACTION_LABELS } from "~/features/orders/model/order-labels";
@@ -20,7 +19,6 @@ export function ActivityPage({ events, nextCursor, prevCursor }: ActivityPagePro
   return (
     <>
       <h1>Audit log</h1>
-      <SignOutButton />
       <table>
         <thead>
           <tr>
