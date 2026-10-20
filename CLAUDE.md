@@ -20,6 +20,7 @@ Rules for AI agents (and humans) changing this repo. The reasons behind the stac
 ## Database
 
 - Schema in `src/features/<name>/db/schema.ts`; `pnpm db:generate` writes the migration into `supabase/migrations/`. Never edit a migration that has been applied to the hosted database; add a new one.
+- Always pass `--name <name>` to `pnpm db:generate`, so the migration isn't given a random name. Use lowercase snake_case that says what changes, starting with the table or feature: `orders_list_index`, `orders_drop_shopper`.
 - Every new table needs a hand-written grant migration (`pnpm db:generate --custom --name <name>`), because hosted Supabase doesn't grant `anon`/`authenticated` automatically.
 - Request handlers query through `withUser` so row-level security applies to the signed-in person. `withRole` is only for anonymous-access tests.
 - Name constraints `<table>_<what it covers>_<kind>`: `_fk`, `_check`, `_unique` ([ADR 0006](docs/adr/0006-drizzle.md)).
