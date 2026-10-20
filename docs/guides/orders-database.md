@@ -877,7 +877,7 @@ The existing index `order_events_order_occurred_at_idx` covers one order's timel
 - **Reads follow roles, and nobody updates orders directly.** Each company sees its own orders, and agents see their stores. Only the expiry job (section 5) and `public.order_action()` (section 6) change orders. See [Sign-in and access](auth-and-policies.md).
 - **Only developers create orders.** Other edits, such as the shipping address or tracking number, have no write path yet.
 - **Whole amounts only.** Captures and refunds don't record which lines they covered (`metadata.lines` stays empty for new events).
-- The dashboard and other pages still use `src/mocks/data.ts`.
+- The dashboard (`/`) and other pages still use `src/mocks/data.ts`. `/insights` reads the database (section 9).
 
 ## 8. Try it yourself
 
@@ -940,7 +940,54 @@ With `pnpm db:start` and `pnpm dev` running:
 
 9. Put everything back with `pnpm db:reset`.
 
-## 9. Where to read more
+## 9. The insights page (2026-10-20)
+
+**What:** `/insights` shows the numbers from section 4k, computed from `orders` for the signed-in user. The code is in `src/features/insights/`. The database does the counting and adding, and TypeScript does the division for the rates.
+
+**Why one row per currency:** SEK and EUR are different money. Adding them gives a number that means nothing, so every query groups by `currency` and the page prints one row per currency.
+
+### The query: one row per currency and payment method
+
+The query in `src/features/insights/server/insights-repository.ts` reads like a sentence. Step by step:
+
+1. `from orders`: start with the table. Row-level security (section h) removes every order the user cannot see before anything is counted.
+2. `group by currency, payment_method`: put the rows into buckets, one bucket per payment method inside each currency. Every column is computed for one bucket at a time.
+3. `count(*)`: how many orders are in the bucket.
+4. `count(*) filter (where not (status = 'authorized' and expires_at > now()))`: the settled orders. An order is settled when its outcome is known. Only an authorization that can still be captured is open. The `expires_at` part is there because the expiry job runs every 15 minutes, so an order can be past its expiry and still say `authorized` for a few minutes. It is already decided, so it counts as settled.
+5. `sum(total_amount)`: add up the order totals in the bucket. `sum` ignores nothing here, because `total_amount` is never null.
+6. `coalesce(sum(...), 0)`: `sum` of zero rows is `null`, not `0`. `coalesce` returns the first value that is not null, so an empty sum becomes `0`.
+7. `count(*) filter (where captured_amount > 0)`: the orders that have money captured. This reads the money, not the status. A part-captured order can be canceled and keep its captured money (section 6c), so its status says `canceled` while money was taken. Counting by status would miss it.
+8. `count(*) filter (where status = 'expired')`: the expired orders.
+9. `sum(uncaptured_amount) filter (where ...)`: the money still open on authorizations that run out within a week. `uncaptured_amount` is the stored generated column from section e, so no subtraction is done here.
+10. `::float8` and `::int`: casts. `sum` of a `bigint` column returns `numeric`, and the postgres-js driver hands `numeric` and `bigint` to JavaScript as strings, because a JavaScript number cannot hold every value of those types. `::float8` gives a type the driver returns as a normal number. `count` returns `bigint`, so it is cast to `int`. Minor units stay far below the limit where a float stops being exact.
+11. `order by currency, payment_method`: a stable order for the page.
+
+### Why one query: snapshots
+
+In Postgres' default isolation level (READ COMMITTED), each statement sees the data as it was when that statement started, even inside one transaction. Two statements could therefore see different data if an order is written between them, and the currency total would disagree with its payment-method rows.
+
+One query sees one snapshot, so every number comes from the same data. The currency totals are the payment-method rows added up in TypeScript. That works because counts and sums can be added: (orders paid by card) + (orders paid by PayPal) + ... = all orders. The test that checks the method counts add up to the currency's order count still guards that TypeScript part.
+
+### Rates in TypeScript
+
+`computeRates` in `src/features/insights/model/rates.ts` divides counts and sums:
+
+- Capture rate: orders with captured money divided by settled orders.
+- Expiry rate: expired orders divided by settled orders. Open authorizations are left out, so both rates describe the same group of orders.
+- Refund rate: refunded money divided by captured money. Money is the right base, because one refund can be part of a capture.
+- Average order value: total divided by all orders, rounded to whole minor units.
+
+Each division returns `null` when the bottom number is 0. That is the division-by-zero guard, and the page shows a dash instead of a misleading 0%.
+
+### Why no index yet
+
+The query reads every order the user can see, once. It is now one pass over the orders, not two. An index helps when a query needs only a few rows, for example one order by reference. A dashboard that sums everything has to read every row anyway, so an index would only add cost on every write. Add an index when this query is slow in practice. The partial index for expiring authorizations (section b) already covers the expiry job.
+
+### Trying it yourself
+
+In Studio, run the query with a filter on one currency, and compare the numbers with the page. Then create an order, capture part of it, cancel it, and reload `/insights`. Captured orders goes up by one, even though the status is `canceled`. That is the difference between counting money and counting status.
+
+## 10. Where to read more
 
 - [Supabase: Postgres basics](https://supabase.com/docs/guides/database/overview)
 - [Supabase: Row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
