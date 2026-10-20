@@ -201,6 +201,114 @@ describe("listOrders", () => {
   });
 });
 
+describe("listOrders search and filters", () => {
+  it("finds an order by its exact reference", async () => {
+    const result = await listOrders(db, merchant, { limit: 50, q: "MG-1003" });
+
+    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1003"]);
+  });
+
+  it("finds an order by reference, ignoring case", async () => {
+    const result = await listOrders(db, merchant, { limit: 50, q: "mg-1003" });
+
+    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1003"]);
+  });
+
+  it("finds an order by customer email, ignoring case", async () => {
+    const result = await listOrders(db, merchant, { limit: 50, q: "ASTRID@Example.COM" });
+
+    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1001"]);
+  });
+
+  it("filters by status", async () => {
+    const result = await listOrders(db, merchant, { limit: 50, status: "captured" });
+    const captured = await db
+      .select({ reference: orders.reference })
+      .from(orders)
+      .where(eq(orders.status, "captured"));
+    const expected = captured
+      .map((order) => order.reference)
+      .filter((reference) => reference.startsWith("MG-"));
+
+    expect(result.orders.map((order) => order.reference).sort()).toEqual(expected.sort());
+    expect(result.orders.every((order) => order.status === "captured")).toBe(true);
+  });
+
+  it("filters by payment method", async () => {
+    const result = await listOrders(db, merchant, { limit: 50, paymentMethod: "paypal" });
+    const paypal = await db
+      .select({ reference: orders.reference })
+      .from(orders)
+      .where(eq(orders.paymentMethod, "paypal"));
+    const expected = paypal
+      .map((order) => order.reference)
+      .filter((reference) => reference.startsWith("MG-"));
+
+    expect(result.orders.map((order) => order.reference).sort()).toEqual(expected.sort());
+    expect(result.orders.map((order) => order.reference)).toContain("MG-1003");
+    expect(result.orders.every((order) => order.paymentMethod === "paypal")).toBe(true);
+  });
+
+  it("combines the filters, with the search", async () => {
+    const result = await listOrders(db, merchant, {
+      limit: 50,
+      status: "captured",
+      paymentMethod: "card",
+    });
+
+    expect(result.orders.map((order) => order.reference)).toContain("MG-1009");
+    expect(result.orders.every((order) => order.status === "captured")).toBe(true);
+    expect(result.orders.every((order) => order.paymentMethod === "card")).toBe(true);
+    expect(
+      await listOrders(db, merchant, { limit: 50, q: "MG-1002", paymentMethod: "card" }),
+    ).toMatchObject({ orders: [] });
+  });
+
+  it("pages through a filtered list without repeating or skipping orders", async () => {
+    const forward: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await listOrders(db, merchant, { limit: 1, cursor, status: "authorized" });
+      forward.push(...page.orders.map((order) => order.reference));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+
+    const authorized = await db
+      .select({ reference: orders.reference })
+      .from(orders)
+      .where(eq(orders.status, "authorized"));
+    const expected = authorized
+      .map((order) => order.reference)
+      .filter((reference) => reference.startsWith("MG-"));
+
+    expect(forward).toHaveLength(expected.length);
+    expect(new Set(forward)).toEqual(new Set(expected));
+  });
+
+  it("falls back to the first filtered page when the cursor is unknown", async () => {
+    // No order has this id, so the cursor finds nothing and the first page with the filter is shown.
+    const result = await listOrdersOrFirstPage(db, merchant, {
+      limit: 50,
+      cursor: "00000000-0000-4000-8000-00000000abcd",
+      status: "captured",
+    });
+
+    expect(result.orders.length).toBeGreaterThan(0);
+    expect(result.orders.every((order) => order.status === "captured")).toBe(true);
+  });
+  it("returns nothing for a store the user can't see", async () => {
+    // NB-2001 belongs to Nordic Bikes, so its store is hidden from Moonlight Goods.
+    const [nordic] = await db
+      .select({ storeId: orders.storeId })
+      .from(orders)
+      .where(eq(orders.reference, "NB-2001"));
+
+    const result = await listOrders(db, merchant, { limit: 50, storeId: nordic?.storeId });
+
+    expect(result.orders).toEqual([]);
+  });
+});
+
 describe("getOrder", () => {
   // MG-1003 in supabase/seed.sql.
   const orderId = "29fb84e7-03da-44f2-9389-dbbe9e12d3f3";
@@ -305,6 +413,19 @@ describe("createOrder", () => {
     await db.delete(orders).where(inArray(orders.id, created));
   });
 
+  it("stores the customer email in lower case", async () => {
+    const { id } = await createOrder(db, developer, {
+      ...newOrder,
+      customer: { ...newOrder.customer, email: "Mixed.Case@Example.COM" },
+    });
+    created.push(id);
+
+    const [order] = await db
+      .select({ email: orders.customerEmail })
+      .from(orders)
+      .where(eq(orders.id, id));
+    expect(order?.email).toBe("mixed.case@example.com");
+  });
   it("creates the order and its lines, with the store's currency and the correct total", async () => {
     const { id, reference } = await createOrder(db, developer, newOrder);
     created.push(id);

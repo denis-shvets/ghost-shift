@@ -5,16 +5,16 @@ import { orderListQuery } from "~/features/orders/model/order-list-input";
 import { handleApiRequest, json } from "~/features/orders/server/api-request";
 import { createOrder, listOrders } from "~/features/orders/server/orders-repository";
 
-// List orders the signed-in user can see (query: limit, cursor, direction), or create one.
+// List orders the signed-in user can see (query: limit, cursor, direction, q, status, storeId, paymentMethod), or create one.
 // No role check here: row-level security decides which orders a user sees and who may create.
 export const Route = createFileRoute("/api/v1/orders")({
   server: {
     handlers: {
       GET: ({ request }) =>
         handleApiRequest(async (db, user) => {
-          // An empty parameter (?limit=) counts as not sent, so its default applies.
-          const params = [...new URL(request.url).searchParams].filter(([, value]) => value !== "");
-          const input = orderListQuery.safeParse(Object.fromEntries(params));
+          const input = orderListQuery.safeParse(
+            Object.fromEntries(new URL(request.url).searchParams),
+          );
           if (!input.success) {
             return json({ error: "Invalid input", issues: input.error.issues }, 400);
           }

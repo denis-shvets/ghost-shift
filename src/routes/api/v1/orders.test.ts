@@ -118,6 +118,39 @@ describe("GET /api/v1/orders", () => {
     expect(close).toHaveBeenCalled();
   });
 
+  it("passes the search and filters from the query string to the repository", async () => {
+    listOrders.mockResolvedValue({ orders: [], nextCursor: null, prevCursor: null });
+
+    const response = await get(
+      "?q=a%40b.se&status=captured&paymentMethod=card&storeId=e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
+    );
+
+    expect(response.status).toBe(200);
+    expect(listOrders).toHaveBeenCalledWith(expect.anything(), agent, {
+      limit: 50,
+      q: "a@b.se",
+      status: "captured",
+      paymentMethod: "card",
+      storeId: "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
+    });
+  });
+
+  it("treats blank values in the query string as not sent", async () => {
+    listOrders.mockResolvedValue({ orders: [], nextCursor: null, prevCursor: null });
+
+    const response = await get("?q=%20&status=");
+
+    expect(response.status).toBe(200);
+    expect(listOrders).toHaveBeenCalledWith(expect.anything(), agent, { limit: 50 });
+  });
+
+  it("returns 400 for an unknown status in the query string", async () => {
+    const response = await get("?status=shipped");
+
+    expect(response.status).toBe(400);
+    expect(listOrders).not.toHaveBeenCalled();
+  });
+
   it("treats an empty limit as not sent and uses the default", async () => {
     listOrders.mockResolvedValue({ orders: [], nextCursor: null, prevCursor: null });
 

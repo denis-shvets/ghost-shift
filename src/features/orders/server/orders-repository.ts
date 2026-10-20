@@ -1,4 +1,4 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 
 import { organizations } from "~/features/organizations/db/schema";
 import { stores } from "~/features/stores/db/schema";
@@ -21,12 +21,16 @@ import { authorizationExpiresAt } from "../model/payment-methods";
 export function listOrders(
   db: Database,
   user: UserClaims,
-  { limit, cursor, direction }: OrderListInput,
+  { limit, cursor, direction, q, status, storeId, paymentMethod }: OrderListInput,
 ) {
   return withUser(db, user, async (tx) => {
     // "prev" reads the orders newer than the cursor. Without a cursor there is nothing to go back from.
     const newer = direction === "prev" && cursor !== undefined;
     const anchor = sql`(select ${orders.createdAt}, ${orders.id} from ${orders} where ${orders.id} = ${cursor})`;
+    // Emails are stored in lower case and references in upper case, so the search compares plain text.
+    const search = q
+      ? or(eq(orders.reference, q.toUpperCase()), eq(orders.customerEmail, q.toLowerCase()))
+      : undefined;
     const rows = await tx
       .select({
         id: orders.id,
@@ -43,9 +47,16 @@ export function listOrders(
       })
       .from(orders)
       .where(
-        cursor
-          ? sql`(${orders.createdAt}, ${orders.id}) ${sql.raw(newer ? ">" : "<")} ${anchor}`
-          : undefined,
+        // and() skips the undefined conditions, so each filter is only applied when it was sent.
+        and(
+          cursor
+            ? sql`(${orders.createdAt}, ${orders.id}) ${sql.raw(newer ? ">" : "<")} ${anchor}`
+            : undefined,
+          search,
+          status ? eq(orders.status, status) : undefined,
+          storeId ? eq(orders.storeId, storeId) : undefined,
+          paymentMethod ? eq(orders.paymentMethod, paymentMethod) : undefined,
+        ),
       )
       .orderBy(
         newer ? asc(orders.createdAt) : desc(orders.createdAt),
@@ -73,11 +84,16 @@ export function listOrders(
 }
 
 // A cursor the user can't see gives an empty page with no links, so fall back to the first page.
+// The filters stay, so the first page is still the filtered one.
 // shortcut: one extra query only when the cursor is invisible, upgrade if that path gets hot
 export async function listOrdersOrFirstPage(db: Database, user: UserClaims, input: OrderListInput) {
   const page = await listOrders(db, user, input);
   if (page.orders.length > 0 || input.cursor === undefined) return page;
-  return listOrders(db, user, { limit: input.limit });
+  return listOrders(db, user, {
+    ...input,
+    cursor: undefined,
+    direction: undefined,
+  });
 }
 
 // Thrown when the store is missing or not visible to the user (RLS hides it the same way).
@@ -118,7 +134,8 @@ export function createOrder(db: Database, user: UserClaims, input: CreateOrderIn
         currency: store.currency,
         customerFirstName: input.customer.firstName,
         customerLastName: input.customer.lastName,
-        customerEmail: input.customer.email,
+        // Lower case, so the email search and its index compare plain text (orders_customer_email_lowercase_check).
+        customerEmail: input.customer.email.toLowerCase(),
         customerPhone: input.customer.phone,
         paymentMethod: input.paymentMethod,
         status: "authorized",

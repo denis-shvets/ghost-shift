@@ -86,12 +86,19 @@ export const orders = pgTable(
       sql`${table.refundedAmount} between 0 and ${table.capturedAmount}`,
     ),
     check("orders_expires_after_created_check", sql`${table.expiresAt} > ${table.createdAt}`),
+    // Emails are stored in lower case, so the search and the index match without lower().
+    check(
+      "orders_customer_email_lowercase_check",
+      sql`${table.customerEmail} = lower(${table.customerEmail})`,
+    ),
     // Matches the list's sort order, so pages come straight off the index.
     index("orders_created_at_id_idx").on(table.createdAt.desc(), table.id.desc()),
     // Only open authorizations, so public.expire_orders() finds the due ones without a full scan.
     index("orders_authorized_expires_at_idx")
       .on(table.expiresAt)
       .where(sql`${table.status} = 'authorized'`),
+    // Exact email search. Emails are stored in lower case (see the check below), so no lower() is needed.
+    index("orders_customer_email_idx").on(table.customerEmail),
   ],
 ).enableRLS();
 

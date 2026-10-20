@@ -13,7 +13,7 @@ import type { UserClaims } from "~/shared/auth/user-claims";
 import { createDb } from "~/shared/db/client";
 import seedIds from "~/shared/seed/seed-ids.json" with { type: "json" };
 
-import { listActivity, listActivityOrFirstPage, listReadableStores } from "./activity-repository";
+import { listActivity, listActivityOrFirstPage } from "./activity-repository";
 
 // Runs against the local Supabase database with seed data (`pnpm db:reset`).
 const db = createDb(testDatabaseUrl);
@@ -175,37 +175,5 @@ describe("listActivity", () => {
     expect(events).toEqual([]);
     expect(nextCursor).toBeNull();
     expect(prevCursor).toBeNull();
-  });
-});
-
-describe("listReadableStores", () => {
-  it("lists every store for a platform operator, who can read stores but not organizations", async () => {
-    const operator: UserClaims = {
-      sub: testAccounts.operator,
-      global_roles: ["platform_operator"],
-    };
-
-    const names = (await listReadableStores(db, operator)).map((store) => store.name);
-
-    expect(names).toEqual([
-      "Moonlight Goods Finland",
-      "Moonlight Goods Norway",
-      "Moonlight Goods Sweden",
-      "Nordic Bikes Germany",
-    ]);
-  });
-
-  it("lists only the stores an agent is assigned to", async () => {
-    const agent: UserClaims = { sub: testAccounts.agent, global_roles: [] };
-
-    const names = (await listReadableStores(db, agent)).map((store) => store.name);
-
-    expect(names).toEqual(["Nordic Bikes Germany"]);
-  });
-
-  it("lists no stores to a user with no access", async () => {
-    const stranger: UserClaims = { sub: testAccounts.stranger, global_roles: [] };
-
-    expect(await listReadableStores(db, stranger)).toEqual([]);
   });
 });

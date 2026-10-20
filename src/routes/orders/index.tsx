@@ -5,8 +5,15 @@ import { fetchOrders } from "~/features/orders/server/functions";
 import { OrderListPage } from "~/features/orders/ui/order-list-page";
 
 export const Route = createFileRoute("/orders/")({
-  validateSearch: orderListInput.pick({ cursor: true, direction: true }),
-  loaderDeps: ({ search }) => ({ cursor: search.cursor, direction: search.direction }),
+  validateSearch: orderListInput.omit({ limit: true }),
+  loaderDeps: ({ search }) => search,
   loader: ({ deps }) => fetchOrders({ data: deps }),
-  component: () => <OrderListPage {...Route.useLoaderData()} />,
+  component: Orders,
 });
+
+function Orders() {
+  const { q, status, storeId, paymentMethod } = Route.useSearch();
+  return (
+    <OrderListPage {...Route.useLoaderData()} filters={{ q, status, storeId, paymentMethod }} />
+  );
+}

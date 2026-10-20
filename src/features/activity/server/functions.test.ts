@@ -20,7 +20,8 @@ vi.mock("~/shared/db/request-db", () => ({
   withDb: (fn: (db: unknown) => unknown) => fn({}),
 }));
 
-vi.mock("./activity-repository", () => ({ listActivityOrFirstPage, listReadableStores }));
+vi.mock("./activity-repository", () => ({ listActivityOrFirstPage }));
+vi.mock("~/features/stores/server/stores-repository", () => ({ listReadableStores }));
 
 // Same stub as orders/server/functions.test.ts: keeps the real validator and handler, no request context.
 vi.mock("@tanstack/react-start", () => ({

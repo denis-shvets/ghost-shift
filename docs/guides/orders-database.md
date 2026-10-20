@@ -573,7 +573,6 @@ Always show each number per currency. Summing SEK and EUR together is wrong.
 #### Open points
 
 - **GDPR erasure and retention:** customer names, emails and addresses are personal data. We need rules for deleting them on request and for how long to keep them.
-- **An index for search by reference or email.** `reference` is unique, so it has an index already. Searching by `customer_email` does not.
 - **The status and the amounts are not matched by the database.** For example, nothing stops `status = 'captured'` with `captured_amount = 0`. Only the range checks in section f apply.
 - **Idempotency keys for API-created orders.** A retried request could create the same order twice. A key sent with each request would let the database refuse the duplicate.
 
@@ -878,6 +877,50 @@ The refunds page (`/refunds`) makes no new events query. In plain steps:
 2. The store filter is `storeId` in the URL. The "All stores" option sends an empty value, and Zod turns that into "not set".
 3. The store choices come from `listReadableStores`, a small query on the `stores` table only. RLS (`stores.read`) limits it to the stores the viewer can read.
 4. It does not join `organizations`. A platform operator or an agent may read stores but not organization names, so an inner join would hide every store from them.
+
+## 6c. Search by email with a plain index (2026-10-20)
+
+The order list finds an order by exact reference or exact customer email, and can filter by status, store and payment method. `GET /api/v1/orders` takes the same options. Emails are saved in lower case, so the search and the index compare plain text.
+
+### a. Why emails are saved in lower case
+
+`createOrder` lower-cases the email before it saves the order. A check constraint, `orders_customer_email_lowercase_check`, makes the database refuse any email with capitals, so no code path can skip the rule. The migration also lower-cased the orders that already existed, before it added the check.
+
+The search can then compare `customer_email = lower(q)` with no function on the column. That matters for the index, as section c explains.
+
+### b. The index
+
+An index is a sorted list that lets Postgres find rows without reading the whole table. Ours is `orders_customer_email_idx`, a plain index on `customer_email`:
+
+```sql
+create index orders_customer_email_idx on orders (customer_email);
+```
+
+The migration is the newest file in `supabase/migrations/` that creates this index. The same line is in `src/features/orders/db/schema.ts`, so Drizzle writes the same SQL.
+
+### c. Why the plain column matters: row-level security
+
+Every merchant query runs with row-level security (RLS). The database adds a filter, "only orders this user may read", and that filter must run before anything else. For safety, Postgres only lets an index work on conditions made from "leakproof" functions, which cannot leak data. `=` on text is leakproof. A function such as `lower()` is not, so an index on `lower(customer_email)` could not be used for a merchant. That is why we store lower case instead.
+
+Studio runs as `postgres`, which skips row-level security. To check the plan a merchant gets, wrap the query in a transaction that switches to the `authenticated` role and sets a user id. Then roll back, so nothing changes:
+
+```sql
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"<user id>"}', true);
+set local enable_seqscan = off;
+explain select id, reference from orders
+where customer_email = 'astrid@example.com';
+rollback;
+```
+
+Look for `Index Scan using orders_customer_email_idx`. We checked this on 2026-10-20: the merchant's plan uses the index. A plain `Seq Scan on orders` would mean something on the column blocks the index.
+
+### d. Search and filters in one query
+
+The search is `reference = q.toUpperCase() or customer_email = q.toLowerCase()`, so both match ignoring case. Each filter is added to the `where` only when the caller sent it. The cursor condition from section 6b stays as it was, so paging with a filter does not repeat or skip orders. Row-level security still applies, so a store the user cannot read never matches, even when its id is in the URL.
+
+A blank or space-only value counts as not sent. That rule lives in `optionalParam` (`src/shared/validation/optional-param.ts`), so the API, the orders page and the refunds page all follow it.
 
 ## 7. What's deliberately not done yet
 

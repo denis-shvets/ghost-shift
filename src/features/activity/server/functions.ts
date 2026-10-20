@@ -6,7 +6,9 @@ import { withDb } from "~/shared/db/request-db";
 import { parseServerEnv } from "~/shared/env/server-env";
 
 import { activityListInput } from "../model/activity-list-input";
-import { listActivityOrFirstPage, listReadableStores } from "./activity-repository";
+import { listReadableStores } from "~/features/stores/server/stores-repository";
+
+import { listActivityOrFirstPage } from "./activity-repository";
 
 // Server functions are public HTTP endpoints, so the filters and cursor are checked here.
 export const fetchActivity = createServerFn({ method: "GET" })
