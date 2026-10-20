@@ -13,7 +13,10 @@ export default defineConfig({
   plugins: [
     // Runs server code in the Cloudflare Workers runtime, in dev and in the build.
     cloudflare({ viteEnvironment: { name: "ssr" } }),
-    tanstackStart(),
+    tanstackStart({
+      // Tests sit next to route files; keep them out of the route tree.
+      router: { routeFileIgnorePattern: "\\.test\\.tsx?$" },
+    }),
     // React's plugin must come after Start's plugin.
     viteReact(),
   ],
