@@ -252,7 +252,7 @@ Run them with `pnpm db:start`, `pnpm db:reset`, then `pnpm test`.
 ## 10. What's not done yet
 
 - **Sessions last one hour, then the user signs in again.** The login token expires after an hour, and the app doesn't refresh it yet. Refreshing needs a second cookie and a refresh step on each request.
-- **Sign-out only clears the cookie.** The token stays valid until it expires, because the server doesn't revoke it. Revoking all of a user's sessions needs one extra call, to add later.
+- **Sign-out revokes only the current session.** It calls Supabase's logout with `scope=local`, so the token stops working at once, and every request checks that the session still exists. Other devices stay signed in. If Supabase can't be reached during sign-out, the cookie is still cleared and the token lives until it expires.
 - **Only platform developers and the Night Shift checkout customer can create orders.** Existing orders change only through capture, cancel and refund (section 4) and the expiry job.
 - **The create-order page is for platform developers only.** The page checks the role so other people do not see a developer tool; the database still decides who may create (`orders.create`). The orders API under `/api/v1/` is open to any signed-in user, and the database decides what each one may do. See [The orders API for agents](orders-api.md).
 - **Limit by amount isn't built.** A rule like "refund up to 500" needs an attribute check on top of the roles. That's the next step if you need it (see ADR 0015).
