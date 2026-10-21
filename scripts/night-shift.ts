@@ -19,12 +19,16 @@ import { parseArgs } from "node:util";
 import { z } from "zod";
 
 import {
+  type AddressInput,
   addressInput,
   createOrderInput,
   type PlaceOrderInput,
   placeOrderInput,
 } from "../src/features/orders/model/create-order-input.ts";
-import { PAYMENT_METHODS } from "../src/features/orders/model/payment-methods.ts";
+import {
+  PAYMENT_METHODS,
+  type PaymentMethod,
+} from "../src/features/orders/model/payment-methods.ts";
 import { CATALOG_SIZE, catalogItem } from "../src/features/orders/model/store-catalogs.ts";
 import {
   MAX_SCHEDULED_CHECKOUTS,
@@ -423,6 +427,40 @@ const oneLine = (error: z.ZodError) => z.prettifyError(error).replace(/\n/g, " "
 const pick = <T>(record: Record<string, T>, key: string) =>
   Object.hasOwn(record, key) ? record[key] : undefined;
 
+// A catalog product as an order line, without the quantity the customer picked.
+export type CatalogLine = {
+  type: "physical" | "digital";
+  sku: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+};
+
+// The order both planners place: the products, plus the store's shipping fee when one is physical.
+// Shared so a planned order and a cron order are checked the same way.
+export function storeOrder(
+  shop: Persona["data"]["stores"][string],
+  customer: Persona["data"]["customer"],
+  billingAddress: AddressInput,
+  shippingAddress: AddressInput,
+  paymentMethod: PaymentMethod,
+  products: CatalogLine[],
+): PlaceOrderInput | string {
+  const fee = { type: "shipping_fee" as const, quantity: 1, ...shop.shippingFee };
+  const physical = products.some((line) => line.type === "physical");
+  const order = placeOrderInput.safeParse({
+    storeId: shop.id,
+    customer,
+    billingAddress,
+    shippingAddress,
+    paymentMethod,
+    shippingCarrier: shop.carrier,
+    lines: physical ? [...products, fee] : products,
+  });
+  return order.success ? order.data : oneLine(order.error);
+}
+
 // Builds the whole order from Claude's choices for one visit, or says why it can't. Customer,
 // addresses, prices, names, carrier and shipping fee all come from the persona and the store catalog.
 export function buildOrder(answer: unknown, persona: Persona): PlaceOrderInput | string {
@@ -444,18 +482,7 @@ export function buildOrder(answer: unknown, persona: Persona): PlaceOrderInput |
     const { type, sku, name, unitPrice, taxRate } = catalogItem(shop.id, list, number)!;
     return { type, sku, name, quantity, unitPrice, taxRate };
   });
-  const fee = { type: "shipping_fee" as const, quantity: 1, ...shop.shippingFee };
-  const physical = products.some((line) => line.type === "physical");
-  const order = placeOrderInput.safeParse({
-    storeId: shop.id,
-    customer,
-    billingAddress: billing,
-    shippingAddress: shipping,
-    paymentMethod: payment,
-    shippingCarrier: shop.carrier,
-    lines: physical ? [...products, fee] : products,
-  });
-  return order.success ? order.data : oneLine(order.error);
+  return storeOrder(shop, customer, billing, shipping, payment, products);
 }
 
 // Checks Claude's answer slot by slot: exactly one valid order for each.

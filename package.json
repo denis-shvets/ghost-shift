@@ -29,7 +29,8 @@
     "night-shift:plan:hosted": "node --env-file=.hosted.vars scripts/night-shift.ts plan --hosted",
     "night-shift:upload": "node --env-file-if-exists=.dev.vars scripts/night-shift.ts upload",
     "night-shift:upload:hosted": "node --env-file=.hosted.vars scripts/night-shift.ts upload --hosted",
-    "night-shift:schema": "node scripts/night-shift.ts schema"
+    "night-shift:schema": "node scripts/night-shift.ts schema",
+    "orders:cron": "node --env-file-if-exists=.dev.vars scripts/order-cron.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
