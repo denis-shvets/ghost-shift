@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "timeZone": {
+      "type": "string",
+      "description": "An IANA time zone, e.g. Europe/Berlin. Windows are in this zone."
+    },
+    "ordersPerWeek": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 400,
+      "description": "Orders to expect per week on average. 0.5 is one every two weeks."
+    },
+    "windows": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:-(Mon|Tue|Wed|Thu|Fri|Sat|Sun))? ([01][0-9]|2[0-3]):([0-5][0-9])-([01][0-9]|2[0-3]):([0-5][0-9])$"
+      },
+      "description": "When the customer shops, e.g. \"Mon-Fri 19:00-23:00\". An end before the start runs past midnight."
+    },
+    "customer": {
+      "type": "object",
+      "properties": {
+        "firstName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lastName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["firstName", "lastName", "email"],
+      "additionalProperties": false
+    },
+    "stores": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{0,19}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "The store's id, from src/shared/seed/seed-ids.json."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Shown to Claude next to the key, e.g. Nordic Bikes Germany (EUR)."
+          },
+          "carrier": {
+            "type": "string",
+            "minLength": 1
+          },
+          "shippingFee": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "unitPrice": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Minor units of the store's currency."
+              },
+              "taxRate": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000,
+                "description": "Basis points: 2500 is 25 %."
+              }
+            },
+            "required": ["name", "unitPrice", "taxRate"],
+            "additionalProperties": false,
+            "description": "The shipping_fee line added when the basket has a physical product."
+          }
+        },
+        "required": ["id", "name", "carrier", "shippingFee"],
+        "additionalProperties": false
+      },
+      "description": "The stores this customer shops in, by short key. The habits name the keys."
+    },
+    "addresses": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{0,19}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "company": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streetAddress": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streetAddress2": {
+            "type": "string",
+            "minLength": 1
+          },
+          "postalCode": {
+            "type": "string",
+            "minLength": 1
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1
+          },
+          "region": {
+            "type": "string",
+            "minLength": 1
+          },
+          "country": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["firstName", "lastName", "streetAddress", "postalCode", "city", "country"],
+        "additionalProperties": false
+      },
+      "description": "The customer's addresses, by short key such as home or work."
+    }
+  },
+  "required": ["timeZone", "ordersPerWeek", "windows", "customer", "stores", "addresses"],
+  "additionalProperties": false
+}

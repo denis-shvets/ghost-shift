@@ -10,9 +10,17 @@ import { z } from "zod";
 // Ids shared with supabase/seed.sql through src/shared/seed/seed-ids.json.
 import seedIds from "../src/shared/seed/seed-ids.json" with { type: "json" };
 
+import { CHECKOUT_EMAIL } from "./night-shift.ts";
+
 const moonlightGoods = seedIds.organizations.moonlightGoods;
 const nordicBikes = seedIds.organizations.nordicBikes;
 const nordicBikesGermany = seedIds.stores.nordicBikesGermany;
+// The live stores. Night Shift customers may order only here; Moonlight Goods Norway is a test store.
+const liveStores = [
+  seedIds.stores.moonlightSweden,
+  seedIds.stores.moonlightFinland,
+  nordicBikesGermany,
+];
 // A fixed id, so running the script again updates the same sample run.
 const sampleRunId = "5a3b1e00-0000-4000-8000-000000000001";
 
@@ -74,6 +82,13 @@ const seedUsers = [
       { storeId: nordicBikesGermany, role: "agent_first_line" },
       { storeId: nordicBikesGermany, role: "agent_second_line" },
     ],
+  },
+  // The Night Shift customers' checkout account (docs/guides/night-shift.md). Creates orders, nothing else.
+  {
+    email: CHECKOUT_EMAIL,
+    globalRoles: [],
+    organizationRoles: [],
+    storeRoles: liveStores.map((storeId) => ({ storeId, role: "checkout_customer" })),
   },
 ];
 

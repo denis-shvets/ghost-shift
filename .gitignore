@@ -18,3 +18,9 @@ dist/
 
 # Local preview server config for the desktop app
 .claude/launch.json
+
+# Settings for the hosted MCP server and planner (pnpm *:hosted)
+.hosted.vars
+
+# Night Shift plan files (pnpm night-shift:plan)
+.night-shift/

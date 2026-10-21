@@ -126,7 +126,20 @@ describe("listOrders", () => {
     const result = await listOrders(db, other, { limit: 2 });
 
     expect(result.orders).toHaveLength(2);
-    expect(result.orders.every((order) => order.reference.startsWith("NB-"))).toBe(true);
+    // By store, not by "NB-" reference: orders created through the API (Night Shift customers) start with DEV-.
+    const stores = await db
+      .select({ storeId: orders.storeId })
+      .from(orders)
+      .where(
+        inArray(
+          orders.id,
+          result.orders.map((order) => order.id),
+        ),
+      );
+    expect(stores.map((row) => row.storeId)).toEqual([
+      seedIds.stores.nordicBikesGermany,
+      seedIds.stores.nordicBikesGermany,
+    ]);
     expect(result.prevCursor).toBeNull();
   });
 
@@ -358,6 +371,41 @@ describe("listOrders search and filters", () => {
   });
 });
 
+describe("creating orders as the checkout customer", () => {
+  // The account has orders.create and stores.read only, not orders.read. Creating still returns the id.
+  const customer: UserClaims = { sub: testAccounts.customer, global_roles: [] };
+
+  it("creates the order and gets its id and reference back", async () => {
+    const created = await createOrder(db, customer, {
+      ...newOrder,
+      storeId: seedIds.stores.nordicBikesGermany,
+    });
+    try {
+      expect(created).toMatchObject({
+        id: expect.any(String),
+        reference: expect.stringMatching(/^DEV-/),
+      });
+      const [row] = await db
+        .select({ createdBy: orders.createdBy })
+        .from(orders)
+        .where(eq(orders.id, created.id));
+      expect(row?.createdBy).toBe(testAccounts.customer);
+    } finally {
+      await db.delete(orders).where(inArray(orders.id, [created.id]));
+    }
+  });
+
+  it("refuses an order that says it already shipped", async () => {
+    await expect(
+      createOrder(db, customer, {
+        ...newOrder,
+        storeId: seedIds.stores.nordicBikesGermany,
+        shipped: true,
+      }),
+    ).rejects.toBeInstanceOf(OrderCreateForbiddenError);
+  });
+});
+
 describe("getOrder", () => {
   // MG-1003 in supabase/seed.sql.
   const orderId = "29fb84e7-03da-44f2-9389-dbbe9e12d3f3";
@@ -476,6 +524,19 @@ describe("createOrder", () => {
     expect(order?.email).toBe("mixed.case@example.com");
   });
 
+  it("dates the order, its expiry and its first event at a given creation time", async () => {
+    const createdAt = new Date(Date.now() - 10 * 60 * 1000);
+    const { id } = await createOrder(db, developer, newOrder, { createdAt });
+    created.push(id);
+
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    const [event] = await db.select().from(orderEvents).where(eq(orderEvents.orderId, id));
+    expect(order?.createdAt).toEqual(createdAt);
+    // A card authorization runs for 7 days.
+    expect(order?.expiresAt).toEqual(new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000));
+    expect(event?.occurredAt).toEqual(createdAt);
+  });
+
   it("leaves shipped_at empty unless the order is created as shipped", async () => {
     const { id } = await createOrder(db, developer, newOrder);
     created.push(id);
@@ -556,6 +617,28 @@ describe("createOrder", () => {
     }
 
     expect(await countDevOrders()).toBe(before);
+  });
+
+  it("lets a Night Shift customer order only in its assigned store, and not move money", async () => {
+    const customer: UserClaims = { sub: testAccounts.customer, global_roles: [] };
+    const { id } = await createOrder(db, customer, {
+      ...newOrder,
+      storeId: seedIds.stores.nordicBikesGermany,
+    });
+    created.push(id);
+
+    // Not assigned to the Sweden store, so it can't even see it.
+    await expect(createOrder(db, customer, newOrder)).rejects.toBeInstanceOf(StoreNotFoundError);
+    // Even its own order is "not found" for a capture: the action looks orders up with orders.read,
+    // which the customer doesn't have. Money can't move at all.
+    await expect(
+      applyOrderAction(db, customer, {
+        action: "capture",
+        orderId: id,
+        amount: 100,
+        reason: "Test",
+      }),
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it("hides a store the user can't read as if it didn't exist", async () => {

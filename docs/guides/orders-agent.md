@@ -1,11 +1,11 @@
 # The orders agent
 
-The first real agent in Ghost Shift. It's a scheduled Claude task that signs in as the Nordic Bikes Germany agent account and captures the money for authorized orders that have shipped. Each time it does work, it starts an agent run and ends it with a summary, so you can follow everything it did in the activity log.
+The first real agent in Ghost Shift. It's a Claude run, started on a timer, that signs in as the Nordic Bikes Germany agent account and captures the money for authorized orders that have shipped. Each time it does work, it starts an agent run and ends it with a summary, so you can follow everything it did in the activity log.
 
 ## 1. The big picture
 
 ```
-Claude scheduled task ──► ghost-shift-agent MCP server ──► /api/v1 (bearer token) ──► database
+claude -p (on a timer) ──► ghost-shift-agent MCP server ──► /api/v1 (bearer token) ──► database
   reads docs/agents/        signs in as SEED_AGENT_EMAIL      same API as any user       RLS + order_action()
   orders-agent.md           with SEED_PASSWORD                                            decide what's allowed
 ```
@@ -37,7 +37,7 @@ The **MCP server** signs in, not Claude:
 2. On its first tool call, it signs in to local Supabase (`signInWithPassword`) and keeps the access token in memory.
 3. It sends the token as `Authorization: Bearer …` on every API call. When the token runs out (after about an hour) and the API answers `401`, it signs in again by itself.
 
-Claude never sees the password. It's not in the instructions, the tool arguments or the transcript. It only works where `.dev.vars` and local Supabase exist, which is your machine. Running against the hosted app would need a hosted agent account and a secret where the task runs, or long-lived API tokens. That's a later step.
+Claude never sees the password. It's not in the instructions, the tool arguments or the transcript. It only works where `.dev.vars` and local Supabase exist, which is your machine. For the live app, the same server runs on your machine in hosted mode, with its own account and password (section 7).
 
 ## 4. Run it locally, step by step
 
@@ -76,13 +76,31 @@ Recommended: a **scheduled task in the Claude desktop app**, on your machine. It
 
 The alternative is a plain cron job (or Windows Task Scheduler) running the `claude -p` command from step 5. It works the same way, but you don't get the app's run history.
 
-## 7. Limits and follow-ups
+## 7. Run it against the live app
+
+The same agent can capture orders in the live app at <https://ghost-shift.denis-shvets.workers.dev>. It still runs on your machine ([ADR 0017](../adr/0017-local-agents-hosted-app.md)):
+
+- `pnpm mcp:agent:hosted` starts the server in hosted mode, as the `ghost-shift-agent-hosted` MCP server. It reads `.hosted.vars` (git-ignored), never `.dev.vars`. Without `.hosted.vars` the server still starts, so sessions don't list it as failed, and every tool call answers with what is missing.
+- It signs in with `HOSTED_AGENT_EMAIL` and `HOSTED_AGENT_PASSWORD`, a separate account in the hosted project, never `SEED_PASSWORD`.
+- It only talks to `https://ghost-shift.denis-shvets.workers.dev` and `https://<project-ref>.supabase.co`. The local server (`ghost-shift-agent`) still refuses anything but this machine, so a local run can't capture live orders by accident.
+
+Owner steps, once: follow the [Night Shift guide, section 7b](night-shift.md#b-owner-steps-once). It covers pushing the migrations, creating the hosted agent account, giving it `agent_first_line` and `agent_second_line` at Nordic Bikes Germany (with ready-to-paste SQL), filling in `.hosted.vars` and approving `ghost-shift-agent-hosted`. Then try one run by hand:
+
+```bash
+claude -p "Follow docs/agents/orders-agent.md" --allowedTools "mcp__ghost-shift-agent-hosted"
+```
+
+and put it on a timer as in section 6, with `mcp__ghost-shift-agent-hosted` in the allow list and that prompt.
+
+Its runs and captures show up in the live app's activity log, as for the local agent (section 5).
+
+## 8. Limits and follow-ups
 
 - The API allows 60 requests a minute per user. The agent waits and retries once on `429`. A run with more than ~55 orders takes longer, but it doesn't fail.
-- To give the agent new work, create an order with **Already shipped** ticked (Developer tools → Create order), or send `shipped: true` to `POST /api/v1/orders`. Marking an existing order as shipped later isn't built yet.
-- Local only: see section 3 for what running in the cloud needs.
+- New work comes by itself: Night Shift's customer orders, placed from its queue, ship 4 to 48 hours after they're created, by a database job ([orders database, section 6e](orders-database.md#6e-the-ship-job-orders-ship-some-hours-later-2026-10-21)). Only Nordic Bikes Germany's orders are this agent's. For work right away, create an order with **Already shipped** ticked, or send `shipped: true` to `POST /api/v1/orders`.
+- It runs only while your computer is on: locally or against the live app, never in the cloud ([ADR 0017](../adr/0017-local-agents-hosted-app.md)).
 
-## 8. Tests
+## 9. Tests
 
 - `scripts/mcp-agent.test.ts`:
   - the tools send the right requests
@@ -90,5 +108,6 @@ The alternative is a plain cron job (or Windows Task Scheduler) running the `cla
   - the server loads in plain Node, the way `pnpm mcp:agent` starts it
   - actions need a run id
   - ids that aren't uuids never reach a URL
-  - the server needs `SEED_AGENT_EMAIL` and local URLs
+  - the server needs `SEED_AGENT_EMAIL` and local URLs; in hosted mode it needs `HOSTED_AGENT_EMAIL` and `HOSTED_AGENT_PASSWORD` and never uses `SEED_PASSWORD`
+- `scripts/mcp-developer.test.ts`: the hosted allowlist (exact hosts, https only)
 - `src/features/orders/server/orders-repository.test.ts`: the `shipped` filter, and that the agent only gets its own store's shipped authorized orders. That test creates its own orders, so it passes whether or not the seed's demo orders were captured or expired.

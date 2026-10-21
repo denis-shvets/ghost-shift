@@ -143,7 +143,7 @@ describe("ending a run", () => {
 describe("linking events to runs", () => {
   it("lets a developer add an event directly only without a run", async () => {
     const { id: runId } = await startRun(testAccounts.agent);
-    const [order] = await db.select({ id: orders.id }).from(orders).limit(1);
+    const [seeded] = await db.select().from(orders).limit(1);
     const developer: UserClaims = {
       sub: testAccounts.developer,
       global_roles: ["platform_developer"],
@@ -151,6 +151,22 @@ describe("linking events to runs", () => {
     // Rolled back either way, so the seeded timeline stays as it is.
     const addEvent = (agentRunId: string | null) =>
       withUser(db, developer, async (tx) => {
+        // A developer can only add events to orders they created, so the test makes its own order.
+        const [order] = await tx
+          .insert(orders)
+          .values({
+            reference: `TEST-${crypto.randomUUID()}`,
+            storeId: seeded!.storeId,
+            currency: seeded!.currency,
+            customerFirstName: "Schema",
+            customerLastName: "Test",
+            customerEmail: "schema@ghostshift.test",
+            paymentMethod: "card",
+            status: "authorized",
+            totalAmount: 1000,
+            shippingCarrier: "PostNord",
+          })
+          .returning({ id: orders.id });
         await tx.insert(orderEvents).values({
           orderId: order!.id,
           action: "authorized",

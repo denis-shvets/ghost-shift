@@ -1,0 +1,43 @@
+{
+  "$schema": "./persona.schema.json",
+  "timeZone": "Europe/Stockholm",
+  "ordersPerWeek": 28,
+  "windows": ["Mon-Sun 20:00-08:00"],
+  "customer": {
+    "firstName": "Elin",
+    "lastName": "Sjöberg",
+    "email": "elin.sjoberg@example.com",
+    "phone": "+46 18 555 027 41"
+  },
+  "stores": {
+    "se": {
+      "id": "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
+      "name": "Moonlight Goods Sweden (SEK)",
+      "carrier": "PostNord",
+      "shippingFee": {
+        "name": "Shipping, PostNord",
+        "unitPrice": 4900,
+        "taxRate": 2500
+      }
+    }
+  },
+  "addresses": {
+    "home": {
+      "firstName": "Elin",
+      "lastName": "Sjöberg",
+      "streetAddress": "Svartbäcksgatan 21",
+      "postalCode": "753 33",
+      "city": "Uppsala",
+      "country": "SE"
+    },
+    "work": {
+      "firstName": "Elin",
+      "lastName": "Sjöberg",
+      "company": "Uppsala Nattvård AB",
+      "streetAddress": "Dag Hammarskjölds väg 14",
+      "postalCode": "751 85",
+      "city": "Uppsala",
+      "country": "SE"
+    }
+  }
+}

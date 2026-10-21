@@ -29,4 +29,5 @@ export const ORDER_EVENT_ACTION_LABELS: Record<
   refunded: "Refunded",
   canceled: "Canceled",
   expired: "Expired",
+  shipped: "Shipped",
 };

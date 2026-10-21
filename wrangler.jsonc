@@ -3,7 +3,13 @@
   "name": "ghost-shift",
   "compatibility_date": "2026-10-17",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  // TanStack Start's handler plus the cron below (src/server.ts).
+  "main": "src/server.ts",
+  // Every 30 minutes the Worker places Night Shift's due checkouts (docs/guides/night-shift.md).
+  // One of the 5 cron triggers the free plan allows.
+  "triggers": {
+    "crons": ["*/30 * * * *"],
+  },
   "observability": {
     "enabled": true,
   },

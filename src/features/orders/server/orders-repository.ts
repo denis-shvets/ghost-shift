@@ -107,7 +107,14 @@ export class StoreNotFoundError extends Error {}
 export class OrderCreateForbiddenError extends Error {}
 
 // Runs as the signed-in user. Stores they can't read are hidden, so the lookup fails the same way.
-export function createOrder(db: Database, user: UserClaims, input: CreateOrderInput) {
+// `createdAt` is for server code only: the Night Shift cron places a planned order at its planned
+// time. No request input carries it, so API callers can't backdate an order.
+export function createOrder(
+  db: Database,
+  user: UserClaims,
+  input: CreateOrderInput,
+  { createdAt = new Date() }: { createdAt?: Date } = {},
+) {
   return withUser(db, user, async (tx) => {
     // Ask the same function the insert policy uses, so a refusal is a clear 403, not a raw 42501.
     // The policy still guards the insert on its own.
@@ -121,17 +128,20 @@ export function createOrder(db: Database, user: UserClaims, input: CreateOrderIn
       .where(eq(stores.id, input.storeId));
     if (!store) throw new StoreNotFoundError("Store not found");
     if (!store.canCreate) throw new OrderCreateForbiddenError("Forbidden");
+    // Only platform staff may say the parcel already shipped; the insert policy checks it too.
+    if (input.shipped && user.global_roles.length === 0)
+      throw new OrderCreateForbiddenError("Forbidden");
 
     const totalAmount = orderTotal(input.lines);
     // shortcut: 8 hex characters, a clash fails on the unique reference constraint, upgrade to a retry if clashes become common
     const reference = `DEV-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 
-    const createdAt = new Date();
     // The currency comes from the store, never from the request.
     const [order] = await tx
       .insert(orders)
       .values({
         reference,
+        createdBy: user.sub,
         createdAt,
         expiresAt: authorizationExpiresAt(createdAt, input.paymentMethod),
         storeId: store.id,

@@ -952,11 +952,111 @@ A backfill means filling the new column for rows that already exist. We don't, b
 - `GET /api/v1/orders?shipped=true` (or `false`) filters on it: `shipped_at is not null` (or `is null`). The list also returns `shippedAt` and `shippingCarrier`.
 - The seed marks a few orders shipped (NB-2001, NB-2002, NB-2004, NB-2005, NB-2007 and MG-1010), so the agent has work after `pnpm db:reset`.
 - The developer create-order page has an **Already shipped** checkbox. When it's ticked, the app sets `shipped_at` to the order's `created_at`, so the order is shipped from the start and the check in section b still holds. The API takes `shipped: true` the same way. The app never accepts a timestamp from the client, because a past or future date would be easy to get wrong.
-- Shipping later, after the order exists, still has no write path. Re-run `pnpm db:reset` to get the demo orders back.
+- Shipping later, after the order exists, is done by the ship job (section 6e), only for Night Shift's queued orders. Re-run `pnpm db:reset` to get the demo orders back.
+
+## 6e. The ship job: orders ship some hours later (2026-10-21)
+
+Night Shift's customers place orders unshipped, like real customers do. Nothing marked an order shipped later, so the orders agent never got work from them. Now the database plays the warehouse: every 15 minutes it ships the orders that are due. Migration: `supabase/migrations/20261021085942_orders_ship_after_delay.sql`. It's a pg_cron job like the expiry job (section 5), because shipping is plain merchant work with no judgment in it (ADR 0016).
+
+### a. Which orders ship
+
+An order ships when all of these hold:
+
+1. `status = 'authorized'`: the money is held and nothing was taken. A part-captured order is a person's decision, so it's left alone.
+2. `shipped_at is null`: not shipped yet.
+3. It came from Night Shift's queue: a row in `scheduled_checkouts` points at it (`order_id`). Seed orders (`NB-`, `MG-`) and the owner's own test orders from the create page never come from the queue, so the demo data stays as `pnpm db:reset` wrote it. NB-2006, for example, stays unshipped. See [Night Shift](night-shift.md#4-the-queue-database-changes).
+4. At least one line is `physical`. A basket of only digital products has nothing to put in a parcel.
+5. Its delay has passed (section b).
+
+### b. The delay: 4 to 48 hours, picked from the id
+
+```sql
+created_at + make_interval(hours => 4 + get_byte(uuid_send(id), 15) % 45)
+```
+
+Step by step:
+
+1. `uuid_send(id)` turns the order's id into its 16 raw bytes.
+2. `get_byte(…, 15)` reads the last one: a number from 0 to 255. Order ids are random, so this number is too.
+3. `% 45` is the remainder after dividing by 45, so 0 to 44. Adding 4 gives 4 to 48.
+4. `make_interval(hours => …)` turns that into an interval, and adding it to `created_at` gives the moment the order is due.
+
+Why from the id and not `random()`: `random()` gives a new number on every run, so an order would get a new delay every 15 minutes, and the shortest one would win. The id never changes, so each order has exactly one delay, and a test can pick it by choosing the id.
+
+### c. The function: one statement
+
+```sql
+with due as (
+  select o.id, o.created_at + make_interval(…) as ship_at
+  from public.orders o
+  where o.status = 'authorized' and o.shipped_at is null
+    and exists (select 1 from public.scheduled_checkouts s where s.order_id = o.id)
+    and exists (select 1 from public.order_lines l where l.order_id = o.id and l.type = 'physical')
+), shipped as (
+  update public.orders o
+  set shipped_at = due.ship_at,
+    shipping_tracking = coalesce(o.shipping_tracking, upper(substr(replace(o.id::text, '-', ''), 1, 12)))
+  from due
+  where o.id = due.id and due.ship_at <= now() and o.shipped_at is null
+  returning o.id, due.ship_at
+), events as (
+  insert into public.order_events (order_id, occurred_at, action, actor_name, metadata)
+  select id, ship_at, 'shipped', 'System', '{}'::jsonb from shipped
+  returning 1
+)
+select count(*)::integer from shipped;
+```
+
+1. `due` lists the candidates from section a, each with the moment it's due.
+2. `exists (select 1 …)` is true as soon as Postgres finds one matching row. It doesn't count them.
+3. `update … from due` joins the orders to that list and ships those whose moment has passed (`ship_at <= now()`).
+4. `shipped_at` is set to the moment the delay ran out, not to `now()`. Like `occurred_at` in the expiry job, it records when it happened, not when the job noticed. The delay is at least 4 hours, so `orders_shipped_after_created_check` (section 6d b) always holds.
+5. `coalesce(a, b)` gives `a`, or `b` when `a` is null. So a tracking number the order already has is kept; otherwise the job makes one from the first 12 characters of the id, like `1A2B3C4D5E6F`.
+6. `events` writes one `shipped` event per shipped order onto its timeline, dated when the delay ran out. It has no actor user, because the system did it; the timeline shows "System".
+7. The last `select` counts the shipped orders, so a manual run tells you how many.
+
+**Why it can't double up:** the `update` locks each row it changes. If two runs overlap, the second waits, then checks `o.shipped_at is null` again on the locked row, finds it set, and skips it.
+
+### d. Who may run it, and when
+
+The same as section 5e: `revoke execute … from public, anon, authenticated, service_role`, so only the owner, and pg_cron running as the owner, may call it. Signed-in users still can't update orders. Then:
+
+```sql
+select cron.schedule('ship-orders', '*/15 * * * *', 'select public.ship_orders()');
+```
+
+`select * from cron.job;` now lists `expire-orders` and `ship-orders`. To ship by hand, for example while testing, run `select public.ship_orders();` in Supabase Studio's SQL editor.
+
+### e. No index
+
+Each run reads the authorized, unshipped orders that have a queue row, a handful. If it ever gets slow, a partial index `on orders (created_at) where status = 'authorized' and shipped_at is null` fits, like the expiry index in section 5b.
+
+### f. Tests
+
+`src/features/orders/db/schema.test.ts`, block "shipping after a delay". Each test works inside a transaction that is rolled back. The test ids end in `00` (0 % 45 + 4 = 4 hours) or `2c` (44 + 4 = 48 hours), so the delay is known. They check:
+
+- An order from the queue, created 5 hours ago with a 4-hour delay, ships, with `shipped_at` exactly 4 hours after `created_at`, a tracking number from its id and one `shipped` event. A second run changes nothing.
+- These stay unshipped: an order whose 48 hours haven't passed, an all-digital order, an order that didn't come from the queue, and a part-captured order.
+- A developer can't call the function.
+- The schedule exists.
+
+## 6f. Who placed an order: `created_by` (2026-10-21)
+
+Night Shift's checkout account must add to its own orders only, and the queue places each order as the account that queued it. So each order records who placed it. This is part of the Night Shift migrations: `20261021085934_night_shift_schema` (the column, and the `shipped` event action) and `20261021085941_night_shift_access` (the policies).
+
+Step by step:
+
+1. `created_by uuid default auth.uid()` adds one column to `orders`. The default fills in the signed-in user when a row is inserted without a value. Existing orders get null, meaning "not known". The API sets the column itself (`createOrder`).
+2. The foreign key `orders_created_by_fk` points at `auth.users`, so the value must be a real user.
+3. The select policy "customers can read orders they created" says `created_by = auth.uid()`. The checkout account gets this instead of store-wide `orders.read`, so it sees only its own orders.
+4. The insert policies on `order_lines`, `order_addresses` and `order_events` now also require `o.created_by = auth.uid()`. Before, anyone with `orders.create` in a store could add to any order there. Now they can add only to an order they created. Each policy is dropped and recreated, because a policy's rule can't be changed in place. The events policy keeps the `agent_run_id is null` rule from `20261020211405_agent_runs_access`.
+5. The value `shipped` is added to `order_event_action`, for the ship job (section 6e). Postgres can't use a new enum value in the same transaction that adds it, so the ship job, which uses it, comes in a later migration.
+
+Because the policies check `created_by`, a customer that adds to an order it can't see gets the same refusal as before (42501).
 
 ## 7. What's deliberately not done yet
 
-- **Reads follow roles, and nobody updates orders directly.** Each company sees its own orders, and agents see their stores. Only the expiry job (section 5) and `public.order_action()` (section 6) change orders. See [Sign-in and access](auth-and-policies.md).
+- **Reads follow roles, and nobody updates orders directly.** Each company sees its own orders, and agents see their stores. Only the expiry job (section 5), the ship job (section 6e) and `public.order_action()` (section 6) change orders. See [Sign-in and access](auth-and-policies.md).
 - **Only developers create orders.** Other edits, such as the shipping address or tracking number, have no write path yet.
 - **Whole amounts only.** Captures and refunds don't record which lines they covered (`metadata.lines` stays empty for new events).
 - The dashboard (`/`) and other pages still use `src/mocks/data.ts`. `/insights` reads the database (section 9).

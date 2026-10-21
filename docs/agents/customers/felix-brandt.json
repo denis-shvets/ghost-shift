@@ -1,0 +1,43 @@
+{
+  "$schema": "./persona.schema.json",
+  "timeZone": "Europe/Berlin",
+  "ordersPerWeek": 28,
+  "windows": ["Mon-Sun 08:00-20:00"],
+  "customer": {
+    "firstName": "Felix",
+    "lastName": "Brandt",
+    "email": "felix.brandt@example.com",
+    "phone": "+49 221 5550 3318"
+  },
+  "stores": {
+    "de": {
+      "id": "d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6",
+      "name": "Nordic Bikes Germany (EUR)",
+      "carrier": "DPD",
+      "shippingFee": {
+        "name": "Shipping, DPD",
+        "unitPrice": 590,
+        "taxRate": 0
+      }
+    }
+  },
+  "addresses": {
+    "home": {
+      "firstName": "Felix",
+      "lastName": "Brandt",
+      "streetAddress": "Körnerstraße 37",
+      "postalCode": "50823",
+      "city": "Köln",
+      "country": "DE"
+    },
+    "workshop": {
+      "firstName": "Felix",
+      "lastName": "Brandt",
+      "company": "Brandt Radservice",
+      "streetAddress": "Venloer Straße 412",
+      "postalCode": "50825",
+      "city": "Köln",
+      "country": "DE"
+    }
+  }
+}

@@ -1,7 +1,8 @@
 // Local MCP server (stdio) for the orders agent (ADR 0007). It signs in as the seeded agent account
 // (SEED_AGENT_EMAIL) and calls /api/v1/* with its bearer token, so the agent's roles decide what it
-// may do. Claude never sees the password. A scheduled Claude task uses it with the instructions in
-// docs/agents/orders-agent.md. Run `pnpm dev` first.
+// may do. Claude never sees the password. A Claude run, started on a timer, uses it with the
+// instructions in docs/agents/orders-agent.md. Run `pnpm dev` first, or use `pnpm mcp:agent:hosted`
+// to work in the live app with the hosted agent account from .hosted.vars.
 import { z } from "zod";
 
 import {
@@ -15,9 +16,13 @@ import { PAYMENT_METHODS } from "../src/features/orders/model/payment-methods.ts
 
 import {
   type ApiClient,
+  apiTarget,
   configInput,
   createApiClient,
-  issueText,
+  hostedConfigInput,
+  invalid,
+  isHosted,
+  parseConfig,
   runIfMain,
   serveTools,
   toolError,
@@ -33,6 +38,31 @@ export const agentConfigInput = configInput.omit({ SEED_DEVELOPER_EMAIL: true })
     }),
   ),
 });
+
+// The hosted agent account has its own email and password, never the local SEED_PASSWORD.
+export const agentHostedConfigInput = hostedConfigInput.extend({
+  HOSTED_AGENT_EMAIL: z.preprocess(
+    unsetIfEmpty,
+    z.email({ error: "HOSTED_AGENT_EMAIL is required. Set it in .hosted.vars." }),
+  ),
+  HOSTED_AGENT_PASSWORD: z.preprocess(
+    unsetIfEmpty,
+    z.string({ error: "HOSTED_AGENT_PASSWORD is required. Set it in .hosted.vars." }),
+  ),
+});
+
+export function readAgentConfig(env: NodeJS.ProcessEnv, hosted: boolean) {
+  if (hosted) {
+    const config = parseConfig(agentHostedConfigInput, env);
+    return {
+      ...apiTarget(config),
+      email: config.HOSTED_AGENT_EMAIL,
+      password: config.HOSTED_AGENT_PASSWORD,
+    };
+  }
+  const config = parseConfig(agentConfigInput, env);
+  return { ...apiTarget(config), email: config.SEED_AGENT_EMAIL, password: config.SEED_PASSWORD };
+}
 
 // The orders API checks these again; here they keep ids out of URL paths unless they are uuids.
 const endRunInput = z.object({
@@ -95,10 +125,6 @@ const tools = [
   })),
 ];
 
-function invalid(error: z.ZodError) {
-  return toolError(`Invalid input: ${issueText(error.issues)}`);
-}
-
 export async function runAgentTool(name: string, args: Record<string, unknown>, api: ApiClient) {
   switch (name) {
     case "start_agent_run": {
@@ -150,14 +176,16 @@ export async function runAgentTool(name: string, args: Record<string, unknown>, 
 }
 
 runIfMain(import.meta.url, async () => {
-  const env = agentConfigInput.safeParse(process.env);
-  if (!env.success) throw new Error(z.prettifyError(env.error));
-  const api = createApiClient({
-    supabaseUrl: env.data.SUPABASE_URL,
-    publishableKey: env.data.SUPABASE_PUBLISHABLE_KEY,
-    appUrl: env.data.APP_URL,
-    email: env.data.SEED_AGENT_EMAIL,
-    password: env.data.SEED_PASSWORD,
+  // A missing or wrong .hosted.vars must not stop the server, or every session without it lists
+  // ghost-shift-agent-hosted as failed. Each tool call answers with the problem instead.
+  let api: ApiClient | Error;
+  try {
+    api = createApiClient(readAgentConfig(process.env, isHosted()));
+  } catch (error) {
+    api = error instanceof Error ? error : new Error(String(error));
+  }
+  await serveTools("ghost-shift-agent", tools, async (name, args) => {
+    if (api instanceof Error) throw api;
+    return runAgentTool(name, args, api);
   });
-  await serveTools("ghost-shift-agent", tools, (name, args) => runAgentTool(name, args, api));
 });

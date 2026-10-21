@@ -1,0 +1,16 @@
+# Settings for the hosted agent MCP server and the Night Shift planner (pnpm mcp:agent:hosted,
+# pnpm night-shift:plan:hosted, pnpm night-shift:upload:hosted). Copy to .hosted.vars (git-ignored)
+# and fill in. These accounts live in the hosted Supabase project, so their passwords are real
+# secrets: never reuse SEED_PASSWORD.
+# Only https://<project-ref>.supabase.co and https://ghost-shift.denis-shvets.workers.dev are accepted.
+
+# Supabase dashboard > Project Settings > API: the project URL and the publishable key.
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=
+# Optional. The live app (default https://ghost-shift.denis-shvets.workers.dev).
+APP_URL=
+# Password of checkout@ghostshift.test in the hosted project.
+HOSTED_CHECKOUT_PASSWORD=
+# Email and password of the hosted orders agent account.
+HOSTED_AGENT_EMAIL=
+HOSTED_AGENT_PASSWORD=

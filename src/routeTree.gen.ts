@@ -28,6 +28,7 @@ import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
 import { Route as ApiV1AgentRunsRouteImport } from './routes/api/v1/agent-runs'
 import { Route as ApiV1OrderActionsRouteImport } from './routes/api/v1/order-actions'
 import { Route as ApiV1OrdersRouteImport } from './routes/api/v1/orders'
+import { Route as ApiV1ScheduledCheckoutsRouteImport } from './routes/api/v1/scheduled-checkouts'
 import { Route as ApiV1StoresRouteImport } from './routes/api/v1/stores'
 import { Route as ApiV1AgentRunsRunIdRouteImport } from './routes/api/v1/agent-runs.$runId'
 import { Route as ApiV1OrdersOrderIdRouteImport } from './routes/api/v1/orders.$orderId'
@@ -127,6 +128,11 @@ const ApiV1OrdersRoute = ApiV1OrdersRouteImport.update({
   path: '/api/v1/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1ScheduledCheckoutsRoute = ApiV1ScheduledCheckoutsRouteImport.update({
+  id: '/api/v1/scheduled-checkouts',
+  path: '/api/v1/scheduled-checkouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV1StoresRoute = ApiV1StoresRouteImport.update({
   id: '/api/v1/stores',
   path: '/api/v1/stores',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/agent-runs': typeof ApiV1AgentRunsRouteWithChildren
   '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
   '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
+  '/api/v1/scheduled-checkouts': typeof ApiV1ScheduledCheckoutsRoute
   '/api/v1/stores': typeof ApiV1StoresRoute
   '/api/v1/agent-runs/$runId': typeof ApiV1AgentRunsRunIdRoute
   '/api/v1/orders/$orderId': typeof ApiV1OrdersOrderIdRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/api/v1/agent-runs': typeof ApiV1AgentRunsRouteWithChildren
   '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
   '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
+  '/api/v1/scheduled-checkouts': typeof ApiV1ScheduledCheckoutsRoute
   '/api/v1/stores': typeof ApiV1StoresRoute
   '/api/v1/agent-runs/$runId': typeof ApiV1AgentRunsRunIdRoute
   '/api/v1/orders/$orderId': typeof ApiV1OrdersOrderIdRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/api/v1/agent-runs': typeof ApiV1AgentRunsRouteWithChildren
   '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
   '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
+  '/api/v1/scheduled-checkouts': typeof ApiV1ScheduledCheckoutsRoute
   '/api/v1/stores': typeof ApiV1StoresRoute
   '/api/v1/agent-runs/$runId': typeof ApiV1AgentRunsRunIdRoute
   '/api/v1/orders/$orderId': typeof ApiV1OrdersOrderIdRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/api/v1/agent-runs'
     | '/api/v1/order-actions'
     | '/api/v1/orders'
+    | '/api/v1/scheduled-checkouts'
     | '/api/v1/stores'
     | '/api/v1/agent-runs/$runId'
     | '/api/v1/orders/$orderId'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/api/v1/agent-runs'
     | '/api/v1/order-actions'
     | '/api/v1/orders'
+    | '/api/v1/scheduled-checkouts'
     | '/api/v1/stores'
     | '/api/v1/agent-runs/$runId'
     | '/api/v1/orders/$orderId'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/api/v1/agent-runs'
     | '/api/v1/order-actions'
     | '/api/v1/orders'
+    | '/api/v1/scheduled-checkouts'
     | '/api/v1/stores'
     | '/api/v1/agent-runs/$runId'
     | '/api/v1/orders/$orderId'
@@ -311,6 +323,7 @@ export interface RootRouteChildren {
   ApiV1AgentRunsRoute: typeof ApiV1AgentRunsRouteWithChildren
   ApiV1OrderActionsRoute: typeof ApiV1OrderActionsRoute
   ApiV1OrdersRoute: typeof ApiV1OrdersRouteWithChildren
+  ApiV1ScheduledCheckoutsRoute: typeof ApiV1ScheduledCheckoutsRoute
   ApiV1StoresRoute: typeof ApiV1StoresRoute
 }
 
@@ -449,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1OrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/scheduled-checkouts': {
+      id: '/api/v1/scheduled-checkouts'
+      path: '/api/v1/scheduled-checkouts'
+      fullPath: '/api/v1/scheduled-checkouts'
+      preLoaderRoute: typeof ApiV1ScheduledCheckoutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/stores': {
       id: '/api/v1/stores'
       path: '/api/v1/stores'
@@ -517,6 +537,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1AgentRunsRoute: ApiV1AgentRunsRouteWithChildren,
   ApiV1OrderActionsRoute: ApiV1OrderActionsRoute,
   ApiV1OrdersRoute: ApiV1OrdersRouteWithChildren,
+  ApiV1ScheduledCheckoutsRoute: ApiV1ScheduledCheckoutsRoute,
   ApiV1StoresRoute: ApiV1StoresRoute,
 }
 export const routeTree = rootRouteImport

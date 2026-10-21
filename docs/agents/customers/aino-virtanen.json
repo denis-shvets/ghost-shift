@@ -1,0 +1,43 @@
+{
+  "$schema": "./persona.schema.json",
+  "timeZone": "Europe/Helsinki",
+  "ordersPerWeek": 0.5,
+  "windows": ["Mon-Fri 07:00-08:30", "Sat 20:00-23:00"],
+  "customer": {
+    "firstName": "Aino",
+    "lastName": "Virtanen",
+    "email": "aino.virtanen@example.com"
+  },
+  "stores": {
+    "fi": {
+      "id": "8916eb8f-667b-4bf9-a6d9-c72316aa3841",
+      "name": "Moonlight Goods Finland (EUR)",
+      "carrier": "Posti",
+      "shippingFee": {
+        "name": "Shipping, Posti",
+        "unitPrice": 590,
+        "taxRate": 0
+      }
+    },
+    "se": {
+      "id": "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
+      "name": "Moonlight Goods Sweden (SEK)",
+      "carrier": "PostNord",
+      "shippingFee": {
+        "name": "Shipping, PostNord",
+        "unitPrice": 7900,
+        "taxRate": 0
+      }
+    }
+  },
+  "addresses": {
+    "home": {
+      "firstName": "Aino",
+      "lastName": "Virtanen",
+      "streetAddress": "Puistokatu 15 A 3",
+      "postalCode": "20100",
+      "city": "Turku",
+      "country": "FI"
+    }
+  }
+}
