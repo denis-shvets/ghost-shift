@@ -11,7 +11,7 @@ import { z } from "zod";
 
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
 import { ORDER_ACTION_TOOLS } from "../src/features/orders/model/order-action-input.ts";
-import { SAMPLE_PRODUCTS } from "../src/features/orders/model/sample-products.ts";
+import { STORE_CATALOGS } from "../src/features/orders/model/store-catalogs.ts";
 
 // By default the servers only talk to this machine: they sign in with a real (local) password.
 export function isLocalUrl(url: string): boolean {
@@ -118,6 +118,7 @@ export const apiTarget = (env: {
 export const isHosted = () => process.argv.includes("--hosted");
 
 export const productsInput = z.object({
+  storeId: z.uuid(),
   count: z.number().int().min(1).max(20).optional(),
 });
 
@@ -146,7 +147,8 @@ const tools = [
   },
   {
     name: "list_sample_products",
-    description: "List the 20 sample products (no network). Pass count to get only the first N.",
+    description:
+      "List a store's 50 products (25 physical, then 25 digital), with prices in that store's currency (no network). Pass storeId from list_stores. Pass count to get only the first N.",
     inputSchema: z.toJSONSchema(productsInput) as { type: "object" },
   },
   {
@@ -236,7 +238,16 @@ export async function runTool(name: string, args: Record<string, unknown>, api: 
     case "list_sample_products": {
       const input = productsInput.safeParse(args);
       if (!input.success) return invalid(input.error);
-      return toolText(SAMPLE_PRODUCTS.slice(0, input.data.count ?? SAMPLE_PRODUCTS.length));
+      const catalog = STORE_CATALOGS[input.data.storeId];
+      if (!catalog)
+        return toolError(
+          `Unknown store: ${input.data.storeId}. Call list_stores for the stores you can use.`,
+        );
+      const products = [
+        ...catalog.physical.map((product) => ({ ...product, type: "physical" as const })),
+        ...catalog.digital.map((product) => ({ ...product, type: "digital" as const })),
+      ];
+      return toolText(products.slice(0, input.data.count ?? products.length));
     }
     // The API validates the order; its 400 issues reach the agent through apiErrorText.
     case "create_order":

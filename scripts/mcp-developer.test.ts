@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 
 import { describe, expect, it, vi } from "vitest";
 
+import seedIds from "../src/shared/seed/seed-ids.json" with { type: "json" };
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
 
 import {
@@ -137,15 +138,54 @@ describe("hosted allowlist", () => {
   });
 });
 
+const storeId = seedIds.stores.moonlightSweden;
+
 describe("list_sample_products input", () => {
-  it("accepts a count from 1 to 20 and no input", () => {
-    expect(productsInput.safeParse({}).success).toBe(true);
-    expect(productsInput.safeParse({ count: 1 }).success).toBe(true);
-    expect(productsInput.safeParse({ count: 20 }).success).toBe(true);
+  it("requires a store uuid and accepts a count from 1 to 20", () => {
+    expect(productsInput.safeParse({ storeId }).success).toBe(true);
+    expect(productsInput.safeParse({ storeId, count: 1 }).success).toBe(true);
+    expect(productsInput.safeParse({ storeId, count: 20 }).success).toBe(true);
+    expect(productsInput.safeParse({}).success).toBe(false);
+    expect(productsInput.safeParse({ storeId: "moonlight" }).success).toBe(false);
   });
 
   it("rejects a count above 20", () => {
-    expect(productsInput.safeParse({ count: 21 }).success).toBe(false);
+    expect(productsInput.safeParse({ storeId, count: 21 }).success).toBe(false);
+  });
+});
+
+describe("list_sample_products tool", () => {
+  it("returns the store's 50 products, physical first, in its currency's prices", async () => {
+    const result = await runTool("list_sample_products", { storeId }, { request: vi.fn() });
+    const products = JSON.parse(result.content[0].text);
+    expect(products).toHaveLength(50);
+    expect(products.slice(0, 25).every((p: { type: string }) => p.type === "physical")).toBe(true);
+    expect(products.slice(25).every((p: { type: string }) => p.type === "digital")).toBe(true);
+  });
+
+  it("respects count", async () => {
+    const result = await runTool(
+      "list_sample_products",
+      { storeId, count: 3 },
+      { request: vi.fn() },
+    );
+    expect(JSON.parse(result.content[0].text)).toHaveLength(3);
+  });
+
+  it("answers a clear error for an unknown store", async () => {
+    const unknown = "00000000-0000-4000-8000-0000000000ff";
+    const result = await runTool(
+      "list_sample_products",
+      { storeId: unknown },
+      { request: vi.fn() },
+    );
+    expect(result).toMatchObject({ isError: true });
+    expect(result.content[0].text).toContain("Unknown store");
+  });
+
+  it("rejects input without a store", async () => {
+    const result = await runTool("list_sample_products", {}, { request: vi.fn() });
+    expect(result).toMatchObject({ isError: true });
   });
 });
 

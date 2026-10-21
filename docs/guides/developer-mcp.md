@@ -6,14 +6,14 @@ The orders agent has its own server, `ghost-shift-agent` (`pnpm mcp:agent`). It 
 
 ## What it offers
 
-| Tool                   | What it does                                                                                                                                                                        |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_stores`          | Lists the stores you can see, with their currency. Calls `GET /api/v1/stores`.                                                                                                      |
-| `list_sample_products` | Lists the 20 sample products. Optional `count` (1 to 20) returns only the first N. No network.                                                                                      |
-| `create_order`         | Creates a test order. Calls `POST /api/v1/orders` and returns `{ id, reference }`. `shipped: true` creates it as already handed to the carrier, so the orders agent can capture it. |
-| `capture_order`        | Captures `amount` (minor units) of an order, with a `reason`. Partial captures are allowed.                                                                                         |
-| `refund_order`         | Refunds `amount` (minor units) of what was captured, with a `reason`.                                                                                                               |
-| `cancel_order`         | Cancels what is left of the authorization, with a `reason`.                                                                                                                         |
+| Tool                   | What it does                                                                                                                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `list_stores`          | Lists the stores you can see, with their currency. Calls `GET /api/v1/stores`.                                                                                                                                                 |
+| `list_sample_products` | Lists a store's 50 products (25 physical, then 25 digital) with prices in that store's currency. Takes `storeId` (from `list_stores`) and optional `count` (1 to 20) for the first N. No network. Unknown stores get an error. |
+| `create_order`         | Creates a test order. Calls `POST /api/v1/orders` and returns `{ id, reference }`. `shipped: true` creates it as already handed to the carrier, so the orders agent can capture it.                                            |
+| `capture_order`        | Captures `amount` (minor units) of an order, with a `reason`. Partial captures are allowed.                                                                                                                                    |
+| `refund_order`         | Refunds `amount` (minor units) of what was captured, with a `reason`.                                                                                                                                                          |
+| `cancel_order`         | Cancels what is left of the authorization, with a `reason`.                                                                                                                                                                    |
 
 The last three call `POST /api/v1/order-actions` with `{ action, orderId, amount?, reason }` and return the order's new `status`, `capturedAmount`, `refundedAmount` and `uncapturedAmount`. The database checks the permission and the rules, and writes a timeline event with the reason.
 
@@ -61,7 +61,7 @@ The server refuses to start if `SUPABASE_URL` or `APP_URL` is not on `127.0.0.1`
 
 ## Example
 
-Ask the agent: "List the stores, then create an order with two physical products in the first store." It will call `list_stores`, use `list_sample_products` to pick items, then `create_order`. The new order shows up under `/orders` in the app. Then: "Capture half of it because the first parcel shipped." The agent calls `capture_order`, and the order's timeline shows the capture with that reason.
+Ask the agent: "List the stores, then create an order with two physical products in the first store." It will call `list_stores`, use `list_sample_products` with that store's `id` to pick items, then `create_order`. The new order shows up under `/orders` in the app. Then: "Capture half of it because the first parcel shipped." The agent calls `capture_order`, and the order's timeline shows the capture with that reason.
 
 ## When something fails
 

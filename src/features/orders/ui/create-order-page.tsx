@@ -6,7 +6,8 @@ import { type CreateOrderInput, MAX_LINE_QUANTITY } from "../model/create-order-
 import { PAYMENT_METHOD_LABELS } from "../model/order-labels";
 import { formatMoney } from "../model/money";
 import { lineTotal, orderTotal } from "../model/order-total";
-import { SAMPLE_PRODUCTS, type SampleProduct } from "../model/sample-products";
+import { type SampleProduct } from "../model/sample-products";
+import { STORE_CATALOGS } from "../model/store-catalogs";
 import { createOrderFn, fetchStoresFn } from "../server/functions";
 import type { listStoresForOrder } from "../server/orders-repository";
 import { addressFromForm } from "./address-form";
@@ -101,6 +102,14 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
 
   const store = stores.find((candidate) => candidate.id === storeId);
   const currency = store?.currency ?? "";
+  // Physical first, then digital, the same order the MCP tool uses.
+  const catalog = STORE_CATALOGS[storeId];
+  const products: SampleProduct[] = catalog
+    ? [
+        ...catalog.physical.map((product) => ({ ...product, type: "physical" as const })),
+        ...catalog.digital.map((product) => ({ ...product, type: "digital" as const })),
+      ]
+    : [];
 
   // Intl throws on an empty currency code, so nothing money-related renders without a store.
   if (stores.length === 0) {
@@ -193,7 +202,7 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
           </tr>
         </thead>
         <tbody>
-          {SAMPLE_PRODUCTS.map((product) => (
+          {products.map((product) => (
             <tr key={product.sku}>
               <td>{product.name}</td>
               <td>{product.sku}</td>
@@ -235,7 +244,13 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
             <select
               name="storeId"
               value={storeId}
-              onChange={(event) => setStoreId(event.target.value)}
+              onChange={(event) => {
+                // Lines and quantities hold prices and SKUs of the old store's currency and catalog.
+                setStoreId(event.target.value);
+                setLines([]);
+                setQuantities({});
+                setMessage("");
+              }}
               required
             >
               {stores.map((option) => (
