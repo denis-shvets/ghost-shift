@@ -25,12 +25,8 @@ describe("listReadableStores", () => {
 
     const names = (await listReadableStores(db, operator)).map((store) => store.name);
 
-    expect(names).toEqual([
-      "Moonlight Goods Finland",
-      "Moonlight Goods Norway",
-      "Moonlight Goods Sweden",
-      "Nordic Bikes Germany",
-    ]);
+    expect(names).toHaveLength(20);
+    expect(names).toContain("Satin Sparrow");
   });
 
   it("lists only the stores an agent is assigned to", async () => {
@@ -38,11 +34,14 @@ describe("listReadableStores", () => {
 
     const names = (await listReadableStores(db, agent)).map((store) => store.name);
 
-    expect(names).toEqual(["Nordic Bikes Germany"]);
+    expect(names).toEqual(["Satin Sparrow"]);
   });
 
   it("lists no stores to a user with no access", async () => {
-    const stranger: UserClaims = { sub: testAccounts.stranger, global_roles: [] };
+    const stranger: UserClaims = {
+      sub: testAccounts.stranger,
+      global_roles: [],
+    };
 
     expect(await listReadableStores(db, stranger)).toEqual([]);
   });

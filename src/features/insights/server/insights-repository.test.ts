@@ -25,13 +25,13 @@ const merchant: UserClaims = { sub: testAccounts.merchantA, global_roles: [] };
 const stranger: UserClaims = { sub: testAccounts.stranger, global_roles: [] };
 
 describe("getInsights", () => {
-  it("counts only Moonlight Goods orders, matching a direct count as the database owner", async () => {
+  it("counts only Northstar Threads orders, matching a direct count as the database owner", async () => {
     // The owner connection skips row-level security, so this is the true count per currency.
     const expected = await db.execute<{ currency: string; orders: number }>(
       sql`select o.currency, count(*)::int as orders
         from orders o
         join stores s on s.id = o.store_id
-        where s.organization_id = ${seedIds.organizations.moonlightGoods}::uuid
+        where s.organization_id = ${seedIds.organizations.northstarThreads}::uuid
         group by o.currency
         order by o.currency`,
     );
@@ -73,7 +73,7 @@ describe("getInsights after order actions", () => {
   });
 
   const newOrder: CreateOrderInput = {
-    storeId: seedIds.stores.moonlightSweden,
+    storeId: seedIds.stores.velourVault,
     customer: { firstName: "Test", lastName: "Insights", email: "insights@example.com" },
     billingAddress: {
       firstName: "Test",
@@ -108,7 +108,7 @@ describe("getInsights after order actions", () => {
   async function sek() {
     const rows = await getInsights(db, merchant);
     const row = rows.find((item) => item.currency === "SEK");
-    if (!row) throw new Error("No SEK row for Moonlight Goods");
+    if (!row) throw new Error("No SEK row for Northstar Threads");
     return row;
   }
 

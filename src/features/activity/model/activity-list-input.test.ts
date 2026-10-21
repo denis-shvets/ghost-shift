@@ -23,7 +23,7 @@ describe("activityListInput", () => {
 
   it("rejects an action the timeline doesn't have, and ids that aren't uuids", () => {
     expect(activityListInput.safeParse({ action: "deleted" }).success).toBe(false);
-    expect(activityListInput.safeParse({ cursor: "MG-1003" }).success).toBe(false);
+    expect(activityListInput.safeParse({ cursor: "NS-1003" }).success).toBe(false);
     expect(activityListInput.safeParse({ storeId: "stockholm" }).success).toBe(false);
   });
 });

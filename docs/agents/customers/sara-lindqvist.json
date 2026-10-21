@@ -10,9 +10,39 @@
     "phone": "+46 8 555 019 33"
   },
   "stores": {
-    "se": {
-      "id": "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
-      "name": "Moonlight Goods Sweden (SEK)",
+    "se1": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03",
+      "name": "Velour Vault (SEK)",
+      "carrier": "PostNord",
+      "shippingFee": {
+        "name": "Shipping, PostNord",
+        "unitPrice": 4900,
+        "taxRate": 2500
+      }
+    },
+    "se2": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b04",
+      "name": "Moss & Mirror (SEK)",
+      "carrier": "PostNord",
+      "shippingFee": {
+        "name": "Shipping, PostNord",
+        "unitPrice": 4900,
+        "taxRate": 2500
+      }
+    },
+    "se3": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b12",
+      "name": "Denim Dune (SEK)",
+      "carrier": "PostNord",
+      "shippingFee": {
+        "name": "Shipping, PostNord",
+        "unitPrice": 4900,
+        "taxRate": 2500
+      }
+    },
+    "se4": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b15",
+      "name": "Rayon Rhapsody (SEK)",
       "carrier": "PostNord",
       "shippingFee": {
         "name": "Shipping, PostNord",

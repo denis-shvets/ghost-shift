@@ -1,6 +1,6 @@
 # The orders agent
 
-The first real agent in Ghost Shift. It's a Claude run, started on a timer, that signs in as the Nordic Bikes Germany agent account and captures the money for authorized orders that have shipped. Each time it does work, it starts an agent run and ends it with a summary, so you can follow everything it did in the activity log.
+The first real agent in Ghost Shift. It's a Claude run, started on a timer, that signs in as the Satin Sparrow agent account and captures the money for authorized orders that have shipped. Each time it does work, it starts an agent run and ends it with a summary, so you can follow everything it did in the activity log.
 
 ## 1. The big picture
 
@@ -15,7 +15,7 @@ claude -p (on a timer) ──► ghost-shift-agent MCP server ──► /api/v1 
   - `list_orders` and `get_order`
   - `start_agent_run` and `end_agent_run`
   - `capture_order`, which always needs a run id. There is no cancel or refund tool. The account's `agent_second_line` role would allow both, but this job never needs them, so an unattended run can't do them by mistake.
-- **The permissions** are the agent account's roles (`agent_first_line` and `agent_second_line` at Nordic Bikes Germany). The database checks them on every call, exactly as for a person (ADR 0007, ADR 0015). The agent can't see Moonlight Goods' orders, even if its instructions told it to.
+- **The permissions** are the agent account's roles (`agent_first_line` and `agent_second_line` at Satin Sparrow). The database checks them on every call, exactly as for a person (ADR 0007, ADR 0015). The agent can't see Northstar Threads' orders, even if its instructions told it to.
 
 ## 2. Why only these orders
 
@@ -42,7 +42,7 @@ Claude never sees the password. It's not in the instructions, the tool arguments
 ## 4. Run it locally, step by step
 
 1. Start the database: `pnpm db:start`.
-2. Load the demo data: `pnpm db:reset`. NB-2004 and NB-2005 are shipped and authorized until 2026-11-15. NB-2001 is too, until its card authorization runs out on 2026-10-23.
+2. Load the demo data: `pnpm db:reset`. PA-2004 and PA-2005 are shipped and authorized until 2026-11-15. PA-2001 is too, until its card authorization runs out on 2026-10-23.
 3. Create the accounts: `pnpm db:seed-users`. `.dev.vars` needs `SEED_PASSWORD` and `SEED_AGENT_EMAIL`.
 4. Start the app: `pnpm dev`, and keep it running.
 5. Run the agent once by hand, from the repo root:
@@ -51,14 +51,14 @@ Claude never sees the password. It's not in the instructions, the tool arguments
 claude -p "Follow docs/agents/orders-agent.md" --allowedTools "mcp__ghost-shift-agent"
 ```
 
-The answer is the run's summary, for example `Captured 3 orders, skipped 0, failed 0.` (2 from 2026-10-23, once NB-2001 has expired). Run it again and it answers `Nothing to capture.`, because those orders are now `captured`.
+The answer is the run's summary, for example `Captured 3 orders, skipped 0, failed 0.` (2 from 2026-10-23, once PA-2001 has expired). Run it again and it answers `Nothing to capture.`, because those orders are now `captured`.
 
 To check that the server starts at all, run `pnpm mcp:agent`. It waits for an MCP client on stdin; stop it with Ctrl+C.
 
 ## 5. See what it did
 
 - **Activity log** (`/audit-log`): each capture by the agent, with the run's purpose in the Run column.
-- **An order's timeline** (`/orders`, open NB-2004): the capture, by the agent, with the reason `Shipped with UPS`.
+- **An order's timeline** (`/orders`, open PA-2004): the capture, by the agent, with the reason `Shipped with UPS`.
 - **The run itself**: `select * from agent_runs order by started_at desc;` in Supabase Studio shows the purpose, the start and end times, and the summary.
 
 ## 6. Owner steps: schedule it
@@ -84,7 +84,7 @@ The same agent can capture orders in the live app at <https://ghost-shift.denis-
 - It signs in with `HOSTED_AGENT_EMAIL` and `HOSTED_AGENT_PASSWORD`, a separate account in the hosted project, never `SEED_PASSWORD`.
 - It only talks to `https://ghost-shift.denis-shvets.workers.dev` and `https://<project-ref>.supabase.co`. The local server (`ghost-shift-agent`) still refuses anything but this machine, so a local run can't capture live orders by accident.
 
-Owner steps, once: follow the [Night Shift guide, section 7b](night-shift.md#b-owner-steps-once). It covers pushing the migrations, creating the hosted agent account, giving it `agent_first_line` and `agent_second_line` at Nordic Bikes Germany (with ready-to-paste SQL), filling in `.hosted.vars` and approving `ghost-shift-agent-hosted`. Then try one run by hand:
+Owner steps, once: follow the [Night Shift guide, section 7b](night-shift.md#b-owner-steps-once). It covers pushing the migrations, creating the hosted agent account, giving it `agent_first_line` and `agent_second_line` at Satin Sparrow (with ready-to-paste SQL), filling in `.hosted.vars` and approving `ghost-shift-agent-hosted`. Then try one run by hand:
 
 ```bash
 claude -p "Follow docs/agents/orders-agent.md" --allowedTools "mcp__ghost-shift-agent-hosted"
@@ -97,7 +97,7 @@ Its runs and captures show up in the live app's activity log, as for the local a
 ## 8. Limits and follow-ups
 
 - The API allows 60 requests a minute per user. The agent waits and retries once on `429`. A run with more than ~55 orders takes longer, but it doesn't fail.
-- New work comes by itself: Night Shift's customer orders, placed from its queue, ship 4 to 48 hours after they're created, by a database job ([orders database, section 6e](orders-database.md#6e-the-ship-job-orders-ship-some-hours-later-2026-10-21)). Only Nordic Bikes Germany's orders are this agent's. For work right away, create an order with **Already shipped** ticked, or send `shipped: true` to `POST /api/v1/orders`.
+- New work comes by itself: Night Shift's customer orders, placed from its queue, ship 4 to 48 hours after they're created, by a database job ([orders database, section 6e](orders-database.md#6e-the-ship-job-orders-ship-some-hours-later-2026-10-21)). Only Satin Sparrow's orders are this agent's. For work right away, create an order with **Already shipped** ticked, or send `shipped: true` to `POST /api/v1/orders`.
 - It runs only while your computer is on: locally or against the live app, never in the cloud ([ADR 0017](../adr/0017-local-agents-hosted-app.md)).
 
 ## 9. Tests

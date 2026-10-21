@@ -64,7 +64,7 @@ describe("pickOrder", () => {
   it("says why no order was made", () => {
     expect(pickOrder([], personas, () => 0.5)).toBe("the account has no stores");
     expect(pickOrder(["00000000-0000-4000-8000-000000000000"], personas, () => 0.5)).toBe(
-      "no customer shops at the chosen store",
+      "no customer shops at any of the account's stores",
     );
   });
 });

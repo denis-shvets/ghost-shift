@@ -53,8 +53,8 @@ If one of the pair is missing, the planner stops and names it.
   "customer": { "firstName": "Lena", "lastName": "Vogt", "email": "lena.vogt@example.com" },
   "stores": {
     "de": {
-      "id": "d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6",
-      "name": "Nordic Bikes Germany (EUR)",
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18",
+      "name": "Satin Sparrow (EUR)",
       "carrier": "DHL",
       "shippingFee": { "name": "Shipping, DHL", "unitPrice": 490, "taxRate": 0 }
     }
@@ -86,9 +86,9 @@ The planner checks every `.json` with Zod too, and stops with the file name and 
 
 A heading, a sentence or two about the person, and their habits under **Basket** and **Payment and address**. The habits say in words what the customer buys and how they pay, using `variety` and the keys from the `.json`: "`variety` under 30 ships to `work`". Claude gets this file as it is, plus a line listing the open store keys and the address keys.
 
-**Products by number.** Claude never sees the products. Each store has a catalog in [`store-catalogs.ts`](../../src/features/orders/model/store-catalogs.ts): two lists, `physical` and `digital`, of 25 items each, sorted by price, so 1 is the cheapest and 25 the most expensive. The habits name number ranges instead of prices: "One `physical` product, number 1–19". Number ranges work in every store, whatever its currency, and the prompt stays short. Every store a persona shops in needs a catalog; a test checks it.
+**Products by pick.** Claude never sees the products. Each store sells from the same catalog in [`store-catalogs.ts`](../../src/features/orders/model/store-catalogs.ts): 15 physical and 15 digital items, sorted by price. Claude gives a type and a `pick` from 0 to 14, the position within that type, and code takes that item. The habits name pick ranges: "One physical product, pick 3–9". Number ranges work in every store, whatever its currency, and the prompt stays short. Every store a persona shops in needs a catalog; a test checks it.
 
-**Why the keys.** Claude answers each visit with its choices only: a store key, each product as a list and a number with its quantity, a payment method, and the billing and shipping address keys. Code then builds the whole order from the `.json` and the store's catalog: the customer, the addresses, every line's name, price and tax rate, the carrier, and the shipping fee when the basket has a physical product. A visit's answer is about 50 tokens instead of about 300, so one Claude run handles up to 150 visits, and a price or an address can never come out wrong.
+**Why the keys.** Claude answers each visit with its choices only: a store key, each product as a type, a pick and a quantity, a payment method, and the billing and shipping address keys. Code then builds the whole order from the `.json` and the store's catalog: the customer, the addresses, every line's name, price and tax rate, the carrier, and the shipping fee when the basket has a physical product. A visit's answer is about 50 tokens instead of about 300, so one Claude run handles up to 150 visits, and a price or an address can never come out wrong.
 
 ### c. How the visits are drawn
 
@@ -96,15 +96,17 @@ Count only the minutes inside the windows ("active time"). Visits fall at random
 
 With the schedules as written:
 
-| Customer | Store                          | Windows (local time)                 | Orders a week |
-| -------- | ------------------------------ | ------------------------------------ | ------------- |
-| Lena     | Nordic Bikes Germany           | weekdays 19–23, Saturday 10–14       | 2             |
-| Jonas    | Nordic Bikes Germany           | weekends 9–18                        | 1             |
-| Mikko    | Moonlight Goods Finland        | every night 22–03                    | 3             |
-| Sara     | Moonlight Goods Sweden         | weekdays 12–13, Sunday 18–22         | 2             |
-| Aino     | Moonlight Goods Finland/Sweden | weekdays 07:00–08:30, Saturday 20–23 | 0.5           |
-| Elin     | Moonlight Goods Sweden         | every night 20–08                    | 28            |
-| Felix    | Nordic Bikes Germany           | every day 08–20                      | 28            |
+| Customer | Store                                                               | Windows (local time)                 | Orders a week |
+| -------- | ------------------------------------------------------------------- | ------------------------------------ | ------------- |
+| Persona  | Stores                                                              | Windows                              | Orders a week |
+| -------- | ------------------------------------------------------------------- | ------------------------------------ | ------------- |
+| Lena     | Satin Sparrow, Gingham Galaxy, Cobalt Closet                        | weekdays 19–23, Saturday 10–14       | 2             |
+| Jonas    | Satin Sparrow, Linen Lantern, Thimble & Thyme                       | weekends 9–18                        | 1             |
+| Mikko    | Plaid Parade, Wool Whisper, Zipper Zenith                           | every night 22–03                    | 3             |
+| Sara     | Velour Vault, Moss & Mirror, Denim Dune, Rayon Rhapsody             | weekdays 12–13, Sunday 18–22         | 2             |
+| Aino     | Hemline Helsinki, Plaid Parade; Velour Vault (Sweden, sometimes)    | weekdays 07:00–08:30, Saturday 20–23 | 0.5           |
+| Elin     | Rayon Rhapsody, Button Bazaar, Moss & Mirror                        | every night 20–08                    | 28            |
+| Felix    | Thimble & Thyme, Cobalt Closet                                      | every day 08–20                      | 28            |
 
 Elin and Felix are the shopaholics: between them every hour of the day has orders, about 4 a day each. That's about 65 orders a week, roughly 9 a day. A 7-day plan fits in one Claude run (up to 150 visits each). To get more orders, raise their `ordersPerWeek`.
 
@@ -124,7 +126,7 @@ Three migrations, all from 2026-10-21. This builds on [Sign-in and access](auth-
    - `stores.read`: before inserting, the code looks up the store to take its currency. A store the user can't read counts as "not found".
 3. **No `orders.read`.** A customer must not read other people's orders. Saving an order uses `insert ... returning id, reference`, and Postgres only returns rows the user may also **read**. So a select policy lets the customer read the orders it created (`created_by = auth.uid()`), and nothing else. That is enough for `returning`, and for the child-row inserts, which look up their order. See [orders database, section 6f](orders-database.md#6f-who-placed-an-order-created_by-2026-10-21).
 4. **No other permissions.** It can't capture, cancel, refund or edit.
-5. **The seed assigns it to the live stores only.** `pnpm db:seed-users` creates `checkout@ghostshift.test` with `checkout_customer` on Moonlight Goods Sweden, Moonlight Goods Finland and Nordic Bikes Germany. Moonlight Goods Norway is a `test` store, so it isn't assigned there, and the database refuses an order for it, both when it is queued and when it is placed.
+5. **The seed assigns it to the live stores only.** `pnpm db:seed-users` creates `checkout@ghostshift.test` with `checkout_customer` on Velour Vault, Plaid Parade and Satin Sparrow. Silk Pine Oslo is a `test` store, so it isn't assigned there, and the database refuses an order for it, both when it is queued and when it is placed.
 
 To open another store for Night Shift, add a `checkout_customer` assignment for it in `scripts/seed-users.ts` (and in the hosted project, section 7b step 5), and add it to a persona's `stores` in its `.json`, with a key, its name, carrier and shipping fee.
 
@@ -259,7 +261,7 @@ The creation time is up to 30 minutes in the past (the cron runs every 30 minute
    - **Open stores.** The planner asks the app which stores the checkout account may order in (`GET /api/v1/scheduled-checkouts` answers `storeIds`). Each persona keeps only those stores, and Claude is told them. A persona with none left is skipped, with a line like `Skipped jonas-weber: none of its stores is open to the checkout account here.` So a store that is missing from a database, or no longer assigned, costs its customers their visits, not the whole upload.
    - **Where a plan starts.** The same answer has the latest `due_at` you still have pending (`lastDueAt`). A plan starts at that time or one hour from now, whichever is later. So running it twice never doubles the order rate, and you have an hour to read the plan before its first order.
    - **The Claude run** is `claude -p --model haiku --effort low --tools "" --strict-mcp-config --output-format json --json-schema <schema>`, with the prompt on stdin. No built-in tools and no MCP servers: it can't read files (so never `.hosted.vars`) or reach the app. `--json-schema` makes the answer fit the order shape.
-   - **The checks.** Code checks every answer, whatever Claude says: a store key and address keys the persona has, the `physical` or `digital` list and a number from 1 to 25, each product once, quantities from 1 to 10, a known payment method, and exactly one answer per visit. Then it builds the order (section 3) and checks it with the same Zod schema as the orders API. Visits that fail go to Claude once more, alone. Visits that fail again are left out and printed.
+   - **The checks.** Code checks every answer, whatever Claude says: a store key and address keys the persona has, a pick from 0 to 14 for its type, each product once, quantities from 1 to 10, a known payment method, and exactly one answer per visit. Then it builds the order (section 3) and checks it with the same Zod schema as the orders API. Visits that fail go to Claude once more, alone. Visits that fail again are left out and printed.
 
 4. **Read the plan.** It's plain JSON: each checkout has `dueAt`, `persona` and the `order`. Edit or delete entries if you like.
 5. Upload it:
@@ -328,31 +330,31 @@ You do these, not an agent. They change the live database and create real accoun
    select id, name, status
    from public.stores
    where id in (
-     'e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6',  -- Moonlight Goods Sweden
-     '8916eb8f-667b-4bf9-a6d9-c72316aa3841',  -- Moonlight Goods Finland
-     'a678d77c-964c-45d3-adf2-40b3e78ab482',  -- Moonlight Goods Norway
-     'd2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6'   -- Nordic Bikes Germany
+     'b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03',  -- Velour Vault
+     'b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b10',  -- Plaid Parade
+     'b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b07',  -- Silk Pine Oslo
+     'b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18'   -- Satin Sparrow
    )
    order by name;
    ```
 
    Expect 4 rows: Norway `test`, the other three `live`.
-   - **Only Nordic Bikes Germany is missing:** the hosted project was set up before that store. Add its company and the store with the seed's ids, so Lena, Jonas and the orders agent have their store:
+   - **Only Satin Sparrow is missing:** the hosted project was set up before that store. Add its company and the store with the seed's ids, so Lena, Jonas and the orders agent have their store:
 
      ```sql
      insert into public.organizations (id, name)
-     values ('c7e41b9a-2d3f-4a6b-8e90-5f1a2b3c4d5e', 'Nordic Bikes')
+     values ('a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a04', 'Pocket Atelier')
      on conflict do nothing;
 
      insert into public.stores (id, organization_id, name, market, currency, status)
-     values ('d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6', 'c7e41b9a-2d3f-4a6b-8e90-5f1a2b3c4d5e',
-       'Nordic Bikes Germany', 'DE', 'EUR', 'live')
+     values ('b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18', 'a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a04',
+       'Satin Sparrow', 'DE', 'EUR', 'live')
      on conflict do nothing;
      ```
 
      Step by step: a store belongs to a company (`organization_id`), so the company comes first. The ids are the seed's (`supabase/seed.sql`), the ones the personas and the agent's setup name. `on conflict do nothing` skips a row that already exists, so it's safe to run twice. Run the check above again: 4 rows.
 
-   - **A Moonlight Goods store is missing:** the hosted stores have other ids than the seed. Stop and sort that out first. The planner would skip the personas of a missing store (section 5), so nothing breaks, but those customers would never shop.
+   - **A Northstar Threads store is missing:** the hosted stores have other ids than the seed. Stop and sort that out first. The planner would skip the personas of a missing store (section 5), so nothing breaks, but those customers would never shop.
 
 3. **Check that the ship job is scheduled:**
 
@@ -376,18 +378,18 @@ You do these, not an agent. They change the live database and create real accoun
    select u.id, s.id, 'checkout_customer'
    from auth.users u
    join public.stores s on s.id in (
-     'e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6',
-     '8916eb8f-667b-4bf9-a6d9-c72316aa3841',
-     'd2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6'
+     'b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03',
+     'b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b10',
+     'b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18'
    )
    where u.email = 'checkout@ghostshift.test'
    on conflict do nothing;
 
-   -- The orders agent works at Nordic Bikes Germany only.
+   -- The orders agent works at Satin Sparrow only.
    insert into public.store_assignments (user_id, store_id, role)
    select u.id, s.id, r.role
    from auth.users u
-   join public.stores s on s.id = 'd2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6'
+   join public.stores s on s.id = 'b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18'
    cross join (values ('agent_first_line'), ('agent_second_line')) as r(role)
    where u.email = '<agent email>'
    on conflict do nothing;
@@ -411,7 +413,7 @@ You do these, not an agent. They change the live database and create real accoun
    order by 1, 2, 3;
    ```
 
-   Expect 5 rows: the checkout account with `checkout_customer` at Moonlight Goods Finland, Moonlight Goods Sweden and Nordic Bikes Germany, and the agent with `agent_first_line` and `agent_second_line` at Nordic Bikes Germany.
+   Expect 5 rows: the checkout account with `checkout_customer` at Plaid Parade, Velour Vault and Satin Sparrow, and the agent with `agent_first_line` and `agent_second_line` at Satin Sparrow.
 
 6. **Fill in `.hosted.vars`.** Copy `.hosted.vars.example` to `.hosted.vars` in the repo root; the copy is git-ignored. Set `SUPABASE_URL` (`https://<project-ref>.supabase.co`) and `SUPABASE_PUBLISHABLE_KEY` from the dashboard (**Project Settings → API Keys**), the checkout password, and the agent's email and password.
 
@@ -443,7 +445,7 @@ Run steps 8 again before the queue runs out. `select max(due_at) from scheduled_
 
 ## 8. Limits and next steps
 
-- Orders ship by themselves 4 to 48 hours after they're placed, if they have a physical item: a database job stamps `shipped_at` and a tracking number every 15 minutes ([orders database, section 6e](orders-database.md#6e-the-ship-job-orders-ship-some-hours-later-2026-10-21)). The orders agent then captures them, but only at Nordic Bikes Germany, the one store it works for. Orders at Moonlight Goods ship but stay authorized until a person captures them or they expire.
+- Orders ship by themselves 4 to 48 hours after they're placed, if they have a physical item: a database job stamps `shipped_at` and a tracking number every 15 minutes ([orders database, section 6e](orders-database.md#6e-the-ship-job-orders-ship-some-hours-later-2026-10-21)). The orders agent then captures them, but only at Satin Sparrow, the one store it works for. Orders at Northstar Threads ship but stay authorized until a person captures them or they expire.
 - Only orders from the queue ship. The owner's own test orders and the seed orders never ship.
 - The plan is fixed when it's made. If a store closes or a product changes later, the affected rows fail when they come due, with the reason in `error`.
 - When the queue runs empty, orders stop until you plan again.
@@ -452,7 +454,7 @@ Run steps 8 again before the queue runs out. `select max(due_at) from scheduled_
 
 ## 9. Tests
 
-- `scripts/night-shift.test.ts`: every persona pair reads; `persona.schema.json` matches the Zod schema; a half pair, misspelled keys and address fields, bad keys, bad store ids, no stores, bad addresses, bad windows, rates and time zones are refused; windows follow local time across the end of summer time and past midnight; a year of draws always falls inside the windows and comes close to `ordersPerWeek` (fixed seed); gaps are irregular; a plan's visits fall inside the windows, in time order, the same for the same seed; Claude runs on Haiku at low effort with no tools or MCP servers and the answer schema; an order is built from the choices with the persona's customer, addresses, carrier and the catalog's SKUs, names and prices, plus the shipping fee only for physical products; unknown store and address keys (also prototype names such as `constructor`), a number past 25, an unknown list, a product listed twice, a quantity of 0, unknown payment methods, missing and doubled visits are refused; the prompt holds the `.md` and lists the keys, but no products; every persona's stores have a catalog; Claude gets at most 150 visits per run; only the failed visits are asked again, once; personas keep only the open stores, and one with none left is skipped; an uploaded plan file gets its `.uploaded.json` name; `claude.exe` is found on Windows, also behind an npm shim; a Claude run gets its prompt on stdin and is killed when it runs too long.
+- `scripts/night-shift.test.ts`: every persona pair reads; `persona.schema.json` matches the Zod schema; a half pair, misspelled keys and address fields, bad keys, bad store ids, no stores, bad addresses, bad windows, rates and time zones are refused; windows follow local time across the end of summer time and past midnight; a year of draws always falls inside the windows and comes close to `ordersPerWeek` (fixed seed); gaps are irregular; a plan's visits fall inside the windows, in time order, the same for the same seed; Claude runs on Haiku at low effort with no tools or MCP servers and the answer schema; an order is built from the choices with the persona's customer, addresses, carrier and the catalog's SKUs, names and prices, plus the shipping fee only for physical products; unknown store and address keys (also prototype names such as `constructor`), a pick past the list, a type other than physical or digital, a product listed twice, a quantity of 0, unknown payment methods, missing and doubled visits are refused; the prompt holds the `.md` and lists the keys, but no products; every persona's stores have a catalog; Claude gets at most 150 visits per run; only the failed visits are asked again, once; personas keep only the open stores, and one with none left is skipped; an uploaded plan file gets its `.uploaded.json` name; `claude.exe` is found on Windows, also behind an npm shim; a Claude run gets its prompt on stdin and is killed when it runs too long.
 - `src/features/scheduled-checkouts/db/schema.test.ts`: the checkout account can queue in its store, as itself and pending; a store it may not order in, a time in the past, another user's id and a status are refused; merchants read nothing and platform staff read all; nobody signed in can update or delete; anonymous visitors get nothing.
 - `src/features/scheduled-checkouts/server/scheduled-checkouts-repository.test.ts`: a plan is queued with the right rows, or not at all; the open stores are exactly those the user may create orders in; a due checkout is placed as its creator at the planned time, with its first event at the same time; a future one waits; one 7 hours late is skipped; a refused order fails without stopping the next; two overlapping runs place each checkout once; one run places at most 10, oldest first.
 - `src/routes/api/v1/scheduled-checkouts.test.ts`: the API queues a plan and answers the latest pending time and the open stores, and refuses a time in the past, a shipped order and an empty plan.

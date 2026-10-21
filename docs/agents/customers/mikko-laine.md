@@ -4,7 +4,8 @@ A game developer in Helsinki who is awake when everyone else sleeps. He buys sma
 
 ## Basket
 
-- One `digital` product, any number, quantity 1. `variety` from 70 up: a `physical` one, number 1–21, instead.
+- Store: any of `fi1`, `fi2`, `fi3`.
+- One digital product, pick 0–8, quantity 1. `variety` from 70 up: a physical one, pick 0–5, instead.
 - `variety` under 10: quantity 2 of the same product, as a gift for a friend.
 
 ## Payment and address

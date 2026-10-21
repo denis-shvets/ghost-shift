@@ -36,7 +36,7 @@ const { OrderCreateForbiddenError } = await import("~/features/orders/server/ord
 const agent: UserClaims = { sub: "33333333-3333-4333-8333-333333333333", global_roles: [] };
 
 const validBody = {
-  storeId: "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
+  storeId: "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03",
   customer: { firstName: "Test", lastName: "Customer", email: "test@example.com" },
   billingAddress: {
     firstName: "Test",
@@ -122,7 +122,7 @@ describe("GET /api/v1/orders", () => {
     listOrders.mockResolvedValue({ orders: [], nextCursor: null, prevCursor: null });
 
     const response = await get(
-      "?q=a%40b.se&status=captured&paymentMethod=card&storeId=e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
+      "?q=a%40b.se&status=captured&paymentMethod=card&storeId=b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03",
     );
 
     expect(response.status).toBe(200);
@@ -131,7 +131,7 @@ describe("GET /api/v1/orders", () => {
       q: "a@b.se",
       status: "captured",
       paymentMethod: "card",
-      storeId: "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
+      storeId: "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03",
     });
   });
 

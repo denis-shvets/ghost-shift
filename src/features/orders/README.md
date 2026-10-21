@@ -22,7 +22,7 @@ On `/developer/create-order`, a page script registers two tools with `document.m
 ## Data
 
 - Tables `orders` and `order_lines`, defined in [db/schema.ts](db/schema.ts).
-- Ids are uuids. `reference` (`MG-1003`) is the number people use.
+- Ids are uuids. `reference` (`NS-1003`) is the number people use.
 - Each order belongs to a store, and its currency must be the store's currency. The database enforces both.
 - Amounts are integers in minor units (öre, cents).
 - Lines are ordered by `position`, starting at 1.

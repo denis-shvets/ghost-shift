@@ -55,11 +55,11 @@ describe("fetchRefunds", () => {
   });
 
   it("returns the page together with the stores for the filter", async () => {
-    listReadableStores.mockResolvedValue([{ id: "store-1", name: "Moonlight Goods Sweden" }]);
+    listReadableStores.mockResolvedValue([{ id: "store-1", name: "Velour Vault" }]);
 
     const result = await fetchRefunds({ data: {} });
 
-    expect(result).toMatchObject({ stores: [{ id: "store-1", name: "Moonlight Goods Sweden" }] });
+    expect(result).toMatchObject({ stores: [{ id: "store-1", name: "Velour Vault" }] });
   });
 
   it("does not read anything when the user is not signed in", async () => {

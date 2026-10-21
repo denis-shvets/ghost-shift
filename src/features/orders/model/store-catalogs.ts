@@ -1,285 +1,124 @@
 import seedIds from "../../../shared/seed/seed-ids.json" with { type: "json" };
 
-export type CatalogList = "physical" | "digital";
-export type CatalogProduct = { sku: string; name: string; unitPrice: number; taxRate: number };
-export type StoreCatalog = Record<CatalogList, readonly CatalogProduct[]>;
-export type SampleProduct = CatalogProduct & { type: CatalogList };
-
-// The number of items in each list. Claude picks items by number (1 to CATALOG_SIZE).
-export const CATALOG_SIZE = 25;
-
-// Each list is sorted by unitPrice, cheapest first. Prices are minor units of the store's currency.
-// Tax rates are basis points: the market's standard VAT, or 0 for gift cards.
-export const STORE_CATALOGS: Readonly<Record<string, StoreCatalog>> = {
-  [seedIds.stores.moonlightSweden]: {
-    physical: [
-      { sku: "SE-P-01", name: "Tea light pack, 30 pcs", unitPrice: 4290, taxRate: 2500 },
-      { sku: "SE-P-02", name: "Linen dish towel, 2-pack", unitPrice: 7490, taxRate: 2500 },
-      { sku: "SE-P-03", name: "A5 dotted notebook", unitPrice: 9790, taxRate: 2500 },
-      { sku: "SE-P-04", name: "Ceramic bud vase, small", unitPrice: 13990, taxRate: 2500 },
-      { sku: "SE-P-05", name: "Stoneware mug, 350 ml", unitPrice: 16490, taxRate: 2500 },
-      { sku: "SE-P-06", name: "Beeswax candle, 200 g", unitPrice: 18990, taxRate: 2500 },
-      { sku: "SE-P-07", name: "Wool-blend coaster set", unitPrice: 21990, taxRate: 2500 },
-      { sku: "SE-P-08", name: "Fine-liner pen set, 6 pcs", unitPrice: 27490, taxRate: 2500 },
-      { sku: "SE-P-09", name: "Glass candle holder, pair", unitPrice: 32990, taxRate: 2500 },
-      { sku: "SE-P-10", name: "Hand-thrown soup bowl", unitPrice: 38990, taxRate: 2500 },
-      { sku: "SE-P-11", name: "Terracotta plant pot, 12 cm", unitPrice: 43990, taxRate: 2500 },
-      { sku: "SE-P-12", name: "Linen napkin set, 4 pcs", unitPrice: 49900, taxRate: 2500 },
-      { sku: "SE-P-13", name: "Cast iron skillet, 20 cm", unitPrice: 65990, taxRate: 2500 },
-      { sku: "SE-P-14", name: "Oak cutting board", unitPrice: 76990, taxRate: 2500 },
-      { sku: "SE-P-15", name: "Woven wall hanging, 60 cm", unitPrice: 87990, taxRate: 2500 },
-      { sku: "SE-P-16", name: "Linen shade table lamp", unitPrice: 109900, taxRate: 2500 },
-      { sku: "SE-P-17", name: "Birch pendant lamp", unitPrice: 131990, taxRate: 2500 },
-      { sku: "SE-P-18", name: "Oak side table", unitPrice: 164900, taxRate: 2500 },
-      { sku: "SE-P-19", name: "Walnut plant stand, 3 tiers", unitPrice: 197900, taxRate: 2500 },
-      { sku: "SE-P-20", name: "Beech reading chair", unitPrice: 241990, taxRate: 2500 },
-      { sku: "SE-P-21", name: "Oak dining bench, 120 cm", unitPrice: 296990, taxRate: 2500 },
-      { sku: "SE-P-22", name: "Two-seat linen sofa", unitPrice: 373990, taxRate: 2500 },
-      { sku: "SE-P-23", name: "Oak dining table, 160 cm", unitPrice: 505900, taxRate: 2500 },
-      { sku: "SE-P-24", name: "Ash sideboard, 180 cm", unitPrice: 692990, taxRate: 2500 },
-      { sku: "SE-P-25", name: "Pine bookcase, 200 cm", unitPrice: 988900, taxRate: 2500 },
-    ],
-    digital: [
-      { sku: "SE-D-01", name: "Gift card, starter", unitPrice: 5490, taxRate: 0 },
-      { sku: "SE-D-02", name: "Plant care guide, e-book", unitPrice: 7690, taxRate: 2500 },
-      { sku: "SE-D-03", name: "Pottery basics, e-book", unitPrice: 9890, taxRate: 2500 },
-      { sku: "SE-D-04", name: "Printable wall art, A4 set", unitPrice: 13090, taxRate: 2500 },
-      { sku: "SE-D-05", name: "Sourdough kitchen notes, e-book", unitPrice: 16390, taxRate: 2500 },
-      { sku: "SE-D-06", name: "Linen sewing pattern, PDF", unitPrice: 21890, taxRate: 2500 },
-      { sku: "SE-D-07", name: "Candle making, online class", unitPrice: 27390, taxRate: 2500 },
-      { sku: "SE-D-08", name: "Pottery wheel workshop, video", unitPrice: 32890, taxRate: 2500 },
-      { sku: "SE-D-09", name: "Home styling course, 4 weeks", unitPrice: 38390, taxRate: 2500 },
-      {
-        sku: "SE-D-10",
-        name: "Plant app subscription, 12 months",
-        unitPrice: 43890,
-        taxRate: 2500,
-      },
-      { sku: "SE-D-11", name: "Interior planning course", unitPrice: 49390, taxRate: 2500 },
-      { sku: "SE-D-12", name: "Gift card, classic", unitPrice: 54990, taxRate: 0 },
-      { sku: "SE-D-13", name: "Ceramic glazing course", unitPrice: 60390, taxRate: 2500 },
-      { sku: "SE-D-14", name: "Kitchen organizing course", unitPrice: 65890, taxRate: 2500 },
-      { sku: "SE-D-15", name: "Botanical digital print set", unitPrice: 71390, taxRate: 2500 },
-      { sku: "SE-D-16", name: "Furniture care plan, 2 years", unitPrice: 76890, taxRate: 2500 },
-      { sku: "SE-D-17", name: "Textile dyeing workshop, online", unitPrice: 87890, taxRate: 2500 },
-      { sku: "SE-D-18", name: "Lamp warranty plan, 3 years", unitPrice: 98890, taxRate: 2500 },
-      {
-        sku: "SE-D-19",
-        name: "Digital pattern bundle, 20 patterns",
-        unitPrice: 109890,
-        taxRate: 2500,
-      },
-      { sku: "SE-D-20", name: "Woodworking course, 8 weeks", unitPrice: 120890, taxRate: 2500 },
-      { sku: "SE-D-21", name: "Interior consultation, 1 hour", unitPrice: 142890, taxRate: 2500 },
-      { sku: "SE-D-22", name: "Design app subscription, annual", unitPrice: 153890, taxRate: 2500 },
-      { sku: "SE-D-23", name: "Lighting planning service", unitPrice: 164890, taxRate: 2500 },
-      { sku: "SE-D-24", name: "Furniture restoration course", unitPrice: 186890, taxRate: 2500 },
-      { sku: "SE-D-25", name: "Craft academy, lifetime access", unitPrice: 218900, taxRate: 2500 },
-    ],
-  },
-  [seedIds.stores.moonlightFinland]: {
-    physical: [
-      { sku: "FI-P-01", name: "Tea light pack, 30 pcs", unitPrice: 390, taxRate: 2550 },
-      { sku: "FI-P-02", name: "Linen dish towel, 2-pack", unitPrice: 690, taxRate: 2550 },
-      { sku: "FI-P-03", name: "A5 dotted notebook", unitPrice: 890, taxRate: 2550 },
-      { sku: "FI-P-04", name: "Ceramic bud vase, small", unitPrice: 1290, taxRate: 2550 },
-      { sku: "FI-P-05", name: "Stoneware mug, 350 ml", unitPrice: 1490, taxRate: 2550 },
-      { sku: "FI-P-06", name: "Beeswax candle, 200 g", unitPrice: 1690, taxRate: 2550 },
-      { sku: "FI-P-07", name: "Wool-blend coaster set", unitPrice: 1990, taxRate: 2550 },
-      { sku: "FI-P-08", name: "Fine-liner pen set, 6 pcs", unitPrice: 2490, taxRate: 2550 },
-      { sku: "FI-P-09", name: "Glass candle holder, pair", unitPrice: 2990, taxRate: 2550 },
-      { sku: "FI-P-10", name: "Hand-thrown soup bowl", unitPrice: 3490, taxRate: 2550 },
-      { sku: "FI-P-11", name: "Terracotta plant pot, 12 cm", unitPrice: 3990, taxRate: 2550 },
-      { sku: "FI-P-12", name: "Linen napkin set, 4 pcs", unitPrice: 4490, taxRate: 2550 },
-      { sku: "FI-P-13", name: "Cast iron skillet, 20 cm", unitPrice: 5990, taxRate: 2550 },
-      { sku: "FI-P-14", name: "Oak cutting board", unitPrice: 6990, taxRate: 2550 },
-      { sku: "FI-P-15", name: "Woven wall hanging, 60 cm", unitPrice: 7990, taxRate: 2550 },
-      { sku: "FI-P-16", name: "Linen shade table lamp", unitPrice: 9990, taxRate: 2550 },
-      { sku: "FI-P-17", name: "Birch pendant lamp", unitPrice: 11990, taxRate: 2550 },
-      { sku: "FI-P-18", name: "Oak side table", unitPrice: 14990, taxRate: 2550 },
-      { sku: "FI-P-19", name: "Walnut plant stand, 3 tiers", unitPrice: 17990, taxRate: 2550 },
-      { sku: "FI-P-20", name: "Beech reading chair", unitPrice: 21990, taxRate: 2550 },
-      { sku: "FI-P-21", name: "Oak dining bench, 120 cm", unitPrice: 26990, taxRate: 2550 },
-      { sku: "FI-P-22", name: "Two-seat linen sofa", unitPrice: 33990, taxRate: 2550 },
-      { sku: "FI-P-23", name: "Oak dining table, 160 cm", unitPrice: 45990, taxRate: 2550 },
-      { sku: "FI-P-24", name: "Ash sideboard, 180 cm", unitPrice: 62990, taxRate: 2550 },
-      { sku: "FI-P-25", name: "Pine bookcase, 200 cm", unitPrice: 89900, taxRate: 2550 },
-    ],
-    digital: [
-      { sku: "FI-D-01", name: "Gift card, starter", unitPrice: 499, taxRate: 0 },
-      { sku: "FI-D-02", name: "Plant care guide, e-book", unitPrice: 699, taxRate: 2550 },
-      { sku: "FI-D-03", name: "Pottery basics, e-book", unitPrice: 899, taxRate: 2550 },
-      { sku: "FI-D-04", name: "Printable wall art, A4 set", unitPrice: 1190, taxRate: 2550 },
-      { sku: "FI-D-05", name: "Sourdough kitchen notes, e-book", unitPrice: 1490, taxRate: 2550 },
-      { sku: "FI-D-06", name: "Linen sewing pattern, PDF", unitPrice: 1990, taxRate: 2550 },
-      { sku: "FI-D-07", name: "Candle making, online class", unitPrice: 2490, taxRate: 2550 },
-      { sku: "FI-D-08", name: "Pottery wheel workshop, video", unitPrice: 2990, taxRate: 2550 },
-      { sku: "FI-D-09", name: "Home styling course, 4 weeks", unitPrice: 3490, taxRate: 2550 },
-      { sku: "FI-D-10", name: "Plant app subscription, 12 months", unitPrice: 3990, taxRate: 2550 },
-      { sku: "FI-D-11", name: "Interior planning course", unitPrice: 4490, taxRate: 2550 },
-      { sku: "FI-D-12", name: "Gift card, classic", unitPrice: 4990, taxRate: 0 },
-      { sku: "FI-D-13", name: "Ceramic glazing course", unitPrice: 5490, taxRate: 2550 },
-      { sku: "FI-D-14", name: "Kitchen organizing course", unitPrice: 5990, taxRate: 2550 },
-      { sku: "FI-D-15", name: "Botanical digital print set", unitPrice: 6490, taxRate: 2550 },
-      { sku: "FI-D-16", name: "Furniture care plan, 2 years", unitPrice: 6990, taxRate: 2550 },
-      { sku: "FI-D-17", name: "Textile dyeing workshop, online", unitPrice: 7990, taxRate: 2550 },
-      { sku: "FI-D-18", name: "Lamp warranty plan, 3 years", unitPrice: 8990, taxRate: 2550 },
-      {
-        sku: "FI-D-19",
-        name: "Digital pattern bundle, 20 patterns",
-        unitPrice: 9990,
-        taxRate: 2550,
-      },
-      { sku: "FI-D-20", name: "Woodworking course, 8 weeks", unitPrice: 10990, taxRate: 2550 },
-      { sku: "FI-D-21", name: "Interior consultation, 1 hour", unitPrice: 12990, taxRate: 2550 },
-      { sku: "FI-D-22", name: "Design app subscription, annual", unitPrice: 13990, taxRate: 2550 },
-      { sku: "FI-D-23", name: "Lighting planning service", unitPrice: 14990, taxRate: 2550 },
-      { sku: "FI-D-24", name: "Furniture restoration course", unitPrice: 16990, taxRate: 2550 },
-      { sku: "FI-D-25", name: "Craft academy, lifetime access", unitPrice: 19900, taxRate: 2550 },
-    ],
-  },
-  [seedIds.stores.moonlightNorway]: {
-    physical: [
-      { sku: "NO-P-01", name: "Tea light pack, 30 pcs", unitPrice: 4290, taxRate: 2500 },
-      { sku: "NO-P-02", name: "Linen dish towel, 2-pack", unitPrice: 7490, taxRate: 2500 },
-      { sku: "NO-P-03", name: "A5 dotted notebook", unitPrice: 9790, taxRate: 2500 },
-      { sku: "NO-P-04", name: "Ceramic bud vase, small", unitPrice: 13990, taxRate: 2500 },
-      { sku: "NO-P-05", name: "Stoneware mug, 350 ml", unitPrice: 16490, taxRate: 2500 },
-      { sku: "NO-P-06", name: "Beeswax candle, 200 g", unitPrice: 18990, taxRate: 2500 },
-      { sku: "NO-P-07", name: "Wool-blend coaster set", unitPrice: 21990, taxRate: 2500 },
-      { sku: "NO-P-08", name: "Fine-liner pen set, 6 pcs", unitPrice: 27490, taxRate: 2500 },
-      { sku: "NO-P-09", name: "Glass candle holder, pair", unitPrice: 32990, taxRate: 2500 },
-      { sku: "NO-P-10", name: "Hand-thrown soup bowl", unitPrice: 38990, taxRate: 2500 },
-      { sku: "NO-P-11", name: "Terracotta plant pot, 12 cm", unitPrice: 43990, taxRate: 2500 },
-      { sku: "NO-P-12", name: "Linen napkin set, 4 pcs", unitPrice: 49900, taxRate: 2500 },
-      { sku: "NO-P-13", name: "Cast iron skillet, 20 cm", unitPrice: 65990, taxRate: 2500 },
-      { sku: "NO-P-14", name: "Oak cutting board", unitPrice: 76990, taxRate: 2500 },
-      { sku: "NO-P-15", name: "Woven wall hanging, 60 cm", unitPrice: 87990, taxRate: 2500 },
-      { sku: "NO-P-16", name: "Linen shade table lamp", unitPrice: 109900, taxRate: 2500 },
-      { sku: "NO-P-17", name: "Birch pendant lamp", unitPrice: 131990, taxRate: 2500 },
-      { sku: "NO-P-18", name: "Oak side table", unitPrice: 164900, taxRate: 2500 },
-      { sku: "NO-P-19", name: "Walnut plant stand, 3 tiers", unitPrice: 197900, taxRate: 2500 },
-      { sku: "NO-P-20", name: "Beech reading chair", unitPrice: 241990, taxRate: 2500 },
-      { sku: "NO-P-21", name: "Oak dining bench, 120 cm", unitPrice: 296990, taxRate: 2500 },
-      { sku: "NO-P-22", name: "Two-seat linen sofa", unitPrice: 373990, taxRate: 2500 },
-      { sku: "NO-P-23", name: "Oak dining table, 160 cm", unitPrice: 505900, taxRate: 2500 },
-      { sku: "NO-P-24", name: "Ash sideboard, 180 cm", unitPrice: 692990, taxRate: 2500 },
-      { sku: "NO-P-25", name: "Pine bookcase, 200 cm", unitPrice: 988900, taxRate: 2500 },
-    ],
-    digital: [
-      { sku: "NO-D-01", name: "Gift card, starter", unitPrice: 5490, taxRate: 0 },
-      { sku: "NO-D-02", name: "Plant care guide, e-book", unitPrice: 7690, taxRate: 2500 },
-      { sku: "NO-D-03", name: "Pottery basics, e-book", unitPrice: 9890, taxRate: 2500 },
-      { sku: "NO-D-04", name: "Printable wall art, A4 set", unitPrice: 13090, taxRate: 2500 },
-      { sku: "NO-D-05", name: "Sourdough kitchen notes, e-book", unitPrice: 16390, taxRate: 2500 },
-      { sku: "NO-D-06", name: "Linen sewing pattern, PDF", unitPrice: 21890, taxRate: 2500 },
-      { sku: "NO-D-07", name: "Candle making, online class", unitPrice: 27390, taxRate: 2500 },
-      { sku: "NO-D-08", name: "Pottery wheel workshop, video", unitPrice: 32890, taxRate: 2500 },
-      { sku: "NO-D-09", name: "Home styling course, 4 weeks", unitPrice: 38390, taxRate: 2500 },
-      {
-        sku: "NO-D-10",
-        name: "Plant app subscription, 12 months",
-        unitPrice: 43890,
-        taxRate: 2500,
-      },
-      { sku: "NO-D-11", name: "Interior planning course", unitPrice: 49390, taxRate: 2500 },
-      { sku: "NO-D-12", name: "Gift card, classic", unitPrice: 54990, taxRate: 0 },
-      { sku: "NO-D-13", name: "Ceramic glazing course", unitPrice: 60390, taxRate: 2500 },
-      { sku: "NO-D-14", name: "Kitchen organizing course", unitPrice: 65890, taxRate: 2500 },
-      { sku: "NO-D-15", name: "Botanical digital print set", unitPrice: 71390, taxRate: 2500 },
-      { sku: "NO-D-16", name: "Furniture care plan, 2 years", unitPrice: 76890, taxRate: 2500 },
-      { sku: "NO-D-17", name: "Textile dyeing workshop, online", unitPrice: 87890, taxRate: 2500 },
-      { sku: "NO-D-18", name: "Lamp warranty plan, 3 years", unitPrice: 98890, taxRate: 2500 },
-      {
-        sku: "NO-D-19",
-        name: "Digital pattern bundle, 20 patterns",
-        unitPrice: 109890,
-        taxRate: 2500,
-      },
-      { sku: "NO-D-20", name: "Woodworking course, 8 weeks", unitPrice: 120890, taxRate: 2500 },
-      { sku: "NO-D-21", name: "Interior consultation, 1 hour", unitPrice: 142890, taxRate: 2500 },
-      { sku: "NO-D-22", name: "Design app subscription, annual", unitPrice: 153890, taxRate: 2500 },
-      { sku: "NO-D-23", name: "Lighting planning service", unitPrice: 164890, taxRate: 2500 },
-      { sku: "NO-D-24", name: "Furniture restoration course", unitPrice: 186890, taxRate: 2500 },
-      { sku: "NO-D-25", name: "Craft academy, lifetime access", unitPrice: 218900, taxRate: 2500 },
-    ],
-  },
-  [seedIds.stores.nordicBikesGermany]: {
-    physical: [
-      { sku: "DE-P-01", name: "Bike bell, brass", unitPrice: 390, taxRate: 1900 },
-      { sku: "DE-P-02", name: "Reflective ankle straps, pair", unitPrice: 590, taxRate: 1900 },
-      { sku: "DE-P-03", name: "Chain lube, 100 ml", unitPrice: 990, taxRate: 1900 },
-      { sku: "DE-P-04", name: "Puncture repair kit", unitPrice: 1290, taxRate: 1900 },
-      { sku: "DE-P-05", name: "Cycling socks, merino, 2 pairs", unitPrice: 1490, taxRate: 1900 },
-      { sku: "DE-P-06", name: "Tire levers, set of 3", unitPrice: 1790, taxRate: 1900 },
-      { sku: "DE-P-07", name: "Front light, 300 lumen", unitPrice: 1990, taxRate: 1900 },
-      { sku: "DE-P-08", name: "Rear light, LED, USB", unitPrice: 2290, taxRate: 1900 },
-      { sku: "DE-P-09", name: "Cable lock, 120 cm", unitPrice: 2490, taxRate: 1900 },
-      { sku: "DE-P-10", name: "Bottle cage, aluminum", unitPrice: 2990, taxRate: 1900 },
-      { sku: "DE-P-11", name: "Multi-tool, 12 functions", unitPrice: 3490, taxRate: 1900 },
-      { sku: "DE-P-12", name: "Handlebar grips, pair", unitPrice: 3990, taxRate: 1900 },
-      { sku: "DE-P-13", name: "Saddle bag, 0.5 L", unitPrice: 4490, taxRate: 1900 },
-      { sku: "DE-P-14", name: "Floor pump, steel barrel", unitPrice: 5490, taxRate: 1900 },
-      { sku: "DE-P-15", name: "Cycling helmet, adult", unitPrice: 6990, taxRate: 1900 },
-      { sku: "DE-P-16", name: "Cycling jersey, short sleeve", unitPrice: 7990, taxRate: 1900 },
-      { sku: "DE-P-17", name: "Commuter backpack, 20 L", unitPrice: 9990, taxRate: 1900 },
-      { sku: "DE-P-18", name: "Torque wrench, 2 to 14 Nm", unitPrice: 12990, taxRate: 1900 },
-      { sku: "DE-P-19", name: "Cycling shoes, clipless", unitPrice: 18990, taxRate: 1900 },
-      { sku: "DE-P-20", name: "Hybrid bike, 7-speed", unitPrice: 39900, taxRate: 1900 },
-      { sku: "DE-P-21", name: "Trekking bike, 9-speed", unitPrice: 59900, taxRate: 1900 },
-      { sku: "DE-P-22", name: "Road bike, aluminum frame", unitPrice: 89900, taxRate: 1900 },
-      { sku: "DE-P-23", name: "Gravel bike, 11-speed", unitPrice: 119900, taxRate: 1900 },
-      { sku: "DE-P-24", name: "Mountain bike, full suspension", unitPrice: 179900, taxRate: 1900 },
-      { sku: "DE-P-25", name: "E-bike, city, 500 Wh", unitPrice: 249900, taxRate: 1900 },
-    ],
-    digital: [
-      { sku: "DE-D-01", name: "Gift card, starter", unitPrice: 499, taxRate: 0 },
-      { sku: "DE-D-02", name: "Bike maintenance guide, e-book", unitPrice: 790, taxRate: 1900 },
-      { sku: "DE-D-03", name: "Commuter route maps, PDF", unitPrice: 990, taxRate: 1900 },
-      { sku: "DE-D-04", name: "Basic repair video course", unitPrice: 1490, taxRate: 1900 },
-      { sku: "DE-D-05", name: "Wheel building workshop, online", unitPrice: 1990, taxRate: 1900 },
-      { sku: "DE-D-06", name: "Bike warranty plan, 1 year", unitPrice: 2490, taxRate: 1900 },
-      { sku: "DE-D-07", name: "Ride tracking app, 12 months", unitPrice: 2990, taxRate: 1900 },
-      { sku: "DE-D-08", name: "Gravel training plan, PDF", unitPrice: 3490, taxRate: 1900 },
-      { sku: "DE-D-09", name: "Bike fit consultation, online", unitPrice: 3990, taxRate: 1900 },
-      { sku: "DE-D-10", name: "Brake service course", unitPrice: 4490, taxRate: 1900 },
-      { sku: "DE-D-11", name: "Gift card, classic", unitPrice: 4990, taxRate: 0 },
-      { sku: "DE-D-12", name: "Bike bag sewing pattern, PDF", unitPrice: 5490, taxRate: 1900 },
-      { sku: "DE-D-13", name: "Fitness training plan, 12 weeks", unitPrice: 5990, taxRate: 1900 },
-      { sku: "DE-D-14", name: "Suspension setup course", unitPrice: 6490, taxRate: 1900 },
-      { sku: "DE-D-15", name: "Saddle fitting guide, PDF", unitPrice: 6990, taxRate: 1900 },
-      { sku: "DE-D-16", name: "Touring route pack, 10 routes", unitPrice: 7990, taxRate: 1900 },
-      { sku: "DE-D-17", name: "Frame protection plan, 2 years", unitPrice: 8990, taxRate: 1900 },
-      { sku: "DE-D-18", name: "Mechanic basics course, 6 weeks", unitPrice: 9990, taxRate: 1900 },
-      { sku: "DE-D-19", name: "Electric drivetrain course", unitPrice: 11990, taxRate: 1900 },
-      { sku: "DE-D-20", name: "Ride coaching, 3 sessions", unitPrice: 13990, taxRate: 1900 },
-      { sku: "DE-D-21", name: "Pro bike fitting, online", unitPrice: 14990, taxRate: 1900 },
-      { sku: "DE-D-22", name: "Shop membership, 12 months", unitPrice: 15990, taxRate: 1900 },
-      { sku: "DE-D-23", name: "Mechanic certificate program", unitPrice: 17990, taxRate: 1900 },
-      { sku: "DE-D-24", name: "Race prep plan, 16 weeks", unitPrice: 18990, taxRate: 1900 },
-      { sku: "DE-D-25", name: "Lifetime tutorial library", unitPrice: 19900, taxRate: 1900 },
-    ],
-  },
+export type SampleProduct = {
+  sku: string;
+  name: string;
+  type: "physical" | "digital";
+  unitPrice: number;
+  taxRate: number;
 };
 
-// A store's 50 products, physical first, each with its type. Empty for an unknown store.
+export type Market = "SE" | "FI" | "NO" | "DE";
+// Rates are rough and for demo data only. Tax rates are basis points: the market's standard VAT.
+export const MARKETS: Record<Market, { rate: number; taxRate: number }> = {
+  SE: { rate: 11, taxRate: 2500 },
+  FI: { rate: 1, taxRate: 2550 },
+  NO: { rate: 11.5, taxRate: 2500 },
+  DE: { rate: 1, taxRate: 1900 },
+};
+
+// One list for every store, sorted by price in euro cents. Gift cards carry no VAT.
+const CATALOG: readonly {
+  sku: string;
+  name: string;
+  type: SampleProduct["type"];
+  basePrice: number;
+  vatFree?: true;
+}[] = [
+  { sku: "FAS-01", name: "Capsule wardrobe guide, e-book", type: "digital", basePrice: 990 },
+  { sku: "FAS-02", name: "Sewing pattern, tote bag, PDF", type: "digital", basePrice: 1290 },
+  { sku: "FAS-03", name: "Cotton basic tee", type: "physical", basePrice: 1490 },
+  { sku: "FAS-04", name: "Color palette guide, PDF", type: "digital", basePrice: 1590 },
+  { sku: "FAS-05", name: "Striped knit socks, 3 pairs", type: "physical", basePrice: 1990 },
+  { sku: "FAS-06", name: "Lookbook download, spring", type: "digital", basePrice: 2090 },
+  { sku: "FAS-07", name: "Canvas tote bag", type: "physical", basePrice: 2490 },
+  { sku: "FAS-08", name: "Gift card, 25 EUR", type: "digital", basePrice: 2500, vatFree: true },
+  { sku: "FAS-09", name: "Knitting pattern bundle, 10 designs", type: "digital", basePrice: 2690 },
+  { sku: "FAS-10", name: "Wool beanie", type: "physical", basePrice: 2990 },
+  { sku: "FAS-11", name: "Denim cap", type: "physical", basePrice: 3490 },
+  { sku: "FAS-12", name: "Shoe care masterclass", type: "digital", basePrice: 3590 },
+  { sku: "FAS-13", name: "Linen scarf", type: "physical", basePrice: 3990 },
+  { sku: "FAS-14", name: "Wardrobe planner app, 12 months", type: "digital", basePrice: 4090 },
+  { sku: "FAS-15", name: "Leather belt", type: "physical", basePrice: 4990 },
+  { sku: "FAS-16", name: "Gift card, 50 EUR", type: "digital", basePrice: 5000, vatFree: true },
+  { sku: "FAS-17", name: "Virtual styling session, 30 min", type: "digital", basePrice: 5090 },
+  { sku: "FAS-18", name: "Oxford button-down shirt", type: "physical", basePrice: 5990 },
+  { sku: "FAS-19", name: "Tailoring basics, video course", type: "digital", basePrice: 6090 },
+  { sku: "FAS-20", name: "Fashion trend report, annual", type: "digital", basePrice: 6990 },
+  { sku: "FAS-21", name: "Corduroy trousers", type: "physical", basePrice: 7990 },
+  { sku: "FAS-22", name: "Knit cardigan", type: "physical", basePrice: 8990 },
+  { sku: "FAS-23", name: "Personal stylist, 1 hour", type: "digital", basePrice: 9090 },
+  { sku: "FAS-24", name: "Gift card, 100 EUR", type: "digital", basePrice: 10000, vatFree: true },
+  { sku: "FAS-25", name: "Quilted down vest", type: "physical", basePrice: 11990 },
+  { sku: "FAS-26", name: "Waterproof rain jacket", type: "physical", basePrice: 12990 },
+  { sku: "FAS-27", name: "Closet audit, online", type: "digital", basePrice: 13090 },
+  { sku: "FAS-28", name: "Silk blouse", type: "physical", basePrice: 14990 },
+  { sku: "FAS-29", name: "Leather ankle boots", type: "physical", basePrice: 17990 },
+  { sku: "FAS-30", name: "Wool overcoat", type: "physical", basePrice: 25990 },
+];
+
+export const CATALOG_SIZE = CATALOG.length;
+
+// The highest `pick` a planner may answer: the index of the last item, so each type has PICK_MAX + 1 items.
+export const PICK_MAX =
+  Math.min(
+    ...(["physical", "digital"] as const).map(
+      (type) => CATALOG.filter((p) => p.type === type).length,
+    ),
+  ) - 1;
+
+// Each store's code (prefixes its SKUs) and market (its currency and VAT).
+const STORE_MARKETS: Readonly<Record<string, { code: string; market: Market }>> = {
+  [seedIds.stores.larkLoomStockholm]: { code: "LS", market: "SE" },
+  [seedIds.stores.hemlineHelsinki]: { code: "HH", market: "FI" },
+  [seedIds.stores.velourVault]: { code: "VV", market: "SE" },
+  [seedIds.stores.mossAndMirror]: { code: "MM", market: "SE" },
+  [seedIds.stores.ginghamGalaxy]: { code: "GG", market: "DE" },
+  [seedIds.stores.cobaltCloset]: { code: "CC", market: "DE" },
+  [seedIds.stores.silkPineOslo]: { code: "SP", market: "NO" },
+  [seedIds.stores.tangerineThread]: { code: "TT", market: "NO" },
+  [seedIds.stores.fjordFabric]: { code: "FF", market: "NO" },
+  [seedIds.stores.plaidParade]: { code: "PP", market: "FI" },
+  [seedIds.stores.woolWhisper]: { code: "WW", market: "FI" },
+  [seedIds.stores.denimDune]: { code: "DD", market: "SE" },
+  [seedIds.stores.linenLantern]: { code: "LL", market: "DE" },
+  [seedIds.stores.corduroyComet]: { code: "CO", market: "FI" },
+  [seedIds.stores.rayonRhapsody]: { code: "RR", market: "SE" },
+  [seedIds.stores.chiffonCascade]: { code: "CH", market: "NO" },
+  [seedIds.stores.thimbleThyme]: { code: "TH", market: "DE" },
+  [seedIds.stores.satinSparrow]: { code: "SS", market: "DE" },
+  [seedIds.stores.buttonBazaar]: { code: "BB", market: "SE" },
+  [seedIds.stores.zipperZenith]: { code: "ZZ", market: "FI" },
+};
+
+export const STORE_CATALOGS: Readonly<Record<string, readonly SampleProduct[]>> =
+  Object.fromEntries(
+    Object.entries(STORE_MARKETS).map(([storeId, { code, market }]) => {
+      const { rate, taxRate } = MARKETS[market];
+      return [
+        storeId,
+        CATALOG.map(({ basePrice, vatFree, ...product }) => ({
+          ...product,
+          sku: `${code}-${product.sku}`,
+          unitPrice: Math.round(basePrice * rate),
+          taxRate: vatFree ? 0 : taxRate,
+        })),
+      ];
+    }),
+  );
+
+// A store's products in list order. Empty for an unknown store.
+// A copy, so callers may splice it without changing the shared catalog.
 export function catalogProducts(storeId: string): SampleProduct[] {
-  const catalog = Object.hasOwn(STORE_CATALOGS, storeId) ? STORE_CATALOGS[storeId] : undefined;
-  if (!catalog) return [];
-  return [
-    ...catalog.physical.map((product) => ({ ...product, type: "physical" as const })),
-    ...catalog.digital.map((product) => ({ ...product, type: "digital" as const })),
-  ];
+  return Object.hasOwn(STORE_CATALOGS, storeId) ? [...STORE_CATALOGS[storeId]!] : [];
 }
 
-// Item `number` (1-based) of a store's list, with its type, or undefined if there is none.
-export function catalogItem(
+// The item at position `pick` (0 is the cheapest) among a store's products of one type, or undefined.
+export function catalogPick(
   storeId: string,
-  list: CatalogList,
-  number: number,
+  type: SampleProduct["type"],
+  pick: number,
 ): SampleProduct | undefined {
-  if (!Object.hasOwn(STORE_CATALOGS, storeId)) return undefined;
-  if (!Number.isInteger(number) || number < 1 || number > CATALOG_SIZE) return undefined;
-  const product = STORE_CATALOGS[storeId]?.[list][number - 1];
-  return product && { ...product, type: list };
+  if (!Number.isInteger(pick) || pick < 0 || pick > PICK_MAX) return undefined;
+  return catalogProducts(storeId).filter((product) => product.type === type)[pick];
 }

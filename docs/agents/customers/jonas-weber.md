@@ -4,7 +4,8 @@ A dentist in Hamburg who buys rarely but well, usually on a weekend, and often a
 
 ## Basket
 
-- Two to four products from the top of the lists, numbers 18–25 of either list, quantity 1 each. `variety` under 50: two products, otherwise three; `variety` under 5: four.
+- Store: any of `de1`, `de2`, `de3`.
+- Two to four products, either type, picks 8–14 (the dearer half), quantity 1 each. `variety` under 50: two products, otherwise three; `variety` under 5: four.
 
 ## Payment and address
 

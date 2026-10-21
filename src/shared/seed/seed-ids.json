@@ -1,12 +1,30 @@
 {
   "organizations": {
-    "moonlightGoods": "6f0c2a1e-3b7d-4e8a-9c51-2d4f7a9b0e11",
-    "nordicBikes": "c7e41b9a-2d3f-4a6b-8e90-5f1a2b3c4d5e"
+    "larkLoom": "a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a01",
+    "hemlineCollective": "a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a02",
+    "northstarThreads": "a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a03",
+    "pocketAtelier": "a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a04"
   },
   "stores": {
-    "moonlightSweden": "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
-    "moonlightFinland": "8916eb8f-667b-4bf9-a6d9-c72316aa3841",
-    "moonlightNorway": "a678d77c-964c-45d3-adf2-40b3e78ab482",
-    "nordicBikesGermany": "d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6"
+    "larkLoomStockholm": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b01",
+    "hemlineHelsinki": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b02",
+    "velourVault": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03",
+    "mossAndMirror": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b04",
+    "ginghamGalaxy": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b05",
+    "cobaltCloset": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b06",
+    "silkPineOslo": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b07",
+    "tangerineThread": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b08",
+    "fjordFabric": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b09",
+    "plaidParade": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b10",
+    "woolWhisper": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b11",
+    "denimDune": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b12",
+    "linenLantern": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b13",
+    "corduroyComet": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b14",
+    "rayonRhapsody": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b15",
+    "chiffonCascade": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b16",
+    "thimbleThyme": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b17",
+    "satinSparrow": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18",
+    "buttonBazaar": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b19",
+    "zipperZenith": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b20"
   }
 }

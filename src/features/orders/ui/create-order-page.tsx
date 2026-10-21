@@ -101,7 +101,7 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
 
   const store = stores.find((candidate) => candidate.id === storeId);
   const currency = store?.currency ?? "";
-  // Physical first, then digital, the same order the MCP tool uses.
+  // The same list, in the same order, the MCP tool uses.
   const products = catalogProducts(storeId);
 
   // Intl throws on an empty currency code, so nothing money-related renders without a store.

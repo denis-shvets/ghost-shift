@@ -57,7 +57,7 @@ const address = {
   country: "DE",
 };
 const order = {
-  storeId: "d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6",
+  storeId: "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18",
   customer: { firstName: "Jonas", lastName: "Weber", email: "jonas.weber@example.com" },
   billingAddress: address,
   shippingAddress: address,

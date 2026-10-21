@@ -32,7 +32,7 @@ describe("orderActionInput", () => {
     ["no amount", { action: "capture", orderId, reason: "Shipped" }],
     ["a zero amount", { action: "refund", orderId, amount: 0, reason: "Damaged" }],
     ["a fractional amount", { action: "capture", orderId, amount: 1.5, reason: "Shipped" }],
-    ["a bad order id", { action: "cancel", orderId: "MG-1001", reason: "Out of stock" }],
+    ["a bad order id", { action: "cancel", orderId: "NS-1001", reason: "Out of stock" }],
     ["an unknown action", { action: "void", orderId, reason: "Because" }],
     ["a bad agent run id", { action: "cancel", orderId, reason: "Because", agentRunId: "run-1" }],
   ])("refuses %s", (_, input) => {

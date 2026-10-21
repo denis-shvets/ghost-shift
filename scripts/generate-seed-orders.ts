@@ -14,6 +14,8 @@ import {
 } from "../src/features/orders/model/payment-methods.ts";
 import {
   catalogProducts,
+  MARKETS,
+  type Market,
   type SampleProduct,
 } from "../src/features/orders/model/store-catalogs.ts";
 
@@ -34,16 +36,46 @@ const seedIds = JSON.parse(
   readFileSync(new URL("../src/shared/seed/seed-ids.json", import.meta.url), "utf8"),
 ) as { stores: Record<string, string> };
 
-const SE: Store = { id: seedIds.stores.moonlightSweden, market: "SE", currency: "SEK", vat: 2500 };
-const FI: Store = { id: seedIds.stores.moonlightFinland, market: "FI", currency: "EUR", vat: 2550 };
-const NO: Store = { id: seedIds.stores.moonlightNorway, market: "NO", currency: "NOK", vat: 2500 };
-const DE: Store = {
-  id: seedIds.stores.nordicBikesGermany,
-  market: "DE",
-  currency: "EUR",
-  vat: 1900,
-};
-const MOONLIGHT_STORES = [SE, FI, NO];
+const CURRENCIES: Record<Market, string> = { SE: "SEK", FI: "EUR", NO: "NOK", DE: "EUR" };
+const storeIn = (id: string, market: Market): Store => ({
+  id,
+  market,
+  currency: CURRENCIES[market],
+  vat: MARKETS[market].taxRate,
+});
+const SE = storeIn(seedIds.stores.velourVault, "SE");
+const FI = storeIn(seedIds.stores.plaidParade, "FI");
+const NO = storeIn(seedIds.stores.silkPineOslo, "NO");
+const DE = storeIn(seedIds.stores.satinSparrow, "DE");
+// A catalog product at the store, by its SKU without the store code, as a line of the given quantity.
+const priced = (store: Store, sku: string, quantity: number): LineInput =>
+  productLine(
+    catalogProducts(store.id).find((product) => product.sku.endsWith(`-${sku}`))!,
+    quantity,
+  );
+// Random orders spread over the stores of the two companies that have them (see seed.sql).
+const NORTHSTAR_STORES: Store[] = [
+  storeIn(seedIds.stores.velourVault, "SE"),
+  storeIn(seedIds.stores.mossAndMirror, "SE"),
+  storeIn(seedIds.stores.ginghamGalaxy, "DE"),
+  storeIn(seedIds.stores.cobaltCloset, "DE"),
+  storeIn(seedIds.stores.silkPineOslo, "NO"),
+  storeIn(seedIds.stores.tangerineThread, "NO"),
+  storeIn(seedIds.stores.fjordFabric, "NO"),
+  storeIn(seedIds.stores.plaidParade, "FI"),
+  storeIn(seedIds.stores.woolWhisper, "FI"),
+  storeIn(seedIds.stores.denimDune, "SE"),
+  storeIn(seedIds.stores.linenLantern, "DE"),
+  storeIn(seedIds.stores.corduroyComet, "FI"),
+  storeIn(seedIds.stores.rayonRhapsody, "SE"),
+  storeIn(seedIds.stores.chiffonCascade, "NO"),
+  storeIn(seedIds.stores.thimbleThyme, "DE"),
+];
+const POCKET_STORES: Store[] = [
+  storeIn(seedIds.stores.satinSparrow, "DE"),
+  storeIn(seedIds.stores.buttonBazaar, "SE"),
+  storeIn(seedIds.stores.zipperZenith, "FI"),
+];
 // Addresses and shipping names look local to each store's market.
 const LOCAL_FAKERS: Record<string, Faker> = {
   SE: fakerSV,
@@ -54,7 +86,12 @@ const LOCAL_FAKERS: Record<string, Faker> = {
 
 // vat is the market's standard rate in basis points, the same as the store's catalog.
 type Store = { id: string; market: string; currency: string; vat: number };
-type Customer = { firstName: string; lastName: string; email: string; phone: string | null };
+type Customer = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+};
 type LineInput = {
   type: "physical" | "digital" | "shipping_fee";
   sku: string | null;
@@ -200,7 +237,10 @@ function makeEvents(order: {
       action: "refunded",
       occurredAt: next(),
       actorName: faker.person.fullName(),
-      metadata: { amount: refundedAmount, reason: faker.helpers.arrayElement(REFUND_REASONS) },
+      metadata: {
+        amount: refundedAmount,
+        reason: faker.helpers.arrayElement(REFUND_REASONS),
+      },
     });
   }
   if (status === "canceled") {
@@ -219,7 +259,9 @@ function makeEvents(order: {
       // The same reason public.expire_orders() writes.
       metadata: {
         releasedAmount: totalAmount - capturedAmount,
-        reason: `Authorization expired after ${Math.round((expiresAt.getTime() - createdAt.getTime()) / (24 * HOUR))} days`,
+        reason: `Authorization expired after ${Math.round(
+          (expiresAt.getTime() - createdAt.getTime()) / (24 * HOUR),
+        )} days`,
       },
     });
   }
@@ -228,7 +270,10 @@ function makeEvents(order: {
 
 function makeOrder(input: OrderInput): SeedOrder {
   const expiresAt = authorizationExpiresAt(input.createdAt, input.paymentMethod);
-  const lines = input.lines.map((line, index) => ({ position: index + 1, ...line }));
+  const lines = input.lines.map((line, index) => ({
+    position: index + 1,
+    ...line,
+  }));
   const totalAmount = sumLines(input.lines);
   const addresses = makeAddresses(input.customer, input.store, input.sameShipping);
   const order = {
@@ -274,13 +319,13 @@ function fixedOrders(): SeedOrder[] {
   return [
     makeOrder({
       id: "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922",
-      reference: "MG-1001",
+      reference: "NS-1001",
       createdAt: at("2026-10-17T08:12:00Z"),
       store: SE,
       customer: customer("Astrid", "Lind", "astrid@example.com"),
       paymentMethod: "card",
       status: "authorized",
-      lines: [line("physical", "LAN-BRS-01", "Lantern, brass", 1, 129000, 2500)],
+      lines: [priced(SE, "FAS-07", 1)],
       captured: 0,
       refunded: 0,
       shippingCarrier: "PostNord",
@@ -289,17 +334,14 @@ function fixedOrders(): SeedOrder[] {
     }),
     makeOrder({
       id: "a04509c1-b524-494a-8662-8d6ed7bcfc8d",
-      reference: "MG-1002",
+      reference: "NS-1002",
       createdAt: at("2026-10-16T19:40:00Z"),
       store: SE,
       customer: customer("Erik", "Holm", "erik@example.com"),
       paymentMethod: "bank_transfer",
       status: "captured",
-      lines: [
-        line("physical", "CND-SET-03", "Candle set", 2, 24900, 2500),
-        line("shipping_fee", null, "Shipping, DHL", 1, 4900, 2500),
-      ],
-      captured: 54700,
+      lines: [priced(SE, "FAS-05", 2), line("shipping_fee", null, "Shipping, DHL", 1, 4900, 2500)],
+      captured: 48680,
       refunded: 0,
       shippingCarrier: "DHL",
       shippingTracking: "DHL-7781",
@@ -307,31 +349,28 @@ function fixedOrders(): SeedOrder[] {
     }),
     makeOrder({
       id: "29fb84e7-03da-44f2-9389-dbbe9e12d3f3",
-      reference: "MG-1003",
+      reference: "NS-1003",
       createdAt: at("2026-10-15T11:05:00Z"),
       store: FI,
       customer: customer("Aino", "Virtanen", "aino@example.com"),
       paymentMethod: "paypal",
       status: "captured",
-      lines: [
-        line("physical", "BLK-WOL-02", "Wool blanket", 1, 8000, 2550),
-        line("physical", "LMP-NGT-01", "Night lamp", 1, 4000, 2550),
-      ],
-      captured: 12000,
-      refunded: 4000,
+      lines: [priced(FI, "FAS-10", 1), priced(FI, "FAS-13", 1)],
+      captured: 6980,
+      refunded: 2000,
       shippingCarrier: "Posti",
       shippingTracking: "PO-5521",
       sameShipping: true,
     }),
     makeOrder({
       id: "fc14a20f-334f-4f9a-9b7f-162626167f1f",
-      reference: "MG-1004",
+      reference: "NS-1004",
       createdAt: at("2026-10-03T22:30:00Z"),
       store: SE,
       customer: customer("Maja", "Berg", "maja@example.com"),
       paymentMethod: "card",
       status: "expired",
-      lines: [line("physical", "SHF-OAK-90", "Oak shelf", 1, 215000, 2500)],
+      lines: [priced(SE, "FAS-29", 1)],
       captured: 0,
       refunded: 0,
       shippingCarrier: "PostNord",
@@ -340,13 +379,13 @@ function fixedOrders(): SeedOrder[] {
     }),
     makeOrder({
       id: "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b",
-      reference: "NB-2001",
+      reference: "PA-2001",
       createdAt: at("2026-10-16T10:00:00Z"),
       store: DE,
       customer: customer("Jonas", "Weber", "jonas@example.com"),
       paymentMethod: "card",
       status: "authorized",
-      lines: [line("physical", "BIK-HLM-01", "Helmet", 1, 45000, 1900)],
+      lines: [priced(DE, "FAS-30", 1)],
       captured: 0,
       refunded: 0,
       shippingCarrier: "DHL",
@@ -357,13 +396,13 @@ function fixedOrders(): SeedOrder[] {
     // Added scenarios: every status and payment method shows up at least once.
     makeOrder({
       id: faker.string.uuid(),
-      reference: "MG-1005",
+      reference: "NS-1005",
       createdAt: at("2026-10-15T09:00:00Z"),
       store: SE,
       customer: customer("Sofia", "Nyberg", "sofia@example.com"),
       paymentMethod: "amex",
       status: "part_captured",
-      lines: [line("physical", "TEX-THR-01", "Linen throw", 2, 45000, 2500)],
+      lines: [priced(SE, "FAS-22", 2)],
       captured: 45000,
       refunded: 10000,
       shippingCarrier: "PostNord",
@@ -372,28 +411,28 @@ function fixedOrders(): SeedOrder[] {
     }),
     makeOrder({
       id: faker.string.uuid(),
-      reference: "MG-1006",
+      reference: "NS-1006",
       createdAt: at("2026-10-08T14:20:00Z"),
       store: FI,
       customer: customer("Lauri", "Korhonen", "lauri@example.com"),
       paymentMethod: "apple_pay",
       status: "refunded",
-      lines: [line("physical", "CER-MUG-02", "Ceramic mug", 1, 30000, 2550)],
-      captured: 30000,
-      refunded: 30000,
+      lines: [priced(FI, "FAS-11", 1)],
+      captured: 3490,
+      refunded: 3490,
       shippingCarrier: "Posti",
       shippingTracking: "PO-7712",
       sameShipping: true,
     }),
     makeOrder({
       id: faker.string.uuid(),
-      reference: "MG-1007",
+      reference: "NS-1007",
       createdAt: at("2026-10-06T08:45:00Z"),
       store: SE,
       customer: customer("Hanna", "Strand", "hanna@example.com"),
       paymentMethod: "google_pay",
       status: "canceled",
-      lines: [line("physical", "CAN-CHR-01", "Canvas chair", 1, 18000, 2500)],
+      lines: [priced(SE, "FAS-18", 1)],
       captured: 0,
       refunded: 0,
       shippingCarrier: "PostNord",
@@ -402,13 +441,13 @@ function fixedOrders(): SeedOrder[] {
     }),
     makeOrder({
       id: faker.string.uuid(),
-      reference: "MG-1008",
+      reference: "NS-1008",
       createdAt: at("2026-10-12T12:00:00Z"),
       store: SE,
       customer: customer("Oskar", "Dahl", "oskar@example.com"),
       paymentMethod: "card",
       status: "authorized",
-      lines: [line("physical", "PLT-PAN-07", "Plant pot", 2, 11500, 2500)],
+      lines: [priced(SE, "FAS-03", 2)],
       captured: 0,
       refunded: 0,
       shippingCarrier: "PostNord",
@@ -417,14 +456,14 @@ function fixedOrders(): SeedOrder[] {
     }),
     makeOrder({
       id: faker.string.uuid(),
-      reference: "MG-1009",
+      reference: "NS-1009",
       createdAt: at("2026-10-11T10:00:00Z"),
       store: NO,
       customer: customer("Ingrid", "Haugen", "ingrid@example.com"),
       paymentMethod: "card",
       status: "captured",
-      lines: [line("physical", "WLL-HAT-03", "Wool hat", 2, 40000, 2500)],
-      captured: 80000,
+      lines: [priced(NO, "FAS-25", 2)],
+      captured: 275770,
       refunded: 20000,
       shippingCarrier: "Bring",
       shippingTracking: "BR-1190",
@@ -432,34 +471,31 @@ function fixedOrders(): SeedOrder[] {
     }),
     makeOrder({
       id: faker.string.uuid(),
-      reference: "MG-1010",
+      reference: "NS-1010",
       createdAt: at("2026-10-18T06:00:00Z"),
       store: FI,
       customer: customer("Veikko", "Laine", "veikko@example.com"),
       paymentMethod: "bank_transfer",
       status: "authorized",
-      lines: [line("physical", "CUP-TEA-04", "Tea cup", 2, 17500, 2550)],
+      lines: [priced(FI, "FAS-21", 2)],
       captured: 0,
       refunded: 0,
       shippingCarrier: "Posti",
       shippingTracking: null,
-      // Shipped but at another company, so the Nordic Bikes agent never sees it.
+      // Shipped but at another company, so the Satin Sparrow agent never sees it.
       shippedAt: at("2026-10-18T15:00:00Z"),
       sameShipping: true,
     }),
     makeOrder({
       id: faker.string.uuid(),
-      reference: "NB-2002",
+      reference: "PA-2002",
       createdAt: at("2026-10-10T14:00:00Z"),
       store: DE,
       customer: customer("Lukas", "Becker", "lukas@example.com"),
       paymentMethod: "amazon_pay",
       status: "captured",
-      lines: [
-        line("physical", "BIK-LOK-02", "Bike lock", 2, 12900, 1900),
-        line("shipping_fee", null, "Shipping, DHL", 1, 990, 1900),
-      ],
-      captured: 26790,
+      lines: [priced(DE, "FAS-15", 2), line("shipping_fee", null, "Shipping, DHL", 1, 990, 1900)],
+      captured: 10970,
       refunded: 0,
       shippingCarrier: "DHL",
       shippingTracking: "DHL-4420",
@@ -468,13 +504,13 @@ function fixedOrders(): SeedOrder[] {
     }),
     makeOrder({
       id: faker.string.uuid(),
-      reference: "NB-2003",
+      reference: "PA-2003",
       createdAt: at("2026-10-04T09:30:00Z"),
       store: DE,
       customer: customer("Mila", "Kruger", "mila@example.com"),
       paymentMethod: "apple_pay",
       status: "expired",
-      lines: [line("physical", "BIK-BEL-01", "Bell", 1, 3500, 1900)],
+      lines: [priced(DE, "FAS-11", 1)],
       captured: 0,
       refunded: 0,
       shippingCarrier: "DHL",
@@ -484,10 +520,10 @@ function fixedOrders(): SeedOrder[] {
   ];
 }
 
-// Work for the orders agent: open Nordic Bikes orders, some shipped. Built after the random
+// Work for the orders agent: open Satin Sparrow orders, some shipped. Built after the random
 // orders, so adding them doesn't change the Faker sequence the earlier orders came from.
 function shippedOrders(): SeedOrder[] {
-  const nordic = (
+  const pocket = (
     id: string,
     reference: string,
     status: "authorized" | "part_captured",
@@ -510,14 +546,7 @@ function shippedOrders(): SeedOrder[] {
       paymentMethod: "bank_transfer",
       status,
       lines: [
-        {
-          type: "physical",
-          sku: "BIK-PMP-01",
-          name: "Floor pump",
-          quantity: 1,
-          unitPrice: 3990,
-          taxRate: 1900,
-        },
+        priced(DE, "FAS-25", 1),
         {
           type: "shipping_fee",
           sku: null,
@@ -536,14 +565,14 @@ function shippedOrders(): SeedOrder[] {
     });
   const shipped = new Date("2026-10-18T16:00:00Z");
   return [
-    nordic("5b1d0a00-0000-4000-8000-000000002004", "NB-2004", "authorized", shipped, "UPS"),
-    nordic("5b1d0a00-0000-4000-8000-000000002005", "NB-2005", "authorized", shipped, "DHL"),
+    pocket("5b1d0a00-0000-4000-8000-000000002004", "PA-2004", "authorized", shipped, "UPS"),
+    pocket("5b1d0a00-0000-4000-8000-000000002005", "PA-2005", "authorized", shipped, "DHL"),
     // Not shipped yet, so the agent leaves it.
-    nordic("5b1d0a00-0000-4000-8000-000000002006", "NB-2006", "authorized", undefined, "DHL"),
+    pocket("5b1d0a00-0000-4000-8000-000000002006", "PA-2006", "authorized", undefined, "DHL"),
     // Shipped, but a person captured part of it. The agent leaves the rest to them.
-    nordic(
+    pocket(
       "5b1d0a00-0000-4000-8000-000000002007",
-      "NB-2007",
+      "PA-2007",
       "part_captured",
       shipped,
       "DHL",
@@ -553,12 +582,17 @@ function shippedOrders(): SeedOrder[] {
 }
 
 function randomOrder(index: number, reference: string): SeedOrder {
-  const store = reference.startsWith("NB") ? DE : faker.helpers.arrayElement(MOONLIGHT_STORES);
+  const store = reference.startsWith("PA")
+    ? faker.helpers.arrayElement(POCKET_STORES)
+    : faker.helpers.arrayElement(NORTHSTAR_STORES);
   const paymentMethod = faker.helpers.arrayElement(PAYMENT_METHODS);
   const createdAt = new Date(
     Math.floor(
       faker.date
-        .between({ from: new Date("2026-07-21T00:00:00Z"), to: new Date("2026-10-02T23:59:59Z") })
+        .between({
+          from: new Date("2026-07-21T00:00:00Z"),
+          to: new Date("2026-10-02T23:59:59Z"),
+        })
         .getTime() / 60000,
     ) * 60000,
   );
@@ -571,7 +605,8 @@ function randomOrder(index: number, reference: string): SeedOrder {
     productLine(product, faker.number.int({ min: 1, max: 3 })),
   );
   const carrier = faker.helpers.arrayElement(["PostNord", "DHL", "Posti", "Bring", "UPS"]);
-  if (faker.datatype.boolean({ probability: 0.5 })) {
+  const hasPhysical = lines.some((line) => line.type === "physical");
+  if (hasPhysical && faker.datatype.boolean({ probability: 0.5 })) {
     lines.push({
       type: "shipping_fee",
       sku: null,
@@ -646,16 +681,16 @@ export function buildSeedOrders(): SeedOrder[] {
   faker.seed(2026);
   for (const local of Object.values(LOCAL_FAKERS)) local.seed(2026);
   const fixed = fixedOrders();
-  let moonlightCount = 0;
-  let nordicCount = 0;
+  let northstarCount = 0;
+  let pocketCount = 0;
   const random = Array.from({ length: RANDOM_ORDER_COUNT }, (_, index) => {
-    // Every seventh random order is a Nordic Bikes order.
+    // Every seventh random order is a Pocket Atelier order.
     if (index % 7 === 6) {
-      nordicCount += 1;
-      return randomOrder(index, `NB-${3000 + nordicCount}`);
+      pocketCount += 1;
+      return randomOrder(index, `PA-${3000 + pocketCount}`);
     }
-    moonlightCount += 1;
-    return randomOrder(index, `MG-${2000 + moonlightCount}`);
+    northstarCount += 1;
+    return randomOrder(index, `NS-${2000 + northstarCount}`);
   });
   return [...fixed, ...random, ...shippedOrders()];
 }

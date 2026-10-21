@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { catalogItem } from "../src/features/orders/model/store-catalogs.ts";
+import { catalogPick } from "../src/features/orders/model/store-catalogs.ts";
 
 import {
   buildOrder,
@@ -40,8 +40,8 @@ function seeded(seed: number) {
   };
 }
 
-const STORE = "d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6";
-const OTHER_STORE = "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6";
+const STORE = "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18";
+const OTHER_STORE = "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03";
 const schedule = (value: object) => scheduleInput.parse(value);
 const lena = schedule({
   timeZone: "Europe/Berlin",
@@ -63,7 +63,11 @@ describe("schedule", () => {
     expect(() => schedule({ ...base, windows: [] })).toThrow();
     expect(() => schedule({ ...base, ordersPerWeek: 0, windows: ["Sat 10:00-14:00"] })).toThrow();
     expect(() =>
-      schedule({ ...base, timeZone: "Mars/Base", windows: ["Sat 10:00-14:00"] }),
+      schedule({
+        ...base,
+        timeZone: "Mars/Base",
+        windows: ["Sat 10:00-14:00"],
+      }),
     ).toThrow(/time zone/);
   });
 
@@ -140,15 +144,23 @@ const home = {
   city: "Berlin",
   country: "DE",
 };
-const office = { ...home, company: "Vogt Design", streetAddress: "Torstraße 1" };
+const office = {
+  ...home,
+  company: "Vogt Design",
+  streetAddress: "Torstraße 1",
+};
 const data = (stores: string[]): PersonaData => ({
-  customer: { firstName: "Lena", lastName: "Vogt", email: "lena.vogt@example.com" },
+  customer: {
+    firstName: "Lena",
+    lastName: "Vogt",
+    email: "lena.vogt@example.com",
+  },
   stores: Object.fromEntries(
     stores.map((id, index) => [
       index === 0 ? "de" : "se",
       {
         id,
-        name: index === 0 ? "Nordic Bikes Germany" : "Moonlight Goods Sweden",
+        name: index === 0 ? "Satin Sparrow (EUR)" : "Velour Vault (SEK)",
         carrier: "DHL",
         shippingFee: { name: "Shipping, DHL", unitPrice: 490, taxRate: 0 },
       },
@@ -198,11 +210,11 @@ describe("planSlots", () => {
   });
 });
 
-const physical = catalogItem(STORE, "physical", 3)!;
+const physical = catalogPick(STORE, "physical", 2)!;
 const choice = (slotId: string, change: object = {}) => ({
   slotId,
   store: "de",
-  items: [{ list: "physical", number: 3, quantity: 2 }],
+  items: [{ type: "physical", pick: 2, quantity: 2 }],
   payment: "card",
   billTo: "home",
   shipTo: "office",
@@ -220,7 +232,11 @@ describe("buildOrder", () => {
   it("builds the whole order from the choices, the persona's data and the store catalog", () => {
     expect(buildOrder(choice("lena-1"), personas[0]!)).toEqual({
       storeId: STORE,
-      customer: { firstName: "Lena", lastName: "Vogt", email: "lena.vogt@example.com" },
+      customer: {
+        firstName: "Lena",
+        lastName: "Vogt",
+        email: "lena.vogt@example.com",
+      },
       billingAddress: home,
       shippingAddress: office,
       paymentMethod: "card",
@@ -234,14 +250,20 @@ describe("buildOrder", () => {
           unitPrice: physical.unitPrice,
           taxRate: physical.taxRate,
         },
-        { type: "shipping_fee", name: "Shipping, DHL", quantity: 1, unitPrice: 490, taxRate: 0 },
+        {
+          type: "shipping_fee",
+          name: "Shipping, DHL",
+          quantity: 1,
+          unitPrice: 490,
+          taxRate: 0,
+        },
       ],
     });
   });
 
   it("adds no shipping fee to a basket of only digital products", () => {
     const order = buildOrder(
-      choice("lena-1", { items: [{ list: "digital", number: 1, quantity: 1 }] }),
+      choice("lena-1", { items: [{ type: "digital", pick: 0, quantity: 1 }] }),
       personas[0]!,
     );
     expect(typeof order === "object" && order.lines.map((line) => line.type)).toEqual(["digital"]);
@@ -255,23 +277,19 @@ describe("buildOrder", () => {
       { shipTo: "gift" },
       /address "gift" isn't one of home, office/,
     ],
-    [
-      "a number past the list",
-      { items: [{ list: "physical", number: 26, quantity: 1 }] },
-      /number/,
-    ],
-    ["an unknown list", { items: [{ list: "services", number: 1, quantity: 1 }] }, /list/],
+    ["a pick past the list", { items: [{ type: "physical", pick: 15, quantity: 1 }] }, /pick/],
+
     [
       "a product listed twice",
       {
         items: [
-          { list: "physical", number: 3, quantity: 1 },
-          { list: "physical", number: 3, quantity: 1 },
+          { type: "physical", pick: 2, quantity: 1 },
+          { type: "physical", pick: 2, quantity: 1 },
         ],
       },
       /twice/,
     ],
-    ["a quantity of 0", { items: [{ list: "physical", number: 3, quantity: 0 }] }, /quantity/],
+    ["a quantity of 0", { items: [{ type: "physical", pick: 2, quantity: 0 }] }, /quantity/],
     ["an unknown payment method", { payment: "cash" }, /payment/],
   ])("refuses %s", (_, change, reason) => {
     expect(buildOrder(choice("lena-1", change), personas[0]!)).toMatch(reason);
@@ -369,7 +387,7 @@ describe("planPrompt", () => {
     expect(prompt).toContain("The planning rules.");
     expect(prompt).not.toContain(physical.name);
     expect(prompt).toContain(
-      "Open stores (`store`): de = Nordic Bikes Germany. Addresses (`billTo`, `shipTo`): home, office.",
+      "Open stores (`store`): de = Satin Sparrow (EUR). Addresses (`billTo`, `shipTo`): home, office.",
     );
     expect(prompt).toContain("- lena-1: Wednesday 2026-10-21 20:00, variety 42");
     expect(prompt).toContain("## Basket");
@@ -387,7 +405,7 @@ describe("persona files", () => {
     stores: {
       de: {
         id: STORE,
-        name: "Nordic Bikes Germany",
+        name: "Satin Sparrow (EUR)",
         carrier: "DHL",
         shippingFee: { name: "Shipping", unitPrice: 490, taxRate: 0 },
       },
@@ -403,7 +421,7 @@ describe("persona files", () => {
       expect(Object.keys(each.data.stores).length).toBeGreaterThan(0);
       // Claude picks by number, so every store a persona shops in needs a catalog.
       for (const store of Object.values(each.data.stores))
-        expect(catalogItem(store.id, "physical", 1), `${each.name}: ${store.name}`).toBeDefined();
+        expect(catalogPick(store.id, "physical", 0), `${each.name}: ${store.name}`).toBeDefined();
     }
   });
 

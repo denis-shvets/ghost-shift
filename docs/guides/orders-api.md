@@ -30,7 +30,7 @@ The routes share one helper, `handleApiRequest` in `src/features/orders/server/a
 
 Search and filters on the list, all optional:
 
-- `q`: an exact order reference (for example `MG-1003`), or an exact customer email. Both ignore case. A blank or space-only value counts as not sent.
+- `q`: an exact order reference (for example `NS-1003`), or an exact customer email. Both ignore case. A blank or space-only value counts as not sent.
 - `status`: one of `authorized`, `captured`, `part_captured`, `expired`, `canceled`, `refunded`.
 - `storeId`: a store id (uuid). You only get orders from stores you can see.
 - `paymentMethod`: one of the payment method codes, for example `card` or `paypal`.

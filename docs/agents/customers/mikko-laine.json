@@ -9,14 +9,34 @@
     "email": "mikko.laine@example.com"
   },
   "stores": {
-    "fi": {
-      "id": "8916eb8f-667b-4bf9-a6d9-c72316aa3841",
-      "name": "Moonlight Goods Finland (EUR)",
+    "fi1": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b10",
+      "name": "Plaid Parade (EUR)",
       "carrier": "Posti",
       "shippingFee": {
         "name": "Shipping, Posti",
         "unitPrice": 590,
-        "taxRate": 0
+        "taxRate": 2550
+      }
+    },
+    "fi2": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b11",
+      "name": "Wool Whisper (EUR)",
+      "carrier": "Posti",
+      "shippingFee": {
+        "name": "Shipping, Posti",
+        "unitPrice": 590,
+        "taxRate": 2550
+      }
+    },
+    "fi3": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b20",
+      "name": "Zipper Zenith (EUR)",
+      "carrier": "Posti",
+      "shippingFee": {
+        "name": "Shipping, Posti",
+        "unitPrice": 590,
+        "taxRate": 2550
       }
     }
   },

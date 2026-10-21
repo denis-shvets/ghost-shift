@@ -75,7 +75,7 @@ describe("GET /api/v1/orders/:orderId", () => {
   });
 
   it("returns the order for a user with no global roles", async () => {
-    const order = { id: orderId, reference: "NB-1001" };
+    const order = { id: orderId, reference: "PA-1001" };
     getOrder.mockResolvedValue(order);
 
     const response = await get(orderId);
