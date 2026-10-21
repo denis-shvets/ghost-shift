@@ -80,3 +80,9 @@ export const createOrderInput = z.object({
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderInput>;
+
+// What a simulated customer orders. A customer can't say the parcel already shipped; that is the
+// merchant's side. strict() refuses unknown fields instead of dropping them, so a wrong plan fails loudly.
+export const placeOrderInput = createOrderInput.omit({ shipped: true }).strict();
+
+export type PlaceOrderInput = z.infer<typeof placeOrderInput>;

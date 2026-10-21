@@ -37,7 +37,7 @@ It is also a portfolio project: a complete, tested, free-to-run fullstack app th
 
 Ghost Shift is a **merchant portal for Phantom Checkout, a fictional checkout and payments provider**. Merchants sell online through a hosted checkout; the portal is where they and their agents run everything after the purchase. The provider, merchants, data and code are all invented.
 
-**A simulated checkout** produces the work: a small built-in generator (and an API) creates shoppers and orders across markets, currencies and payment methods, so the portal always has realistic data without a real payment provider.
+**A simulated checkout** produces the work: a small built-in generator (and an API) creates customers and orders across markets, currencies and payment methods, so the portal always has realistic data without a real payment provider. **Night Shift** adds simulated customers on top: the owner plans the coming days on their machine, where code picks when each customer persona shops and Claude picks what they buy, and a cron in the Worker places each order at its planned time ([guide](guides/night-shift.md)).
 
 Domains, roughly in build order (_proposal_):
 
@@ -67,7 +67,7 @@ Agent work this enables, for example: capture orders when they ship, cancel orde
 
 ## First agents
 
-The first agents are **scheduled Claude tasks** that sign in as agent users and call the `/api/` routes. The first one will most likely work on **orders**, for example capturing shipped orders and canceling expired ones. Which tasks exactly is still open.
+The first agents are **Claude runs on the owner's machine**, started on a timer ([ADR 0017](adr/0017-local-agents-hosted-app.md)), that sign in as agent users and call the `/api/` routes. The first one will most likely work on **orders**, for example capturing shipped orders and canceling expired ones. Which tasks exactly is still open.
 
 Agents decide on their own. There are **no human approvals** in the first version; the activity log and live view are how humans follow what happened.
 

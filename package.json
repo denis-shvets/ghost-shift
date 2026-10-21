@@ -23,7 +23,13 @@
     "db:generate-seed": "node scripts/generate-seed-orders.ts",
     "cf:types": "wrangler types --include-runtime=false",
     "mcp:developer": "node --env-file-if-exists=.dev.vars scripts/mcp-developer.ts",
-    "mcp:agent": "node --env-file-if-exists=.dev.vars scripts/mcp-agent.ts"
+    "mcp:agent": "node --env-file-if-exists=.dev.vars scripts/mcp-agent.ts",
+    "mcp:agent:hosted": "node --env-file-if-exists=.hosted.vars scripts/mcp-agent.ts --hosted",
+    "night-shift:plan": "node --env-file-if-exists=.dev.vars scripts/night-shift.ts plan",
+    "night-shift:plan:hosted": "node --env-file=.hosted.vars scripts/night-shift.ts plan --hosted",
+    "night-shift:upload": "node --env-file-if-exists=.dev.vars scripts/night-shift.ts upload",
+    "night-shift:upload:hosted": "node --env-file=.hosted.vars scripts/night-shift.ts upload --hosted",
+    "night-shift:schema": "node scripts/night-shift.ts schema"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

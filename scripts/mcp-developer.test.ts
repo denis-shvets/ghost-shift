@@ -4,7 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
 
-import { apiErrorText, configInput, isLocalUrl, productsInput, runTool } from "./mcp-developer.ts";
+import {
+  apiErrorText,
+  configInput,
+  hostedConfigInput,
+  isLiveAppUrl,
+  isLocalUrl,
+  isSupabaseProjectUrl,
+  productsInput,
+  runTool,
+} from "./mcp-developer.ts";
 
 const validOrder = {
   storeId: "00000000-0000-4000-8000-000000000001",
@@ -71,6 +80,60 @@ describe("isLocalUrl", () => {
 
   it("rejects text that is not a URL", () => {
     expect(isLocalUrl("not a url")).toBe(false);
+  });
+});
+
+describe("hosted allowlist", () => {
+  const project = "https://abcdefghijklmnopqrst.supabase.co";
+
+  it("accepts the live app and a Supabase project over https", () => {
+    expect(isLiveAppUrl("https://ghost-shift.denis-shvets.workers.dev")).toBe(true);
+    expect(isLiveAppUrl("https://ghost-shift.denis-shvets.workers.dev/api/v1/orders")).toBe(true);
+    expect(isSupabaseProjectUrl(project)).toBe(true);
+  });
+
+  it("refuses http and explicit ports", () => {
+    expect(isLiveAppUrl("http://ghost-shift.denis-shvets.workers.dev")).toBe(false);
+    expect(isLiveAppUrl("https://ghost-shift.denis-shvets.workers.dev:8443")).toBe(false);
+    expect(isSupabaseProjectUrl("http://abcdefghijklmnopqrst.supabase.co")).toBe(false);
+  });
+
+  it("refuses look-alike hosts", () => {
+    expect(isLiveAppUrl("https://ghost-shift.denis-shvets.workers.dev.evil.com")).toBe(false);
+    expect(isLiveAppUrl("https://evil-ghost-shift.denis-shvets.workers.dev")).toBe(false);
+    expect(isLiveAppUrl("https://ghost-shift.denis-shvets.workers.dev@evil.com")).toBe(false);
+    expect(isLiveAppUrl("https://evil.com@ghost-shift.denis-shvets.workers.dev")).toBe(false);
+    expect(isSupabaseProjectUrl("https://abcdefghijklmnopqrst.supabase.co.evil.com")).toBe(false);
+    expect(isSupabaseProjectUrl("https://evil.abcdefghijklmnopqrst.supabase.co")).toBe(false);
+    expect(isSupabaseProjectUrl("https://short.supabase.co")).toBe(false);
+    // Each dot must be a dot: these are other registrable domains.
+    expect(isSupabaseProjectUrl("https://abcdefghijklmnopqrst-supabase.co")).toBe(false);
+    expect(isSupabaseProjectUrl("https://abcdefghijklmnopqrst.supabasexco")).toBe(false);
+  });
+
+  it("refuses other hosts, this machine and non-URLs", () => {
+    expect(isLiveAppUrl("https://example.com")).toBe(false);
+    expect(isLiveAppUrl("https://localhost:3000")).toBe(false);
+    expect(isSupabaseProjectUrl("https://example.com")).toBe(false);
+    expect(isSupabaseProjectUrl("not a url")).toBe(false);
+  });
+
+  it("keeps the app and the project apart", () => {
+    expect(isLiveAppUrl(project)).toBe(false);
+    expect(isSupabaseProjectUrl("https://ghost-shift.denis-shvets.workers.dev")).toBe(false);
+  });
+
+  it("defaults APP_URL to the live app and refuses local URLs", () => {
+    const env = { SUPABASE_URL: project, SUPABASE_PUBLISHABLE_KEY: "key" };
+    expect(hostedConfigInput.parse(env).APP_URL).toBe(
+      "https://ghost-shift.denis-shvets.workers.dev",
+    );
+    expect(hostedConfigInput.safeParse({ ...env, APP_URL: "http://localhost:3000" }).success).toBe(
+      false,
+    );
+    expect(
+      hostedConfigInput.safeParse({ ...env, SUPABASE_URL: "http://127.0.0.1:64321" }).success,
+    ).toBe(false);
   });
 });
 

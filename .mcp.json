@@ -7,6 +7,10 @@
     "ghost-shift-agent": {
       "command": "pnpm",
       "args": ["mcp:agent"]
+    },
+    "ghost-shift-agent-hosted": {
+      "command": "pnpm",
+      "args": ["mcp:agent:hosted"]
     }
   }
 }

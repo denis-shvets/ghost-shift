@@ -127,6 +127,27 @@
       "when": 1792536123590,
       "tag": "20261020224203_orders_shipped_at",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792573174469,
+      "tag": "20261021085934_night_shift_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792573181468,
+      "tag": "20261021085941_night_shift_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792573182503,
+      "tag": "20261021085942_orders_ship_after_delay",
+      "breakpoints": true
     }
   ]
 }

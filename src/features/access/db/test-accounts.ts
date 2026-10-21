@@ -35,6 +35,8 @@ export const testAccounts = {
   developer: "44444444-4444-4444-8444-444444444444",
   // platform_operator, a global role without organization permissions.
   operator: "66666666-6666-4666-8666-666666666666",
+  // checkout_customer at Nordic Bikes Germany only (Night Shift).
+  customer: "88888888-8888-4888-8888-888888888888",
   // Has no access at all.
   stranger: "55555555-5555-4555-8555-555555555555",
 } as const;
@@ -72,7 +74,8 @@ export async function createTestAccounts(db: Database) {
     sql`insert into public.store_assignments (user_id, store_id, role) values
       (${testAccounts.agent}::uuid, ${nordicBikesGermany}::uuid, 'agent_first_line'),
       (${testAccounts.agent}::uuid, ${nordicBikesGermany}::uuid, 'agent_second_line'),
-      (${testAccounts.firstLineAgent}::uuid, ${nordicBikesGermany}::uuid, 'agent_first_line')
+      (${testAccounts.firstLineAgent}::uuid, ${nordicBikesGermany}::uuid, 'agent_first_line'),
+      (${testAccounts.customer}::uuid, ${nordicBikesGermany}::uuid, 'checkout_customer')
       on conflict do nothing`,
   );
 }

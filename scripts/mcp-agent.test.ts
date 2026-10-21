@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { agentConfigInput, runAgentTool } from "./mcp-agent.ts";
+import { agentConfigInput, readAgentConfig, runAgentTool } from "./mcp-agent.ts";
 
 const orderId = "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b";
 const runId = "5a3b1e00-0000-4000-8000-000000000001";
@@ -110,5 +110,28 @@ describe("agentConfigInput", () => {
     expect(agentConfigInput.safeParse({ ...agent, APP_URL: "https://example.com" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("readAgentConfig", () => {
+  const hosted = {
+    SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY: "key",
+    SEED_AGENT_EMAIL: "local-agent@example.com",
+    SEED_PASSWORD: "local",
+  };
+
+  it("uses the hosted agent account, never the local email or SEED_PASSWORD", () => {
+    expect(() => readAgentConfig(hosted, true)).toThrow(/HOSTED_AGENT_EMAIL/);
+    expect(
+      readAgentConfig(
+        { ...hosted, HOSTED_AGENT_EMAIL: "agent@example.com", HOSTED_AGENT_PASSWORD: "hosted" },
+        true,
+      ),
+    ).toMatchObject({ email: "agent@example.com", password: "hosted" });
+  });
+
+  it("refuses the hosted project without --hosted", () => {
+    expect(() => readAgentConfig(hosted, false)).toThrow(/SUPABASE_URL/);
   });
 });

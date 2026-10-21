@@ -67,8 +67,11 @@ Each role then has permissions, listed in `role_permissions`:
 | `merchant_dispute_handler` | organization | read orders, handle disputes, read stores                      |
 | `agent_first_line`         | store        | read orders and stores                                         |
 | `agent_second_line`        | store        | read and edit orders, move money, handle disputes, read stores |
+| `checkout_customer`        | store        | create orders, read its own orders, read stores                |
 
 "Move money" is three permissions: `orders.capture`, `orders.cancel` and `orders.refund` (added 2026-10-20, section 4). They went to exactly the roles that could already edit orders.
+
+`checkout_customer` (added 2026-10-21) is the Night Shift customers' role. Besides `platform_developer`, it is the only role that may create orders, and only in the stores it is assigned to. The same `orders.create` lets it queue orders in `scheduled_checkouts`, which the Worker cron places later as that account. See [Night Shift](night-shift.md#4-the-queue-database-changes).
 
 Merchant A holds two roles at Moonlight Goods, so it can edit orders, move money and handle disputes there. Merchant B holds one role at Nordic Bikes, so it can handle disputes there but not edit orders or move money. The agent holds both support levels on one store, so it can edit orders and move money there, but only at that store.
 
@@ -105,7 +108,7 @@ create policy "developers can create orders" on public.orders
   for insert to authenticated with check (public.has_permission('orders.create', store_id));
 ```
 
-Read it as "a new order may be saved when the user has `orders.create` for that order's store". An insert also needs a grant (`grant insert on ... to authenticated`), and the grant and the policy work together: the grant lets the role ask, and the policy decides each row.
+Read it as "a new order may be saved when the user has `orders.create` for that order's store". (Since Night Shift a checkout customer holds `orders.create` too, so this policy was replaced by a stricter one: the order must be your own, start as an authorization, not be backdated and not be shipped. See [Night Shift, section 4e](night-shift.md#e-what-a-new-order-may-look-like).) An insert also needs a grant (`grant insert on ... to authenticated`), and the grant and the policy work together: the grant lets the role ask, and the policy decides each row.
 
 Order lines get the same check, made through their order. A line has no `store_id` of its own, so the policy looks up the line's order and asks `has_permission` about that order's store:
 
@@ -174,7 +177,7 @@ The app connects to Postgres as the `postgres` admin, and admins skip RLS. So a 
 
 ## 7. Accounts for local testing
 
-`pnpm db:seed-users` creates five sign-in accounts in your local Supabase, and gives each one its access. Run `pnpm db:start`, then `pnpm db:reset`, then `pnpm db:seed-users`. Reset wipes accounts, so seed again after every reset.
+`pnpm db:seed-users` creates seven sign-in accounts in your local Supabase, and gives each one its access. Run `pnpm db:start`, then `pnpm db:reset`, then `pnpm db:seed-users`. Reset wipes accounts, so seed again after every reset.
 
 | Email                                 | Access                                                                     | What it's for                                                                                                                                                                                                                            |
 | ------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -184,6 +187,7 @@ The app connects to Postgres as the `postgres` admin, and admins skip RLS. So a 
 | `merchant-nordic@ghostshift.test`     | `merchant_dispute_handler` at Nordic Bikes                                 | Sees Nordic Bikes orders and handles disputes, but can't edit them (merchant B).                                                                                                                                                         |
 | `viewer@ghostshift.test`              | none                                                                       | Signed in, but sees nothing. Shows that signing in alone grants nothing.                                                                                                                                                                 |
 | `SEED_AGENT_EMAIL` (from `.dev.vars`) | `agent_first_line` and `agent_second_line` on Nordic Bikes Germany         | The agent identity ([ADR 0007](../adr/0007-agent-identities.md)). Two support levels on one store. The address is any email you can receive mail at; a Gmail plus-address keeps the mail in your inbox while the account stays separate. |
+| `checkout@ghostshift.test`            | `checkout_customer` on the three live stores                               | The Night Shift customers' account ([Night Shift](night-shift.md)). Queues and creates orders, nothing else.                                                                                                                             |
 
 The seed script reads the local keys from `supabase status`, and it refuses to run against anything other than `127.0.0.1` or `localhost`. Its password comes from `SEED_PASSWORD` in `.dev.vars`, which Git ignores.
 
@@ -238,7 +242,7 @@ Our own server code logs to the `pnpm dev` terminal. A wrong password shows as a
   - capture, cancel and refund through `order_action` follow the permissions: a dispute handler is refused, another company's order is "not found", and an agent with second-line support may capture at their store;
   - the token hook copies global roles into the claim.
 - `src/features/orders/server/orders-repository.test.ts` runs the real order queries as a merchant, including one order that belongs to another company.
-- The same file checks that a second-line agent can capture while a first-line-only agent gets `403`, using the `firstLineAgent` account in `test-accounts.ts`.
+- The same file checks that a second-line agent can capture while a first-line-only agent gets `403`, using the `firstLineAgent` account in `test-accounts.ts`, and that the `customer` account creates orders only in its store and can't capture.
 - `src/shared/env/server-env.test.ts`, `src/shared/auth/user-claims.test.ts` and `src/features/auth/model/login-input.test.ts` cover the input checks.
 
 The access tests create their own accounts with fixed ids, in `src/features/access/db/test-accounts.ts`. They need only the database, not the Auth service, so CI can run them.
@@ -249,7 +253,7 @@ Run them with `pnpm db:start`, `pnpm db:reset`, then `pnpm test`.
 
 - **Sessions last one hour, then the user signs in again.** The login token expires after an hour, and the app doesn't refresh it yet. Refreshing needs a second cookie and a refresh step on each request.
 - **Sign-out only clears the cookie.** The token stays valid until it expires, because the server doesn't revoke it. Revoking all of a user's sessions needs one extra call, to add later.
-- **Only platform developers can create orders.** Existing orders change only through capture, cancel and refund (section 4) and the expiry job.
+- **Only platform developers and the Night Shift checkout customer can create orders.** Existing orders change only through capture, cancel and refund (section 4) and the expiry job.
 - **The create-order page is for platform developers only.** The page checks the role so other people do not see a developer tool; the database still decides who may create (`orders.create`). The orders API under `/api/v1/` is open to any signed-in user, and the database decides what each one may do. See [The orders API for agents](orders-api.md).
 - **Limit by amount isn't built.** A rule like "refund up to 500" needs an attribute check on top of the roles. That's the next step if you need it (see ADR 0015).
 - **Effective permissions aren't shown anywhere.** Someone has to read several membership rows to see what a person can do. A view can list them later (see ADR 0015).

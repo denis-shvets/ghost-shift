@@ -13,7 +13,7 @@ import { createOrderInput } from "../src/features/orders/model/create-order-inpu
 import { ORDER_ACTION_TOOLS } from "../src/features/orders/model/order-action-input.ts";
 import { SAMPLE_PRODUCTS } from "../src/features/orders/model/sample-products.ts";
 
-// The server must only talk to this machine: it signs in with a real (local) password.
+// By default the servers only talk to this machine: they sign in with a real (local) password.
 export function isLocalUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -52,6 +52,70 @@ export const configInput = z.object({
     z.string({ error: "SEED_PASSWORD is required. Set it in .dev.vars (see .dev.vars.example)." }),
   ),
 });
+
+// Hosted mode (`--hosted`, settings from .hosted.vars) may talk only to the live app and the
+// owner's Supabase project, over https. The app host is fixed here; the project host comes from
+// .hosted.vars but must look like <project-ref>.supabase.co.
+export const LIVE_APP_HOST = "ghost-shift.denis-shvets.workers.dev";
+const SUPABASE_PROJECT_HOST = /^[a-z0-9]{20}\.supabase\.co$/;
+
+function httpsHost(url: string): string | undefined {
+  try {
+    const parsed = new URL(url);
+    const plain = parsed.protocol === "https:" && !parsed.port && !parsed.username;
+    return plain && !parsed.password ? parsed.hostname : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export const isLiveAppUrl = (url: string) => httpsHost(url) === LIVE_APP_HOST;
+export const isSupabaseProjectUrl = (url: string) =>
+  SUPABASE_PROJECT_HOST.test(httpsHost(url) ?? "");
+
+export const hostedConfigInput = z.object({
+  SUPABASE_URL: z.preprocess(
+    unsetIfEmpty,
+    z
+      .string({ error: "SUPABASE_URL is required. Copy .hosted.vars.example to .hosted.vars." })
+      .refine(isSupabaseProjectUrl, {
+        error:
+          "SUPABASE_URL must be your Supabase project URL, https://<project-ref>.supabase.co, with no port.",
+      }),
+  ),
+  SUPABASE_PUBLISHABLE_KEY: z.preprocess(
+    unsetIfEmpty,
+    z.string({ error: "SUPABASE_PUBLISHABLE_KEY is required (see .hosted.vars.example)." }),
+  ),
+  APP_URL: z.preprocess(
+    unsetIfEmpty,
+    z
+      .string()
+      .default(`https://${LIVE_APP_HOST}`)
+      .refine(isLiveAppUrl, { error: `APP_URL must be https://${LIVE_APP_HOST}.` }),
+  ),
+});
+
+// Parses settings (environment or command-line options), with every problem in the error.
+export function parseConfig<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) throw new Error(z.prettifyError(parsed.error));
+  return parsed.data;
+}
+
+// The part of a parsed config that says where the API client connects.
+export const apiTarget = (env: {
+  SUPABASE_URL: string;
+  SUPABASE_PUBLISHABLE_KEY: string;
+  APP_URL: string;
+}) => ({
+  supabaseUrl: env.SUPABASE_URL,
+  publishableKey: env.SUPABASE_PUBLISHABLE_KEY,
+  appUrl: env.APP_URL,
+});
+
+// Hosted mode is chosen on the command line (the *:hosted pnpm scripts), never by a setting.
+export const isHosted = () => process.argv.includes("--hosted");
 
 export const productsInput = z.object({
   count: z.number().int().min(1).max(20).optional(),
@@ -102,6 +166,10 @@ export function toolError(text: string) {
   return { content: [{ type: "text" as const, text }], isError: true };
 }
 
+export function invalid(error: z.ZodError) {
+  return toolError(`Invalid input: ${issueText(error.issues)}`);
+}
+
 export function toolText(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
 }
@@ -126,7 +194,7 @@ export function createApiClient(config: {
     });
     if (error || !data.session)
       throw new Error(
-        `Sign-in as ${config.email} failed. Check SEED_PASSWORD and the email in .dev.vars, and that db:seed-users ran.`,
+        `Sign-in as ${config.email} failed. Check the email and password in .dev.vars (or .hosted.vars), and that the account exists.`,
       );
     token = data.session.access_token;
     return token;
@@ -149,7 +217,7 @@ export function createApiClient(config: {
     // Every orders API answer is JSON, so anything else is the wrong server, not a success.
     if (body === null)
       throw new ApiError(
-        `HTTP ${response.status}: the response was not JSON. Is APP_URL the Ghost Shift dev server?`,
+        `HTTP ${response.status}: the response was not JSON. Is APP_URL the Ghost Shift app?`,
       );
     return body;
   }
@@ -167,7 +235,7 @@ export async function runTool(name: string, args: Record<string, unknown>, api: 
       return toolText(await api.request("/api/v1/stores"));
     case "list_sample_products": {
       const input = productsInput.safeParse(args);
-      if (!input.success) return toolError(`Invalid input: ${issueText(input.error.issues)}`);
+      if (!input.success) return invalid(input.error);
       return toolText(SAMPLE_PRODUCTS.slice(0, input.data.count ?? SAMPLE_PRODUCTS.length));
     }
     // The API validates the order; its 400 issues reach the agent through apiErrorText.
@@ -190,14 +258,11 @@ export async function runTool(name: string, args: Record<string, unknown>, api: 
 }
 
 function readConfig() {
-  const env = configInput.safeParse(process.env);
-  if (!env.success) throw new Error(z.prettifyError(env.error));
+  const env = parseConfig(configInput, process.env);
   return {
-    supabaseUrl: env.data.SUPABASE_URL,
-    publishableKey: env.data.SUPABASE_PUBLISHABLE_KEY,
-    appUrl: env.data.APP_URL,
-    email: env.data.SEED_DEVELOPER_EMAIL,
-    password: env.data.SEED_PASSWORD,
+    ...apiTarget(env),
+    email: env.SEED_DEVELOPER_EMAIL,
+    password: env.SEED_PASSWORD,
   };
 }
 

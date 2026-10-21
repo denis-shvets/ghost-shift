@@ -1,0 +1,43 @@
+{
+  "$schema": "./persona.schema.json",
+  "timeZone": "Europe/Stockholm",
+  "ordersPerWeek": 2,
+  "windows": ["Mon-Fri 12:00-13:00", "Sun 18:00-22:00"],
+  "customer": {
+    "firstName": "Sara",
+    "lastName": "Lindqvist",
+    "email": "sara.lindqvist@example.com",
+    "phone": "+46 8 555 019 33"
+  },
+  "stores": {
+    "se": {
+      "id": "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
+      "name": "Moonlight Goods Sweden (SEK)",
+      "carrier": "PostNord",
+      "shippingFee": {
+        "name": "Shipping, PostNord",
+        "unitPrice": 4900,
+        "taxRate": 2500
+      }
+    }
+  },
+  "addresses": {
+    "home": {
+      "firstName": "Sara",
+      "lastName": "Lindqvist",
+      "streetAddress": "Rörstrandsgatan 18",
+      "postalCode": "113 40",
+      "city": "Stockholm",
+      "country": "SE"
+    },
+    "office": {
+      "firstName": "Sara",
+      "lastName": "Lindqvist",
+      "company": "Lindqvist & Berg AB",
+      "streetAddress": "Kungsgatan 44",
+      "postalCode": "111 35",
+      "city": "Stockholm",
+      "country": "SE"
+    }
+  }
+}

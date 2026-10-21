@@ -1,0 +1,33 @@
+{
+  "$schema": "./persona.schema.json",
+  "timeZone": "Europe/Helsinki",
+  "ordersPerWeek": 3,
+  "windows": ["Mon-Sun 22:00-03:00"],
+  "customer": {
+    "firstName": "Mikko",
+    "lastName": "Laine",
+    "email": "mikko.laine@example.com"
+  },
+  "stores": {
+    "fi": {
+      "id": "8916eb8f-667b-4bf9-a6d9-c72316aa3841",
+      "name": "Moonlight Goods Finland (EUR)",
+      "carrier": "Posti",
+      "shippingFee": {
+        "name": "Shipping, Posti",
+        "unitPrice": 590,
+        "taxRate": 0
+      }
+    }
+  },
+  "addresses": {
+    "home": {
+      "firstName": "Mikko",
+      "lastName": "Laine",
+      "streetAddress": "Kalliolanrinne 7 B 12",
+      "postalCode": "00510",
+      "city": "Helsinki",
+      "country": "FI"
+    }
+  }
+}

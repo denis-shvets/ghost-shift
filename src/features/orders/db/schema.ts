@@ -49,6 +49,9 @@ export const orders = pgTable(
       .notNull()
       .default(sql`now() + interval '28 days'`),
     storeId: uuid().notNull(),
+    // The signed-in user who placed the order. Null for orders from before this column.
+    // Policies use it so a checkout customer reads and extends only its own orders.
+    createdBy: uuid().default(sql`auth.uid()`),
     // ISO 4217 currency code, for example SEK. Must match the store's currency.
     currency: char({ length: 3 }).notNull(),
     // The customer as they were when they ordered. Addresses are in order_addresses.
@@ -78,6 +81,11 @@ export const orders = pgTable(
       name: "orders_store_currency_fk",
       columns: [table.storeId, table.currency],
       foreignColumns: [stores.id, stores.currency],
+    }),
+    foreignKey({
+      name: "orders_created_by_fk",
+      columns: [table.createdBy],
+      foreignColumns: [authUsers.id],
     }),
     check("orders_currency_format_check", sql`${table.currency} ~ '^[A-Z]{3}$'`),
     check("orders_total_amount_not_negative_check", sql`${table.totalAmount} >= 0`),
