@@ -6,8 +6,7 @@ import { type CreateOrderInput, MAX_LINE_QUANTITY } from "../model/create-order-
 import { PAYMENT_METHOD_LABELS } from "../model/order-labels";
 import { formatMoney } from "../model/money";
 import { lineTotal, orderTotal } from "../model/order-total";
-import { type SampleProduct } from "../model/sample-products";
-import { STORE_CATALOGS } from "../model/store-catalogs";
+import { catalogProducts, type SampleProduct } from "../model/store-catalogs";
 import { createOrderFn, fetchStoresFn } from "../server/functions";
 import type { listStoresForOrder } from "../server/orders-repository";
 import { addressFromForm } from "./address-form";
@@ -103,13 +102,7 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
   const store = stores.find((candidate) => candidate.id === storeId);
   const currency = store?.currency ?? "";
   // Physical first, then digital, the same order the MCP tool uses.
-  const catalog = STORE_CATALOGS[storeId];
-  const products: SampleProduct[] = catalog
-    ? [
-        ...catalog.physical.map((product) => ({ ...product, type: "physical" as const })),
-        ...catalog.digital.map((product) => ({ ...product, type: "digital" as const })),
-      ]
-    : [];
+  const products = catalogProducts(storeId);
 
   // Intl throws on an empty currency code, so nothing money-related renders without a store.
   if (stores.length === 0) {

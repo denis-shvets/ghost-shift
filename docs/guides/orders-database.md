@@ -149,7 +149,7 @@ The app never inserts `total_amount` or `total_tax_amount` on `order_lines`. The
 
 **Why:** every fresh local database, and every QA round, should start from the same known data. `pnpm db:reset` wipes the local database, re-runs all migrations and loads both files again, in the order `supabase/config.toml` lists them.
 
-`seed-orders.sql` is generated, not written by hand: `pnpm db:generate-seed` runs `scripts/generate-seed-orders.ts`, which builds fixed demo orders plus random ones with Faker. Faker always starts from the same seed number, so the output is the same on every run. Addresses use the store's own country (Swedish streets for the Swedish store, and so on). A test fails if the file and the generator disagree, so after changing the script, run `pnpm db:generate-seed` and commit the new file.
+`seed-orders.sql` is generated, not written by hand: `pnpm db:generate-seed` runs `scripts/generate-seed-orders.ts`, which builds fixed demo orders plus random ones with Faker. Faker always starts from the same seed number, so the output is the same on every run. Addresses use the store's own country (Swedish streets for the Swedish store, and so on). Each random order's lines are picked from its store's own catalog (`catalogProducts` in `src/features/orders/model/store-catalogs.ts`), so prices are in that store's currency. The shipping fee uses the store's VAT rate. A test fails if the file and the generator disagree, so after changing the script, run `pnpm db:generate-seed` and commit the new file.
 
 ### Connecting from the app
 

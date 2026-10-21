@@ -1,10 +1,9 @@
 import seedIds from "../../../shared/seed/seed-ids.json" with { type: "json" };
 
-import type { SampleProduct } from "./sample-products.ts";
-
 export type CatalogList = "physical" | "digital";
 export type CatalogProduct = { sku: string; name: string; unitPrice: number; taxRate: number };
 export type StoreCatalog = Record<CatalogList, readonly CatalogProduct[]>;
+export type SampleProduct = CatalogProduct & { type: CatalogList };
 
 // The number of items in each list. Claude picks items by number (1 to CATALOG_SIZE).
 export const CATALOG_SIZE = 25;
@@ -262,6 +261,16 @@ export const STORE_CATALOGS: Readonly<Record<string, StoreCatalog>> = {
     ],
   },
 };
+
+// A store's 50 products, physical first, each with its type. Empty for an unknown store.
+export function catalogProducts(storeId: string): SampleProduct[] {
+  const catalog = Object.hasOwn(STORE_CATALOGS, storeId) ? STORE_CATALOGS[storeId] : undefined;
+  if (!catalog) return [];
+  return [
+    ...catalog.physical.map((product) => ({ ...product, type: "physical" as const })),
+    ...catalog.digital.map((product) => ({ ...product, type: "digital" as const })),
+  ];
+}
 
 // Item `number` (1-based) of a store's list, with its type, or undefined if there is none.
 export function catalogItem(

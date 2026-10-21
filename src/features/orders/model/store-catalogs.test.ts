@@ -8,6 +8,7 @@ import {
   type StoreCatalog,
   STORE_CATALOGS,
   catalogItem,
+  catalogProducts,
 } from "./store-catalogs.ts";
 
 // Each store's market code (used in SKUs), standard VAT in basis points.
@@ -79,6 +80,26 @@ describe("STORE_CATALOGS", () => {
         }
       }
     }
+  });
+});
+
+describe("catalogProducts", () => {
+  const sweden = seedIds.stores.moonlightSweden;
+
+  it("returns 50 products, physical first, each with its type", () => {
+    const products = catalogProducts(sweden);
+    const catalog = catalogFor(sweden);
+    expect(products).toHaveLength(CATALOG_SIZE * 2);
+    expect(products.slice(0, CATALOG_SIZE).every((product) => product.type === "physical")).toBe(
+      true,
+    );
+    expect(products[0]).toEqual({ ...catalog.physical[0], type: "physical" });
+    expect(products[CATALOG_SIZE]).toEqual({ ...catalog.digital[0], type: "digital" });
+  });
+
+  it("returns an empty list for an unknown store", () => {
+    expect(catalogProducts("00000000-0000-4000-8000-000000000000")).toEqual([]);
+    expect(catalogProducts("constructor")).toEqual([]);
   });
 });
 
