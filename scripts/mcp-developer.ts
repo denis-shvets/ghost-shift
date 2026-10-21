@@ -11,7 +11,7 @@ import { z } from "zod";
 
 import { createOrderInput } from "../src/features/orders/model/create-order-input.ts";
 import { ORDER_ACTION_TOOLS } from "../src/features/orders/model/order-action-input.ts";
-import { STORE_CATALOGS } from "../src/features/orders/model/store-catalogs.ts";
+import { catalogProducts, STORE_CATALOGS } from "../src/features/orders/model/store-catalogs.ts";
 
 // By default the servers only talk to this machine: they sign in with a real (local) password.
 export function isLocalUrl(url: string): boolean {
@@ -238,15 +238,11 @@ export async function runTool(name: string, args: Record<string, unknown>, api: 
     case "list_sample_products": {
       const input = productsInput.safeParse(args);
       if (!input.success) return invalid(input.error);
-      const catalog = STORE_CATALOGS[input.data.storeId];
-      if (!catalog)
+      if (!STORE_CATALOGS[input.data.storeId])
         return toolError(
           `Unknown store: ${input.data.storeId}. Call list_stores for the stores you can use.`,
         );
-      const products = [
-        ...catalog.physical.map((product) => ({ ...product, type: "physical" as const })),
-        ...catalog.digital.map((product) => ({ ...product, type: "digital" as const })),
-      ];
+      const products = catalogProducts(input.data.storeId);
       return toolText(products.slice(0, input.data.count ?? products.length));
     }
     // The API validates the order; its 400 issues reach the agent through apiErrorText.

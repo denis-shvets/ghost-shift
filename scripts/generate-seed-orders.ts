@@ -13,9 +13,9 @@ import {
   type PaymentMethod,
 } from "../src/features/orders/model/payment-methods.ts";
 import {
-  SAMPLE_PRODUCTS,
+  catalogProducts,
   type SampleProduct,
-} from "../src/features/orders/model/sample-products.ts";
+} from "../src/features/orders/model/store-catalogs.ts";
 
 const NOW = new Date("2026-10-19T00:00:00Z");
 const HOUR = 60 * 60 * 1000;
@@ -34,10 +34,15 @@ const seedIds = JSON.parse(
   readFileSync(new URL("../src/shared/seed/seed-ids.json", import.meta.url), "utf8"),
 ) as { stores: Record<string, string> };
 
-const SE: Store = { id: seedIds.stores.moonlightSweden, market: "SE", currency: "SEK" };
-const FI: Store = { id: seedIds.stores.moonlightFinland, market: "FI", currency: "EUR" };
-const NO: Store = { id: seedIds.stores.moonlightNorway, market: "NO", currency: "NOK" };
-const DE: Store = { id: seedIds.stores.nordicBikesGermany, market: "DE", currency: "EUR" };
+const SE: Store = { id: seedIds.stores.moonlightSweden, market: "SE", currency: "SEK", vat: 2500 };
+const FI: Store = { id: seedIds.stores.moonlightFinland, market: "FI", currency: "EUR", vat: 2550 };
+const NO: Store = { id: seedIds.stores.moonlightNorway, market: "NO", currency: "NOK", vat: 2500 };
+const DE: Store = {
+  id: seedIds.stores.nordicBikesGermany,
+  market: "DE",
+  currency: "EUR",
+  vat: 1900,
+};
 const MOONLIGHT_STORES = [SE, FI, NO];
 // Addresses and shipping names look local to each store's market.
 const LOCAL_FAKERS: Record<string, Faker> = {
@@ -47,7 +52,8 @@ const LOCAL_FAKERS: Record<string, Faker> = {
   DE: fakerDE,
 };
 
-type Store = { id: string; market: string; currency: string };
+// vat is the market's standard rate in basis points, the same as the store's catalog.
+type Store = { id: string; market: string; currency: string; vat: number };
 type Customer = { firstName: string; lastName: string; email: string; phone: string | null };
 type LineInput = {
   type: "physical" | "digital" | "shipping_fee";
@@ -558,7 +564,7 @@ function randomOrder(index: number, reference: string): SeedOrder {
   );
   const expiresAt = authorizationExpiresAt(createdAt, paymentMethod);
   const products = faker.helpers.arrayElements(
-    SAMPLE_PRODUCTS,
+    catalogProducts(store.id),
     faker.number.int({ min: 1, max: 3 }),
   );
   const lines = products.map((product) =>
@@ -572,7 +578,7 @@ function randomOrder(index: number, reference: string): SeedOrder {
       name: `Shipping, ${carrier}`,
       quantity: 1,
       unitPrice: 4900,
-      taxRate: 2500,
+      taxRate: store.vat,
     });
   }
   const total = sumLines(lines);

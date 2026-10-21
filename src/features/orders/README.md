@@ -10,7 +10,7 @@ Orders placed through Phantom Checkout, with their lines, payment and shipping.
 - Capture, refund and cancel on the order page, each with a required reason. Captures and refunds can be partial. The page shows only the forms the order's status allows; the database checks the permission (`orders.capture`, `orders.refund`, `orders.cancel`) and the rules, and writes a timeline event with the person's email and the reason. How it works: [the orders database guide, section 6](../../../docs/guides/orders-database.md#6-capture-cancel-and-refund-2026-10-20).
 - The same actions are on the orders API (`POST /api/v1/order-actions`) and as MCP and WebMCP tools: `capture_order`, `refund_order`, `cancel_order`.
 - On the API, each action can carry an `agentRunId` (the MCP and WebMCP tools leave it out: they can't start a run). `order_action()` checks the run is the caller's own and still going, and writes it on the event (`order_events.agent_run_id`). See [agent runs](../agent-runs/README.md).
-- Platform developers can create test orders at `/developer/create-order`. Products come from a fixed list of 20 sample products, and the total uses the store's currency. Anyone else is sent back to `/orders`.
+- Platform developers can create test orders at `/developer/create-order`. Products come from the chosen store's own catalog of 50 products (25 physical, then 25 digital), priced in the store's currency. Anyone else is sent back to `/orders`.
 
 ## WebMCP (experimental)
 
