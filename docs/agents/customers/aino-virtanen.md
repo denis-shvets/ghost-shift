@@ -4,8 +4,8 @@ A teacher in Turku. She checks the shops on her phone before school and sometime
 
 ## Basket
 
-- One product, number 1–18 of either list, quantity 1 or, when `variety` is under 15, quantity 3.
-- Store: `fi`. `variety` from 85 up: `se`, if it is open.
+- Store: `fi1` or `fi2`, whichever she picks first for the visit. `variety` from 85 up: `se1`, if it is open.
+- One product, either type, pick 0–8, quantity 1 or, when `variety` is under 15, quantity 3.
 
 ## Payment and address
 

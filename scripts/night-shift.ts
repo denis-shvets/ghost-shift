@@ -29,7 +29,7 @@ import {
   PAYMENT_METHODS,
   type PaymentMethod,
 } from "../src/features/orders/model/payment-methods.ts";
-import { CATALOG_SIZE, catalogItem } from "../src/features/orders/model/store-catalogs.ts";
+import { catalogPick, PICK_MAX } from "../src/features/orders/model/store-catalogs.ts";
 import {
   MAX_SCHEDULED_CHECKOUTS,
   type ScheduledCheckoutInput,
@@ -62,7 +62,9 @@ const customerConfigInput = configInput.omit({ SEED_DEVELOPER_EMAIL: true });
 const customerHostedConfigInput = hostedConfigInput.extend({
   HOSTED_CHECKOUT_PASSWORD: z.preprocess(
     unsetIfEmpty,
-    z.string({ error: "HOSTED_CHECKOUT_PASSWORD is required. Set it in .hosted.vars." }),
+    z.string({
+      error: "HOSTED_CHECKOUT_PASSWORD is required. Set it in .hosted.vars.",
+    }),
   ),
 });
 
@@ -76,7 +78,11 @@ export function readCustomerConfig(env: NodeJS.ProcessEnv, hosted: boolean) {
     };
   }
   const config = parseConfig(customerConfigInput, env);
-  return { ...apiTarget(config), email: CHECKOUT_EMAIL, password: config.SEED_PASSWORD };
+  return {
+    ...apiTarget(config),
+    email: CHECKOUT_EMAIL,
+    password: config.SEED_PASSWORD,
+  };
 }
 
 const timeZone = z.string().refine(
@@ -109,9 +115,15 @@ const visitWindow = z
       days.add((index + 1) % 7);
       if (DAYS[index] === last) break;
     }
-    return { days, start: +startHour * 60 + +startMinute, end: +endHour * 60 + +endMinute };
+    return {
+      days,
+      start: +startHour * 60 + +startMinute,
+      end: +endHour * 60 + +endMinute,
+    };
   })
-  .refine((window) => window.start !== window.end, { error: "A window needs some time in it." });
+  .refine((window) => window.start !== window.end, {
+    error: "A window needs some time in it.",
+  });
 
 export const scheduleInput = z.object({
   timeZone: timeZone.describe("An IANA time zone, e.g. Europe/Berlin. Windows are in this zone."),
@@ -216,7 +228,7 @@ export const personaDataInput = z.object({
         name: z
           .string()
           .min(1)
-          .describe("Shown to Claude next to the key, e.g. Nordic Bikes Germany (EUR)."),
+          .describe("Shown to Claude next to the key, e.g. Satin Sparrow (EUR)."),
         carrier: z.string().min(1),
         shippingFee: z
           .strictObject({
@@ -263,7 +275,12 @@ export function parsePersona(name: string, value: unknown) {
   };
 }
 
-export type Persona = { name: string; text: string; schedule: Schedule; data: PersonaData };
+export type Persona = {
+  name: string;
+  text: string;
+  schedule: Schedule;
+  data: PersonaData;
+};
 
 // One planned visit. Claude sees the local time and the dice; the order is placed at `dueAt`.
 export type Slot = {
@@ -332,7 +349,9 @@ export function readPersonas(dir = CUSTOMERS_DIR): Persona[] {
   ];
   if (lonely.length > 0)
     throw new Error(
-      `Each persona needs both <name>.md and <name>.json in ${dir}. Missing a half: ${lonely.join(", ")}.`,
+      `Each persona needs both <name>.md and <name>.json in ${dir}. Missing a half: ${lonely.join(
+        ", ",
+      )}.`,
     );
   return md.map((name) => ({
     name,
@@ -349,8 +368,8 @@ const visitAnswer = z.object({
   items: z
     .array(
       z.object({
-        list: z.enum(["physical", "digital"]),
-        number: z.number().int().min(1).max(CATALOG_SIZE),
+        type: z.enum(["physical", "digital"]),
+        pick: z.number().int().min(0).max(PICK_MAX),
         quantity: z.number().int().min(1).max(10),
       }),
     )
@@ -363,7 +382,9 @@ const visitAnswer = z.object({
 // Sent as --json-schema, so the answer has this shape.
 export const answerInput = z.object({ orders: z.array(visitAnswer) });
 // The same, read loosely, so one bad visit fails only its own slot.
-const looseAnswer = z.object({ orders: z.array(z.looseObject({ slotId: z.string() })) });
+const looseAnswer = z.object({
+  orders: z.array(z.looseObject({ slotId: z.string() })),
+});
 
 // Keeps each persona to the stores the checkout account may order in, here and now. A persona with
 // none left (its store doesn't exist in this database, or isn't assigned) is skipped, so one
@@ -473,15 +494,26 @@ export function buildOrder(answer: unknown, persona: Persona): PlaceOrderInput |
   const billing = pick(addresses, billTo);
   const shipping = pick(addresses, shipTo);
   if (!billing || !shipping)
-    return `address "${billing ? shipTo : billTo}" isn't one of ${Object.keys(addresses).join(", ")}`;
-  if (new Set(items.map((item) => `${item.list} ${item.number}`)).size !== items.length)
+    return `address "${billing ? shipTo : billTo}" isn't one of ${Object.keys(addresses).join(
+      ", ",
+    )}`;
+  if (new Set(items.map((item) => `${item.type} ${item.pick}`)).size !== items.length)
     return "a product is listed twice; raise its quantity instead";
-  if (!catalogItem(shop.id, "physical", 1)) return `store "${store}" has no catalog`;
+  if (!catalogPick(shop.id, "physical", 0)) return `store "${store}" has no catalog`;
 
-  const products = items.map(({ list, number, quantity }) => {
-    const { type, sku, name, unitPrice, taxRate } = catalogItem(shop.id, list, number)!;
-    return { type, sku, name, quantity, unitPrice, taxRate };
-  });
+  const products = [];
+  for (const { type, pick: position, quantity } of items) {
+    const item = catalogPick(shop.id, type, position);
+    if (!item) return `store "${store}" has no ${type} item at pick ${position}`;
+    products.push({
+      type,
+      sku: item.sku,
+      name: item.name,
+      quantity,
+      unitPrice: item.unitPrice,
+      taxRate: item.taxRate,
+    });
+  }
   return storeOrder(shop, customer, billing, shipping, payment, products);
 }
 
@@ -499,7 +531,12 @@ export function checkAnswer(answer: unknown, slots: Slot[], personas: Persona[])
         ? `${answered.length} orders instead of 1`
         : buildOrder(answered[0], persona);
     if (typeof result === "string") failed.push({ slot, reason: result });
-    else checkouts.push({ dueAt: slot.dueAt, persona: slot.persona, order: result });
+    else
+      checkouts.push({
+        dueAt: slot.dueAt,
+        persona: slot.persona,
+        order: result,
+      });
   }
   return { checkouts, failed };
 }
@@ -715,7 +752,9 @@ async function upload(args: string[]) {
   })) as { queued: number };
   renameSync(file, uploadedName(file));
   console.log(
-    `Queued ${result.queued} checkouts (plan ${planned.planId}). Renamed the file to ${uploadedName(file)}.`,
+    `Queued ${result.queued} checkouts (plan ${
+      planned.planId
+    }). Renamed the file to ${uploadedName(file)}.`,
   );
 }
 

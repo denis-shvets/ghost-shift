@@ -148,7 +148,7 @@ const tools = [
   {
     name: "list_sample_products",
     description:
-      "List a store's 50 products (25 physical, then 25 digital), with prices in that store's currency (no network). Pass storeId from list_stores. Pass count to get only the first N.",
+      "List a store's 30 products, in list order, with prices in that store's currency (no network). Pass storeId from list_stores. Pass count to get only the first N.",
     inputSchema: z.toJSONSchema(productsInput) as { type: "object" },
   },
   {

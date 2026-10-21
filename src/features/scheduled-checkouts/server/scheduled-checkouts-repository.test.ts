@@ -35,7 +35,7 @@ const HOUR = 60 * MINUTE;
 const customer: UserClaims = { sub: testAccounts.customer, global_roles: [] };
 
 const order: PlaceOrderInput = {
-  storeId: seedIds.stores.nordicBikesGermany,
+  storeId: seedIds.stores.satinSparrow,
   customer: { firstName: "Jonas", lastName: "Weber", email: "jonas.weber@example.com" },
   billingAddress: {
     firstName: "Jonas",
@@ -135,10 +135,10 @@ describe("queueCheckouts", () => {
   it("refuses a store the user can't see or can't order in, and queues nothing", async () => {
     const planId = randomUUID();
     const dueAt = new Date(Date.now() + HOUR).toISOString();
-    const norway = { ...order, storeId: seedIds.stores.moonlightNorway };
+    const norway = { ...order, storeId: seedIds.stores.silkPineOslo };
     // Merchant A reads its Swedish store but may not create orders there.
     const merchant: UserClaims = { sub: testAccounts.merchantA, global_roles: [] };
-    const sweden = { ...order, storeId: seedIds.stores.moonlightSweden };
+    const sweden = { ...order, storeId: seedIds.stores.velourVault };
 
     await expect(
       queueCheckouts(db, customer, {
@@ -160,10 +160,8 @@ describe("queueCheckouts", () => {
 
 describe("planningContext", () => {
   it("lists the stores the user may queue in", async () => {
-    // The test customer is checkout_customer at Nordic Bikes Germany only.
-    expect((await planningContext(db, customer)).storeIds).toEqual([
-      seedIds.stores.nordicBikesGermany,
-    ]);
+    // The test customer is checkout_customer at Satin Sparrow only.
+    expect((await planningContext(db, customer)).storeIds).toEqual([seedIds.stores.satinSparrow]);
     const merchant: UserClaims = { sub: testAccounts.merchantA, global_roles: [] };
     expect((await planningContext(db, merchant)).storeIds).toEqual([]);
   });
@@ -204,7 +202,7 @@ describe("releaseDueCheckouts", () => {
     // The customer has no checkout_customer role in the Norway test store.
     const refused = await addDue(new Date(Date.now() - 2 * MINUTE), {
       ...order,
-      storeId: seedIds.stores.moonlightNorway,
+      storeId: seedIds.stores.silkPineOslo,
     });
     const fine = await addDue(new Date(Date.now() - MINUTE));
 

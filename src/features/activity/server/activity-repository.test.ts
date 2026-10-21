@@ -23,7 +23,7 @@ const db = createDb(testDatabaseUrl);
 beforeAll(() => createTestAccounts(db));
 afterAll(() => db.close());
 
-// Merchant A (Moonlight Goods) reads the events in these tests.
+// Merchant A (Northstar Threads) reads the events in these tests.
 const merchant: UserClaims = { sub: testAccounts.merchantA, global_roles: [] };
 const developer: UserClaims = { sub: testAccounts.developer, global_roles: ["platform_developer"] };
 
@@ -34,9 +34,9 @@ afterAll(async () => {
   await db.delete(agentRuns).where(eq(agentRuns.purpose, "Activity test run"));
 });
 
-// An order for the Swedish store (Moonlight Goods).
+// An order for the Swedish store (Northstar Threads).
 const newOrder: CreateOrderInput = {
-  storeId: seedIds.stores.moonlightSweden,
+  storeId: seedIds.stores.velourVault,
   customer: { firstName: "Test", lastName: "Activity", email: "activity@example.com" },
   billingAddress: {
     firstName: "Test",
@@ -68,7 +68,7 @@ const newOrder: CreateOrderInput = {
   ],
 };
 
-// A refund for the Swedish store (Moonlight Goods), made as the merchant, so the log has one.
+// A refund for the Swedish store (Northstar Threads), made as the merchant, so the log has one.
 async function refundedOrder() {
   const { id } = await createOrder(db, developer, newOrder);
   created.push(id);
@@ -92,8 +92,8 @@ describe("listActivity", () => {
     const { events } = await listActivity(db, merchant, { limit: 50 });
 
     expect(events.length).toBeGreaterThan(0);
-    // Nordic Bikes' orders are seeded as NB-, so none of them may appear here.
-    expect(events.some((event) => event.reference.startsWith("NB-"))).toBe(false);
+    // Pocket Atelier' orders are seeded as PA-, so none of them may appear here.
+    expect(events.some((event) => event.reference.startsWith("PA-"))).toBe(false);
     const times = events.map((event) => event.occurredAt.getTime());
     expect([...times].sort((a, b) => b - a)).toEqual(times);
   });
@@ -136,7 +136,7 @@ describe("listActivity", () => {
   });
 
   it("filters by store", async () => {
-    const storeId = seedIds.stores.moonlightSweden;
+    const storeId = seedIds.stores.velourVault;
 
     const { events } = await listActivity(db, merchant, { limit: 100, storeId });
 
@@ -146,7 +146,7 @@ describe("listActivity", () => {
 
   it("filters refunds by store, as the refunds page does", async () => {
     const id = await refundedOrder();
-    const storeId = seedIds.stores.moonlightSweden;
+    const storeId = seedIds.stores.velourVault;
 
     const { events } = await listActivity(db, merchant, {
       limit: 100,
@@ -173,11 +173,11 @@ describe("listActivity", () => {
   });
 
   it("shows the run's purpose to platform staff and only its id to merchants", async () => {
-    // A capture by the second-line agent at Nordic Bikes Germany, inside a run.
+    // A capture by the second-line agent at Satin Sparrow, inside a run.
     const agent: UserClaims = { sub: testAccounts.agent, global_roles: [] };
     const { id: orderId } = await createOrder(db, developer, {
       ...newOrder,
-      storeId: seedIds.stores.nordicBikesGermany,
+      storeId: seedIds.stores.satinSparrow,
     });
     created.push(orderId);
     const run = await startAgentRun(db, agent, { purpose: "Activity test run" });
@@ -193,7 +193,7 @@ describe("listActivity", () => {
       const { events } = await listActivity(db, user, {
         limit: 50,
         action: "captured",
-        storeId: seedIds.stores.nordicBikesGermany,
+        storeId: seedIds.stores.satinSparrow,
       });
       return events.find((event) => event.orderId === orderId);
     };
@@ -202,7 +202,7 @@ describe("listActivity", () => {
       agentRunId: run.id,
       agentRunPurpose: "Activity test run",
     });
-    // Merchant B handles disputes at Nordic Bikes: reads the event, but not the run.
+    // Merchant B handles disputes at Pocket Atelier: reads the event, but not the run.
     expect(await captureSeenBy({ sub: testAccounts.merchantB, global_roles: [] })).toMatchObject({
       agentRunId: run.id,
       agentRunPurpose: null,

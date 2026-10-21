@@ -48,11 +48,11 @@ Access is role-based (RBAC). A person can hold several roles, and their permissi
 
 Three tables hold the access rules, and each one answers a different question:
 
-| Table               | Question it answers                             | Example rows                                                               |
-| ------------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
-| `user_roles`        | Which roles does this person have everywhere?   | `platform_developer` for the developer account                             |
-| `org_members`       | Which roles does this person have in a company? | `merchant_order_manager` and `merchant_dispute_handler` in Moonlight Goods |
-| `store_assignments` | Which roles does this person have on a store?   | `agent_first_line` and `agent_second_line` on Nordic Bikes Germany         |
+| Table               | Question it answers                             | Example rows                                                                 |
+| ------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------- |
+| `user_roles`        | Which roles does this person have everywhere?   | `platform_developer` for the developer account                               |
+| `org_members`       | Which roles does this person have in a company? | `merchant_order_manager` and `merchant_dispute_handler` in Northstar Threads |
+| `store_assignments` | Which roles does this person have on a store?   | `agent_first_line` and `agent_second_line` on Satin Sparrow                  |
 
 The roles themselves are listed in `roles`, with their scope. A role's scope limits where it can be used. A store role can't be given to a company, and a company role can't be given to one store. The database refuses that.
 
@@ -73,7 +73,7 @@ Each role then has permissions, listed in `role_permissions`:
 
 `checkout_customer` (added 2026-10-21) is the Night Shift customers' role. Besides `platform_developer`, it is the only role that may create orders, and only in the stores it is assigned to. The same `orders.create` lets it queue orders in `scheduled_checkouts`, which the Worker cron places later as that account. See [Night Shift](night-shift.md#4-the-queue-database-changes).
 
-Merchant A holds two roles at Moonlight Goods, so it can edit orders, move money and handle disputes there. Merchant B holds one role at Nordic Bikes, so it can handle disputes there but not edit orders or move money. The agent holds both support levels on one store, so it can edit orders and move money there, but only at that store.
+Merchant A holds two roles at Northstar Threads, so it can edit orders, move money and handle disputes there. Merchant B holds one role at Pocket Atelier, so it can handle disputes there but not edit orders or move money. The agent holds both support levels on one store, so it can edit orders and move money there, but only at that store.
 
 The token carries only the global roles, as the `global_roles` claim. Organization and store roles are checked in the database for each query, so changing them takes effect immediately, not after the token refreshes.
 
@@ -179,15 +179,15 @@ The app connects to Postgres as the `postgres` admin, and admins skip RLS. So a 
 
 `pnpm db:seed-users` creates seven sign-in accounts in your local Supabase, and gives each one its access. Run `pnpm db:start`, then `pnpm db:reset`, then `pnpm db:seed-users`. Reset wipes accounts, so seed again after every reset.
 
-| Email                                 | Access                                                                     | What it's for                                                                                                                                                                                                                            |
-| ------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `developer@ghostshift.test`           | `platform_developer` (global)                                              | Sees every order.                                                                                                                                                                                                                        |
-| `platform-operator@ghostshift.test`   | `platform_operator` (global)                                               | Sees every order and store, without the developer's permissions. Can't read organization names.                                                                                                                                          |
-| `merchant-orders@ghostshift.test`     | `merchant_order_manager` and `merchant_dispute_handler` at Moonlight Goods | Sees and edits Moonlight Goods orders, and handles their disputes (merchant A, with two roles).                                                                                                                                          |
-| `merchant-nordic@ghostshift.test`     | `merchant_dispute_handler` at Nordic Bikes                                 | Sees Nordic Bikes orders and handles disputes, but can't edit them (merchant B).                                                                                                                                                         |
-| `viewer@ghostshift.test`              | none                                                                       | Signed in, but sees nothing. Shows that signing in alone grants nothing.                                                                                                                                                                 |
-| `SEED_AGENT_EMAIL` (from `.dev.vars`) | `agent_first_line` and `agent_second_line` on Nordic Bikes Germany         | The agent identity ([ADR 0007](../adr/0007-agent-identities.md)). Two support levels on one store. The address is any email you can receive mail at; a Gmail plus-address keeps the mail in your inbox while the account stays separate. |
-| `checkout@ghostshift.test`            | `checkout_customer` on the three live stores                               | The Night Shift customers' account ([Night Shift](night-shift.md)). Queues and creates orders, nothing else.                                                                                                                             |
+| Email                                 | Access                                                                       | What it's for                                                                                                                                                                                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `developer@ghostshift.test`           | `platform_developer` (global)                                                | Sees every order.                                                                                                                                                                                                                        |
+| `platform-operator@ghostshift.test`   | `platform_operator` (global)                                                 | Sees every order and store, without the developer's permissions. Can't read organization names.                                                                                                                                          |
+| `merchant-orders@ghostshift.test`     | `merchant_order_manager` and `merchant_dispute_handler` at Northstar Threads | Sees and edits Northstar Threads orders, and handles their disputes (merchant A, with two roles).                                                                                                                                        |
+| `merchant-pocket@ghostshift.test`     | `merchant_dispute_handler` at Pocket Atelier                                 | Sees Pocket Atelier orders and handles disputes, but can't edit them (merchant B).                                                                                                                                                       |
+| `viewer@ghostshift.test`              | none                                                                         | Signed in, but sees nothing. Shows that signing in alone grants nothing.                                                                                                                                                                 |
+| `SEED_AGENT_EMAIL` (from `.dev.vars`) | `agent_first_line` and `agent_second_line` on Satin Sparrow                  | The agent identity ([ADR 0007](../adr/0007-agent-identities.md)). Two support levels on one store. The address is any email you can receive mail at; a Gmail plus-address keeps the mail in your inbox while the account stays separate. |
+| `checkout@ghostshift.test`            | `checkout_customer` on the three live stores                                 | The Night Shift customers' account ([Night Shift](night-shift.md)). Queues and creates orders, nothing else.                                                                                                                             |
 
 The seed script reads the local keys from `supabase status`, and it refuses to run against anything other than `127.0.0.1` or `localhost`. Its password comes from `SEED_PASSWORD` in `.dev.vars`, which Git ignores.
 
@@ -198,8 +198,8 @@ The `.test` addresses can't receive mail. Local Supabase doesn't send confirmati
 With `pnpm db:start`, `pnpm db:seed-users` and `pnpm dev` running:
 
 1. Open <http://localhost:3000/orders> in a private window. You're sent to the login page, because you're not signed in.
-2. Sign in as `merchant-orders@ghostshift.test` with your `SEED_PASSWORD`. Four Moonlight Goods orders appear, and no `NB-2001`.
-3. Sign out, then sign in as `merchant-nordic@ghostshift.test`. Only `NB-2001` appears.
+2. Sign in as `merchant-orders@ghostshift.test` with your `SEED_PASSWORD`. Four Northstar Threads orders appear, and no `PA-2001`.
+3. Sign out, then sign in as `merchant-pocket@ghostshift.test`. Only `PA-2001` appears.
 4. Sign out, then sign in as `developer@ghostshift.test`. All five orders appear.
 5. In Studio (<http://127.0.0.1:64323>), open the **SQL Editor** and run:
    ```sql

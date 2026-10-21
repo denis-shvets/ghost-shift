@@ -107,21 +107,21 @@ describe("buildSeedOrders", () => {
     expect(file).toBe(toSql(buildSeedOrders()));
   });
 
-  it("keeps the five original fixed orders unchanged", () => {
+  it("keeps the five original fixed orders' ids, statuses and payment methods", () => {
     const original = [
-      ["MG-1001", "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922", "authorized", "card", 129000, 0, 0],
+      ["NS-1001", "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922", "authorized", "card", 27390, 0, 0],
       [
-        "MG-1002",
+        "NS-1002",
         "a04509c1-b524-494a-8662-8d6ed7bcfc8d",
         "captured",
         "bank_transfer",
-        54700,
-        54700,
+        48680,
+        48680,
         0,
       ],
-      ["MG-1003", "29fb84e7-03da-44f2-9389-dbbe9e12d3f3", "captured", "paypal", 12000, 12000, 4000],
-      ["MG-1004", "fc14a20f-334f-4f9a-9b7f-162626167f1f", "expired", "card", 215000, 0, 0],
-      ["NB-2001", "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b", "authorized", "card", 45000, 0, 0],
+      ["NS-1003", "29fb84e7-03da-44f2-9389-dbbe9e12d3f3", "captured", "paypal", 6980, 6980, 2000],
+      ["NS-1004", "fc14a20f-334f-4f9a-9b7f-162626167f1f", "expired", "card", 197890, 0, 0],
+      ["PA-2001", "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b", "authorized", "card", 25990, 0, 0],
     ] as const;
 
     for (const [reference, id, status, method, total, captured, refunded] of original) {
@@ -134,12 +134,12 @@ describe("buildSeedOrders", () => {
       ]);
     }
 
-    const mg1002 = byReference("MG-1002") as SeedOrder;
+    const mg1002 = byReference("NS-1002") as SeedOrder;
     expect(mg1002.customer).toMatchObject({ firstName: "Erik", lastName: "Holm" });
     expect(mg1002.shippingCarrier).toBe("DHL");
     expect(mg1002.shippingTracking).toBe("DHL-7781");
     expect(mg1002.lines.map((line) => [line.sku, line.quantity, line.unitPrice])).toEqual([
-      ["CND-SET-03", 2, 24900],
+      ["VV-FAS-05", 2, 21890],
       [null, 1, 4900],
     ]);
   });

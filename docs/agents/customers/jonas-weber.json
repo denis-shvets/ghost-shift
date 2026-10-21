@@ -10,14 +10,34 @@
     "phone": "+49 40 5550 8811"
   },
   "stores": {
-    "de": {
-      "id": "d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6",
-      "name": "Nordic Bikes Germany (EUR)",
+    "de1": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18",
+      "name": "Satin Sparrow (EUR)",
       "carrier": "UPS",
       "shippingFee": {
         "name": "Shipping, UPS",
         "unitPrice": 990,
-        "taxRate": 0
+        "taxRate": 1900
+      }
+    },
+    "de2": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b13",
+      "name": "Linen Lantern (EUR)",
+      "carrier": "UPS",
+      "shippingFee": {
+        "name": "Shipping, UPS",
+        "unitPrice": 990,
+        "taxRate": 1900
+      }
+    },
+    "de3": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b17",
+      "name": "Thimble & Thyme (EUR)",
+      "carrier": "UPS",
+      "shippingFee": {
+        "name": "Shipping, UPS",
+        "unitPrice": 990,
+        "taxRate": 1900
       }
     }
   },

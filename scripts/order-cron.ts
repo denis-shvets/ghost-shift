@@ -53,13 +53,17 @@ export function pickOrder(
   random: () => number,
 ): PlaceOrderInput | string {
   if (storeIds.length === 0) return "the account has no stores";
-  const storeId = choose(storeIds, random);
+  // Only stores a persona shops at, so no pick is wasted on a store with no customer.
+  const shopped = storeIds.filter((id) =>
+    personas.some((persona) => Object.values(persona.data.stores).some((store) => store.id === id)),
+  );
+  if (shopped.length === 0) return "no customer shops at any of the account's stores";
+  const storeId = choose(shopped, random);
   const shops = personas.flatMap((persona) =>
     Object.values(persona.data.stores)
       .filter((store) => store.id === storeId)
       .map((store) => ({ persona, store })),
   );
-  if (shops.length === 0) return "no customer shops at the chosen store";
   const { persona, store } = choose(shops, random);
 
   // Distinct products: a product listed twice would need a higher quantity instead.

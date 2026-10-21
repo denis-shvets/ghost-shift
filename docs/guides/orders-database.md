@@ -6,7 +6,7 @@ A walkthrough of the commit `feat(orders): read orders from Supabase with Drizzl
 
 Before this change, the Orders pages showed data typed into `src/mocks/data.ts`. Nothing could change it except editing code. Agents need to change orders (capture, refund, cancel), and those changes must survive a page reload and be seen by everyone. That needs a **database**: a program that stores data on disk and lets many users read and change it safely at the same time.
 
-What happens now when you open order MG-1003, at `/orders/29fb84e7-03da-44f2-9389-dbbe9e12d3f3`:
+What happens now when you open order NS-1003, at `/orders/29fb84e7-03da-44f2-9389-dbbe9e12d3f3`:
 
 ```
 Browser
@@ -45,7 +45,7 @@ The answer travels back up the same way, and the page renders it.
 | **Generated column**         | A column the database calculates from other columns in the same row, like `total_amount = unit_price * quantity`. Nobody can write to it, so it can never be wrong.                    |
 | **Basis points**             | Hundredths of a percent, stored as a whole number. 2500 basis points = 25 %, 2550 = 25.5 %.                                                                                            |
 | **Enum**                     | A column type that only allows a fixed list of values. `order_status` only allows `authorized`, `captured` and so on, so a typo can't get into the data.                               |
-| **SQL**                      | The language databases understand: `select * from orders where reference = 'MG-1003'`.                                                                                                 |
+| **SQL**                      | The language databases understand: `select * from orders where reference = 'NS-1003'`.                                                                                                 |
 | **ORM**                      | A library that lets you write queries in TypeScript instead of SQL strings, with type checking. We use **Drizzle**.                                                                    |
 | **Migration**                | A SQL file that changes the database structure (create a table, add a column). Migrations run in order, so every database (yours, CI's, the live one) ends up with the same structure. |
 | **Seed**                     | Demo rows loaded into a fresh local database, so you always start from the same data.                                                                                                  |
@@ -97,7 +97,7 @@ Each order line also has:
 
 Choices worth knowing:
 
-- **Ids are uuids, and `reference` is for humans.** Every `id` is a uuid the database generates. People see and search by `reference` (`MG-1003`). The seed data uses fixed uuids so links and tests stay the same after every reset.
+- **Ids are uuids, and `reference` is for humans.** Every `id` is a uuid the database generates. People see and search by `reference` (`NS-1003`). The seed data uses fixed uuids so links and tests stay the same after every reset.
 - **An order must use its store's currency.** The foreign key on `orders` points at the store **and** its currency together, `(store_id, currency)` → `stores(id, currency)`. An order in the Swedish store with currency EUR is refused. That's why `stores` has a unique rule on `(id, currency)`: a foreign key can only point at columns that are unique together.
 - **Currency and country codes are text with check constraints, not enums.** Postgres lets you add values to an enum but not easily remove or rename them, and there are about 180 currencies and 250 countries in the ISO standards. So `currency` must be exactly 3 capital letters (`SEK`) and `market` and `order_addresses.country` exactly 2 (`SE`).
 - **Shipping is temporary.** `shipping_carrier` and `shipping_tracking` will move to a `shipments` table when shipping is built, because one order can ship in several parcels.
@@ -149,7 +149,7 @@ The app never inserts `total_amount` or `total_tax_amount` on `order_lines`. The
 
 **Why:** every fresh local database, and every QA round, should start from the same known data. `pnpm db:reset` wipes the local database, re-runs all migrations and loads both files again, in the order `supabase/config.toml` lists them.
 
-`seed-orders.sql` is generated, not written by hand: `pnpm db:generate-seed` runs `scripts/generate-seed-orders.ts`, which builds fixed demo orders plus random ones with Faker. Faker always starts from the same seed number, so the output is the same on every run. Addresses use the store's own country (Swedish streets for the Swedish store, and so on). Each random order's lines are picked from its store's own catalog (`catalogProducts` in `src/features/orders/model/store-catalogs.ts`), so prices are in that store's currency. The shipping fee uses the store's VAT rate. A test fails if the file and the generator disagree, so after changing the script, run `pnpm db:generate-seed` and commit the new file.
+`seed-orders.sql` is generated, not written by hand: `pnpm db:generate-seed` runs `scripts/generate-seed-orders.ts`, which builds fixed demo orders plus random ones with Faker. Faker always starts from the same seed number, so the output is the same on every run. Addresses use the store's own country (Swedish streets for the Swedish store, and so on). Each random order's lines are picked from its store's own catalog (`catalogProducts` in `src/features/orders/model/store-catalogs.ts`), so prices are in that store's currency. The shipping fee uses the store's VAT rate, and only baskets with a physical item get one. Fixed demo orders take their prices from the same catalog, so their SKUs carry the store code (for example `VV-FAS-07`). A test fails if the file and the generator disagree, so after changing the script, run `pnpm db:generate-seed` and commit the new file.
 
 ### Connecting from the app
 
@@ -417,7 +417,7 @@ ALTER TABLE "orders" ADD COLUMN "uncaptured_amount" bigint GENERATED ALWAYS AS (
 **Why nobody can write it:** `GENERATED ALWAYS` means Postgres computes the value on every save. Writing to it is an error:
 
 ```sql
-update orders set uncaptured_amount = 5 where reference = 'MG-1001';
+update orders set uncaptured_amount = 5 where reference = 'NS-1001';
 -- ERROR: column "uncaptured_amount" can only be updated to DEFAULT
 ```
 
@@ -435,7 +435,7 @@ update orders set uncaptured_amount = 5 where reference = 'MG-1001';
 | `orders_refunded_amount_range_check` | `refunded_amount` between 0 and `captured` | Captured 600.00 (`60000`) and `refunded_amount = 70000`. More is refunded than was captured.                  |
 | `orders_expires_after_created_check` | `expires_at > created_at`                  | `expires_at` set to one day before `created_at`. An authorization cannot expire before it exists.             |
 
-Try them in Studio on a local order, with `update orders set captured_amount = 120000 where reference = 'MG-1001';` (adjust the amounts to that order's total). Each error names the rule, so you can see which one refused it.
+Try them in Studio on a local order, with `update orders set captured_amount = 120000 where reference = 'NS-1001';` (adjust the amounts to that order's total). Each error names the rule, so you can see which one refused it.
 
 **Why checks and not app code:** the app checks these too, but the database is the last place a bad value can be stopped. Any other program writing to the table is also covered.
 
@@ -848,7 +848,7 @@ The join to `orders` is an inner join. An event whose order the viewer can't rea
 
 ### b. Why only the events the viewer may read come back
 
-The query never checks the viewer's company. Row-level security does that. The query runs inside `withUser`, which signs the connection in as the viewer. The policy "members can read events of orders they can read" on `order_events` says an event is visible only if its `orders` row is visible, and `orders` already has its own store-by-store policy. So a Moonlight Goods merchant never sees Nordic Bikes' events, and a user with no access gets an empty list. If a later filter forgets a check, the database still hides the rows.
+The query never checks the viewer's company. Row-level security does that. The query runs inside `withUser`, which signs the connection in as the viewer. The policy "members can read events of orders they can read" on `order_events` says an event is visible only if its `orders` row is visible, and `orders` already has its own store-by-store policy. So a Northstar Threads merchant never sees Pocket Atelier' events, and a user with no access gets an empty list. If a later filter forgets a check, the database still hides the rows.
 
 Every table in a query applies its own policy. An inner join to `stores` would also require `stores.read`, so a user who could read orders but not stores would see an empty log. The left join avoids that: a store you can't read only leaves the store name empty.
 
@@ -950,7 +950,7 @@ A backfill means filling the new column for rows that already exist. We don't, b
 ### e. How it's used
 
 - `GET /api/v1/orders?shipped=true` (or `false`) filters on it: `shipped_at is not null` (or `is null`). The list also returns `shippedAt` and `shippingCarrier`.
-- The seed marks a few orders shipped (NB-2001, NB-2002, NB-2004, NB-2005, NB-2007 and MG-1010), so the agent has work after `pnpm db:reset`.
+- The seed marks a few orders shipped (PA-2001, PA-2002, PA-2004, PA-2005, PA-2007 and NS-1010), so the agent has work after `pnpm db:reset`.
 - The developer create-order page has an **Already shipped** checkbox. When it's ticked, the app sets `shipped_at` to the order's `created_at`, so the order is shipped from the start and the check in section b still holds. The API takes `shipped: true` the same way. The app never accepts a timestamp from the client, because a past or future date would be easy to get wrong.
 - Shipping later, after the order exists, is done by the ship job (section 6e), only for Night Shift's queued orders. Re-run `pnpm db:reset` to get the demo orders back.
 
@@ -964,7 +964,7 @@ An order ships when all of these hold:
 
 1. `status = 'authorized'`: the money is held and nothing was taken. A part-captured order is a person's decision, so it's left alone.
 2. `shipped_at is null`: not shipped yet.
-3. It came from Night Shift's queue: a row in `scheduled_checkouts` points at it (`order_id`). Seed orders (`NB-`, `MG-`) and the owner's own test orders from the create page never come from the queue, so the demo data stays as `pnpm db:reset` wrote it. NB-2006, for example, stays unshipped. See [Night Shift](night-shift.md#4-the-queue-database-changes).
+3. It came from Night Shift's queue: a row in `scheduled_checkouts` points at it (`order_id`). Seed orders (`PA-`, `NS-`) and the owner's own test orders from the create page never come from the queue, so the demo data stays as `pnpm db:reset` wrote it. PA-2006, for example, stays unshipped. See [Night Shift](night-shift.md#4-the-queue-database-changes).
 4. At least one line is `physical`. A basket of only digital products has nothing to put in a parcel.
 5. Its delay has passed (section b).
 
@@ -1066,7 +1066,7 @@ Because the policies check `created_by`, a customer that adds to an order it can
 With `pnpm db:start` and `pnpm dev` running:
 
 1. Open Studio at <http://127.0.0.1:64323>, then **Table Editor → orders**. These are the rows the page shows.
-2. Change `customer_first_name` on order `MG-1003` in Studio and reload <http://localhost:3000/orders>. The page shows your change.
+2. Change `customer_first_name` on order `NS-1003` in Studio and reload <http://localhost:3000/orders>. The page shows your change.
 3. In Studio, open **SQL Editor** and run:
    ```sql
    select reference, status, total_amount / 100.0 as total, currency from orders order by created_at desc;
@@ -1079,14 +1079,14 @@ With `pnpm db:start` and `pnpm dev` running:
    It fails with `permission denied for table orders`. Anonymous visitors have no access at all now. Then try a write as a signed-in user:
    ```sql
    set role authenticated;
-   update orders set status = 'canceled' where reference = 'MG-1001';
+   update orders set status = 'canceled' where reference = 'NS-1001';
    ```
    It fails with `permission denied` too, because writes are revoked. Run `reset role;` afterwards.
 5. Try to break the rules. Each of these fails, and the error names the rule:
    ```sql
-   update orders set status = 'lost' where reference = 'MG-1001';         -- not in the enum
-   update order_addresses set country = 'se' where order_id = (select id from orders where reference = 'MG-1001') and kind = 'billing';  -- check constraint: 2 capital letters
-   update orders set currency = 'EUR' where reference = 'MG-1001';        -- foreign key: the Swedish store uses SEK
+   update orders set status = 'lost' where reference = 'NS-1001';         -- not in the enum
+   update order_addresses set country = 'se' where order_id = (select id from orders where reference = 'NS-1001') and kind = 'billing';  -- check constraint: 2 capital letters
+   update orders set currency = 'EUR' where reference = 'NS-1001';        -- foreign key: the Swedish store uses SEK
    update order_lines set total_amount = 1 where sku = 'LAN-BRS-01';       -- generated column: can't be written
    update order_lines set quantity = 0 where sku = 'LAN-BRS-01';           -- check constraint: quantity must be > 0
    ```
@@ -1103,7 +1103,7 @@ With `pnpm db:start` and `pnpm dev` running:
 
    It returns how many orders it expired. Run it again and it returns 0. The local database runs the job every 15 minutes too, so the first manual run may already return 0. Find expired orders with `select reference from orders o join order_events e on e.order_id = o.id where e.action = 'expired' and e.metadata ? 'reason';` and open one in the app: the timeline ends with "Authorization expired after 7 days" (or 28).
 
-   Because the job runs locally, seed orders change over time: the fixed orders MG-1001 and NB-2001 are seeded as Authorized, but expire on 2026-10-24 and 2026-10-23. After those dates they show as Expired within 15 minutes of `pnpm db:reset`.
+   Because the job runs locally, seed orders change over time: the fixed orders NS-1001 and PA-2001 are seeded as Authorized, but expire on 2026-10-24 and 2026-10-23. After those dates they show as Expired within 15 minutes of `pnpm db:reset`.
 
 8. Capture as a merchant, the way the app does it. `set_config` plays the signed-in user (merchant A from the test accounts, after `pnpm test` has run once):
 
@@ -1112,9 +1112,9 @@ With `pnpm db:start` and `pnpm dev` running:
    set local role authenticated;
    select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-111111111111"}', true);
    select status, captured_amount from public.order_action(
-     (select id from orders where reference = 'MG-1001'), 'capture', 1000, 'First parcel shipped');
+     (select id from orders where reference = 'NS-1001'), 'capture', 1000, 'First parcel shipped');
    select action, actor_name, metadata from order_events
-     where order_id = (select id from orders where reference = 'MG-1001') order by occurred_at;
+     where order_id = (select id from orders where reference = 'NS-1001') order by occurred_at;
    rollback;
    ```
 

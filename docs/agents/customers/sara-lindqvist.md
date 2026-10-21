@@ -4,7 +4,8 @@ A project manager in Stockholm. She shops in her lunch break and on Sunday eveni
 
 ## Basket
 
-- One product, number 1–12 of either list, quantity 1.
+- Store: any of `se1`, `se2`, `se3`, `se4`.
+- One product, either type, pick 2–10, quantity 1.
 - `variety` under 25: two products instead of one.
 
 ## Payment and address

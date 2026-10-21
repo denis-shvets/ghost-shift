@@ -30,9 +30,9 @@ const permissionDenied = { cause: { code: "42501" } };
 // Ids shared with supabase/seed.sql through src/shared/seed/seed-ids.json.
 import seedIds from "~/shared/seed/seed-ids.json" with { type: "json" };
 
-const moonlightGoods = seedIds.organizations.moonlightGoods;
-const moonlightSweden = seedIds.stores.moonlightSweden;
-const nordicBikesGermany = seedIds.stores.nordicBikesGermany;
+const northstarThreads = seedIds.organizations.northstarThreads;
+const velourVault = seedIds.stores.velourVault;
+const satinSparrow = seedIds.stores.satinSparrow;
 
 // The claims the app would send for this account. Only the subject matters to the policies.
 function asUser(id: string): UserClaims {
@@ -76,31 +76,31 @@ describe("anonymous visitors", () => {
 
 describe("signed-in users see what their access allows", () => {
   // The seed has many generated orders too, so these checks look at the fixed ones and at prefixes.
-  const moonlightOrders = ["MG-1001", "MG-1002", "MG-1003", "MG-1004"];
+  const northstarOrders = ["NS-1001", "NS-1002", "NS-1003", "NS-1004"];
 
   it("a merchant sees their own company's orders only", async () => {
     const references = await readableReferences(testAccounts.merchantA);
-    expect(references).toEqual(expect.arrayContaining(moonlightOrders));
-    expect(references.some((reference) => reference.startsWith("NB-"))).toBe(false);
+    expect(references).toEqual(expect.arrayContaining(northstarOrders));
+    expect(references.some((reference) => reference.startsWith("PA-"))).toBe(false);
   });
 
   it("another merchant sees only their own company's orders", async () => {
     const references = await readableReferences(testAccounts.merchantB);
-    expect(references).toContain("NB-2001");
-    expect(references.some((reference) => reference.startsWith("MG-"))).toBe(false);
+    expect(references).toContain("PA-2001");
+    expect(references.some((reference) => reference.startsWith("NS-"))).toBe(false);
   });
 
   it("an agent sees only orders of the stores assigned to them", async () => {
     const references = await readableReferences(testAccounts.agent);
-    expect(references).toContain("NB-2001");
-    expect(references.some((reference) => reference.startsWith("MG-"))).toBe(false);
+    expect(references).toContain("PA-2001");
+    expect(references.some((reference) => reference.startsWith("NS-"))).toBe(false);
   });
 
   it("a developer sees every order", async () => {
     const references = await readableReferences(testAccounts.developer);
-    expect(references).toEqual(expect.arrayContaining([...moonlightOrders, "NB-2001"]));
-    expect(references.some((reference) => reference.startsWith("MG-"))).toBe(true);
-    expect(references.some((reference) => reference.startsWith("NB-"))).toBe(true);
+    expect(references).toEqual(expect.arrayContaining([...northstarOrders, "PA-2001"]));
+    expect(references.some((reference) => reference.startsWith("NS-"))).toBe(true);
+    expect(references.some((reference) => reference.startsWith("PA-"))).toBe(true);
   });
 
   it("someone with no access sees no orders or stores", async () => {
@@ -121,9 +121,9 @@ describe("signed-in users see what their access allows", () => {
 });
 
 describe("addresses and timeline follow the order", () => {
-  // MG-1001 belongs to Moonlight Goods, NB-2001 to Nordic Bikes (supabase/seed-orders.sql).
-  const moonlightOrder = "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922";
-  const nordicOrder = "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b";
+  // NS-1001 belongs to Northstar Threads, PA-2001 to Pocket Atelier (supabase/seed-orders.sql).
+  const northstarOrder = "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922";
+  const pocketOrder = "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b";
 
   function readable(userId: string, orderId: string) {
     return withUser(db, asUser(userId), async (tx) => ({
@@ -134,13 +134,13 @@ describe("addresses and timeline follow the order", () => {
   }
 
   it("a merchant reads the addresses and timeline of their own company's orders", async () => {
-    const own = await readable(testAccounts.merchantA, moonlightOrder);
+    const own = await readable(testAccounts.merchantA, northstarOrder);
     expect(own.addresses).toBe(2);
     expect(own.events).toBeGreaterThan(0);
   });
 
   it("a merchant can't read another company's customer addresses or timeline", async () => {
-    expect(await readable(testAccounts.merchantA, nordicOrder)).toEqual({
+    expect(await readable(testAccounts.merchantA, pocketOrder)).toEqual({
       addresses: 0,
       events: 0,
     });
@@ -178,7 +178,7 @@ describe("addresses and timeline follow the order", () => {
     await expect(
       withUser(db, asUser(testAccounts.merchantA), (tx) =>
         tx.insert(orderEvents).values({
-          orderId: moonlightOrder,
+          orderId: northstarOrder,
           action: "captured",
           actorName: "Merchant",
           metadata: { amount: 1 },
@@ -189,13 +189,13 @@ describe("addresses and timeline follow the order", () => {
 });
 
 describe("timeline events a developer adds", () => {
-  // MG-1001, a Moonlight Goods order the developer may add events to.
-  const moonlightOrder = "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922";
+  // NS-1001, a Northstar Threads order the developer may add events to.
+  const northstarOrder = "743bf9c5-f7a6-47d6-b1cb-bf9811f8b922";
 
   function addEvent(values: { actorUserId: string; action: "authorized" | "refunded" }) {
     return withUser(db, asUser(testAccounts.developer), (tx) =>
       tx.insert(orderEvents).values({
-        orderId: moonlightOrder,
+        orderId: northstarOrder,
         actorName: "Phantom Checkout",
         metadata: { amount: 1 },
         ...values,
@@ -235,38 +235,30 @@ describe("organization names", () => {
   });
 
   it("a merchant can read only their own organization", async () => {
-    expect(await readableOrganizations(testAccounts.merchantA)).toEqual([moonlightGoods]);
+    expect(await readableOrganizations(testAccounts.merchantA)).toEqual([northstarThreads]);
   });
 });
 
 describe("a person's permissions are the union of their roles", () => {
   it("a merchant with two roles at one company may edit orders and handle disputes", async () => {
-    expect(await hasPermission(testAccounts.merchantA, "orders.edit", moonlightSweden)).toBe(true);
-    expect(await hasPermission(testAccounts.merchantA, "disputes.manage", moonlightSweden)).toBe(
-      true,
-    );
+    expect(await hasPermission(testAccounts.merchantA, "orders.edit", velourVault)).toBe(true);
+    expect(await hasPermission(testAccounts.merchantA, "disputes.manage", velourVault)).toBe(true);
   });
 
   it("a merchant's roles don't reach another company's stores", async () => {
-    expect(await hasPermission(testAccounts.merchantA, "orders.edit", nordicBikesGermany)).toBe(
-      false,
-    );
-    expect(await hasPermission(testAccounts.merchantA, "disputes.manage", nordicBikesGermany)).toBe(
+    expect(await hasPermission(testAccounts.merchantA, "orders.edit", satinSparrow)).toBe(false);
+    expect(await hasPermission(testAccounts.merchantA, "disputes.manage", satinSparrow)).toBe(
       false,
     );
   });
 
   it("a dispute handler may handle disputes but not edit orders", async () => {
-    expect(await hasPermission(testAccounts.merchantB, "disputes.manage", nordicBikesGermany)).toBe(
-      true,
-    );
-    expect(await hasPermission(testAccounts.merchantB, "orders.edit", nordicBikesGermany)).toBe(
-      false,
-    );
+    expect(await hasPermission(testAccounts.merchantB, "disputes.manage", satinSparrow)).toBe(true);
+    expect(await hasPermission(testAccounts.merchantB, "orders.edit", satinSparrow)).toBe(false);
   });
 
   it("an agent with second-line support may edit orders at an assigned store", async () => {
-    expect(await hasPermission(testAccounts.agent, "orders.edit", nordicBikesGermany)).toBe(true);
+    expect(await hasPermission(testAccounts.agent, "orders.edit", satinSparrow)).toBe(true);
   });
 
   it("removing one of two roles removes only that role's permissions", async () => {
@@ -276,23 +268,19 @@ describe("a person's permissions are the union of their roles", () => {
         where user_id = ${testAccounts.agent}::uuid and role = 'agent_second_line'`,
     );
     try {
-      expect(await hasPermission(testAccounts.agent, "orders.edit", nordicBikesGermany)).toBe(
-        false,
-      );
-      expect(await hasPermission(testAccounts.agent, "orders.read", nordicBikesGermany)).toBe(true);
+      expect(await hasPermission(testAccounts.agent, "orders.edit", satinSparrow)).toBe(false);
+      expect(await hasPermission(testAccounts.agent, "orders.read", satinSparrow)).toBe(true);
     } finally {
       await db.execute(
         sql`insert into public.store_assignments (user_id, store_id, role)
-          values (${testAccounts.agent}::uuid, ${nordicBikesGermany}::uuid, 'agent_second_line')
+          values (${testAccounts.agent}::uuid, ${satinSparrow}::uuid, 'agent_second_line')
           on conflict do nothing`,
       );
     }
   });
 
   it("a permission that doesn't exist is never granted", async () => {
-    expect(await hasPermission(testAccounts.developer, "orders.delete", nordicBikesGermany)).toBe(
-      false,
-    );
+    expect(await hasPermission(testAccounts.developer, "orders.delete", satinSparrow)).toBe(false);
   });
 });
 
@@ -304,7 +292,7 @@ describe("a role can only be granted at its own scope", () => {
     await expect(
       db.execute(
         sql`insert into public.org_members (user_id, organization_id, role)
-          values (${testAccounts.stranger}::uuid, ${moonlightGoods}::uuid, 'agent_first_line')`,
+          values (${testAccounts.stranger}::uuid, ${northstarThreads}::uuid, 'agent_first_line')`,
       ),
     ).rejects.toMatchObject(foreignKeyViolation);
   });
@@ -313,7 +301,7 @@ describe("a role can only be granted at its own scope", () => {
     await expect(
       db.execute(
         sql`insert into public.store_assignments (user_id, store_id, role)
-          values (${testAccounts.stranger}::uuid, ${nordicBikesGermany}::uuid, 'merchant_admin')`,
+          values (${testAccounts.stranger}::uuid, ${satinSparrow}::uuid, 'merchant_admin')`,
       ),
     ).rejects.toMatchObject(foreignKeyViolation);
   });
@@ -324,7 +312,7 @@ describe("creating orders", () => {
   function newOrder(reference: string) {
     return {
       reference,
-      storeId: moonlightSweden,
+      storeId: velourVault,
       currency: "SEK",
       customerFirstName: "Test",
       customerLastName: "Customer",
@@ -429,7 +417,7 @@ describe("creating orders", () => {
       const [order] = await withUser(db, asUser(testAccounts.customer), (tx) =>
         tx
           .insert(orders)
-          .values({ ...newOrder(reference), storeId: nordicBikesGermany, currency: "EUR" })
+          .values({ ...newOrder(reference), storeId: satinSparrow, currency: "EUR" })
           .returning({ id: orders.id }),
       );
       expect(order?.id).toEqual(expect.any(String));
@@ -452,7 +440,7 @@ describe("creating orders", () => {
       withUser(db, asUser(testAccounts.customer), (tx) =>
         tx.insert(orders).values({
           ...newOrder(reference),
-          storeId: nordicBikesGermany,
+          storeId: satinSparrow,
           currency: "EUR",
           ...values,
         }),
@@ -480,15 +468,13 @@ describe("creating orders", () => {
     const other = `TEST-${randomUUID()}`;
     try {
       await withUser(db, asUser(testAccounts.developer), (tx) =>
-        tx
-          .insert(orders)
-          .values({ ...newOrder(other), storeId: nordicBikesGermany, currency: "EUR" }),
+        tx.insert(orders).values({ ...newOrder(other), storeId: satinSparrow, currency: "EUR" }),
       );
       const [theirs] = await db.select().from(orders).where(eq(orders.reference, other));
       const [mine] = await withUser(db, asUser(testAccounts.customer), (tx) =>
         tx
           .insert(orders)
-          .values({ ...newOrder(own), storeId: nordicBikesGermany, currency: "EUR" })
+          .values({ ...newOrder(own), storeId: satinSparrow, currency: "EUR" })
           .returning({ id: orders.id }),
       );
       // The customer can't see the developer's order, so nothing can be added to it.
@@ -635,7 +621,7 @@ describe("expiring authorizations", () => {
         reference: `TEST-${randomUUID()}`,
         createdAt,
         expiresAt: new Date(createdAt.getTime() + 7 * DAY),
-        storeId: moonlightSweden,
+        storeId: velourVault,
         currency: "SEK",
         customerFirstName: "Test",
         customerLastName: "Customer",
@@ -756,7 +742,7 @@ describe("shipping after a delay", () => {
         reference,
         createdAt,
         createdBy: testAccounts.customer,
-        storeId: nordicBikesGermany,
+        storeId: satinSparrow,
         currency: "EUR",
         customerFirstName: "Test",
         customerLastName: "Customer",
@@ -780,11 +766,11 @@ describe("shipping after a delay", () => {
     if (queued)
       await tx.insert(scheduledCheckouts).values({
         createdBy: testAccounts.customer,
-        storeId: nordicBikesGermany,
+        storeId: satinSparrow,
         persona: "test",
         planId: randomUUID(),
         dueAt: createdAt,
-        payload: { storeId: nordicBikesGermany } as never,
+        payload: { storeId: satinSparrow } as never,
         status: "placed",
         orderId: id,
       });
@@ -862,14 +848,14 @@ describe("capture, cancel and refund", () => {
   const DAY = 24 * 60 * 60 * 1000;
   const checkViolation = { cause: { code: "23514" } };
 
-  // A fresh 200.00 SEK authorization at Moonlight Sweden, saved as the owner. Removed after the tests.
+  // A fresh 200.00 SEK authorization at Velour Vault, saved as the owner. Removed after the tests.
   const created: string[] = [];
   async function newOrder(values: Partial<typeof orders.$inferInsert> = {}) {
     const [order] = await db
       .insert(orders)
       .values({
         reference: `TEST-${randomUUID()}`,
-        storeId: moonlightSweden,
+        storeId: velourVault,
         currency: "SEK",
         customerFirstName: "Test",
         customerLastName: "Customer",
@@ -1037,15 +1023,15 @@ describe("capture, cancel and refund", () => {
   });
 
   it("refuses someone who may read the order but not move money", async () => {
-    // Merchant B only handles disputes at Nordic Bikes.
-    const order = await newOrder({ storeId: nordicBikesGermany, currency: "EUR" });
+    // Merchant B only handles disputes at Pocket Atelier.
+    const order = await newOrder({ storeId: satinSparrow, currency: "EUR" });
     await expect(
       act(testAccounts.merchantB, order.id, "capture", 100, "Shipped"),
     ).rejects.toMatchObject(permissionDenied);
   });
 
   it("an agent with second-line support may capture at an assigned store", async () => {
-    const order = await newOrder({ storeId: nordicBikesGermany, currency: "EUR" });
+    const order = await newOrder({ storeId: satinSparrow, currency: "EUR" });
     expect(await act(testAccounts.agent, order.id, "capture", 100, "Shipped")).toBe(
       "part_captured",
     );

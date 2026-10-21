@@ -23,12 +23,12 @@ describe("orderListInput", () => {
   });
 
   it("rejects a cursor that isn't an order id, or an unknown direction", () => {
-    expect(orderListInput.safeParse({ cursor: "MG-1003" }).success).toBe(false);
+    expect(orderListInput.safeParse({ cursor: "NS-1003" }).success).toBe(false);
     expect(orderListInput.safeParse({ cursor, direction: "sideways" }).success).toBe(false);
   });
 
   it("trims the search text and treats a blank one as not sent", () => {
-    expect(orderListInput.parse({ q: "  MG-1003 " }).q).toBe("MG-1003");
+    expect(orderListInput.parse({ q: "  NS-1003 " }).q).toBe("NS-1003");
     expect(orderListInput.parse({ q: "   " }).q).toBeUndefined();
     expect(orderListInput.parse({ status: "" }).status).toBeUndefined();
   });

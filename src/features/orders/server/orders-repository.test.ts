@@ -34,7 +34,7 @@ const db = createDb(testDatabaseUrl);
 beforeAll(() => createTestAccounts(db));
 afterAll(() => db.close());
 
-// Merchant A (orders editor at Moonlight Goods) reads the orders in these tests.
+// Merchant A (orders editor at Northstar Threads) reads the orders in these tests.
 const merchant: UserClaims = { sub: testAccounts.merchantA, global_roles: [] };
 
 // The id of an order in the seed, looked up by reference so the tests don't hard-code random ids.
@@ -46,18 +46,18 @@ async function idOf(reference: string) {
   return row?.id;
 }
 
-// Moonlight Goods' fixed orders, newest first. Generated orders are all older than MG-1004.
-const newestMoonlightOrders = [
-  "MG-1010",
-  "MG-1001",
-  "MG-1002",
-  "MG-1003",
-  "MG-1005",
-  "MG-1008",
-  "MG-1009",
-  "MG-1006",
-  "MG-1007",
-  "MG-1004",
+// Northstar Threads' fixed orders, newest first. Generated orders are all older than NS-1004.
+const newestNorthstarOrders = [
+  "NS-1010",
+  "NS-1001",
+  "NS-1002",
+  "NS-1003",
+  "NS-1005",
+  "NS-1008",
+  "NS-1009",
+  "NS-1006",
+  "NS-1007",
+  "NS-1004",
 ];
 
 describe("listOrders", () => {
@@ -65,9 +65,9 @@ describe("listOrders", () => {
     const result = await listOrders(db, merchant, { limit: 50 });
 
     expect(
-      result.orders.slice(0, newestMoonlightOrders.length).map((order) => order.reference),
-    ).toEqual(newestMoonlightOrders);
-    expect(result.orders.every((order) => order.reference.startsWith("MG-"))).toBe(true);
+      result.orders.slice(0, newestNorthstarOrders.length).map((order) => order.reference),
+    ).toEqual(newestNorthstarOrders);
+    expect(result.orders.every((order) => order.reference.startsWith("NS-"))).toBe(true);
     expect(result.nextCursor).not.toBeNull();
     expect(result.prevCursor).toBeNull();
   });
@@ -75,58 +75,58 @@ describe("listOrders", () => {
   it("returns one page, with a cursor for the next page", async () => {
     const first = await listOrders(db, merchant, { limit: 2 });
 
-    expect(first.orders.map((order) => order.reference)).toEqual(["MG-1010", "MG-1001"]);
-    expect(first.nextCursor).toBe(await idOf("MG-1001"));
+    expect(first.orders.map((order) => order.reference)).toEqual(["NS-1010", "NS-1001"]);
+    expect(first.nextCursor).toBe(await idOf("NS-1001"));
     expect(first.prevCursor).toBeNull();
   });
 
   it("continues from the cursor, with a cursor back to the previous page", async () => {
     const second = await listOrders(db, merchant, {
       limit: 2,
-      cursor: await idOf("MG-1001"),
+      cursor: await idOf("NS-1001"),
     });
 
-    expect(second.orders.map((order) => order.reference)).toEqual(["MG-1002", "MG-1003"]);
-    expect(second.prevCursor).toBe(await idOf("MG-1002"));
-    expect(second.nextCursor).toBe(await idOf("MG-1003"));
+    expect(second.orders.map((order) => order.reference)).toEqual(["NS-1002", "NS-1003"]);
+    expect(second.prevCursor).toBe(await idOf("NS-1002"));
+    expect(second.nextCursor).toBe(await idOf("NS-1003"));
   });
 
   it("goes back to the previous page from a cursor", async () => {
     const back = await listOrders(db, merchant, {
       limit: 2,
-      cursor: await idOf("MG-1003"),
+      cursor: await idOf("NS-1003"),
       direction: "prev",
     });
 
-    expect(back.orders.map((order) => order.reference)).toEqual(["MG-1001", "MG-1002"]);
-    expect(back.nextCursor).toBe(await idOf("MG-1002"));
+    expect(back.orders.map((order) => order.reference)).toEqual(["NS-1001", "NS-1002"]);
+    expect(back.nextCursor).toBe(await idOf("NS-1002"));
   });
 
   it("goes back one order at a time, when more newer orders exist", async () => {
     const back = await listOrders(db, merchant, {
       limit: 1,
-      cursor: await idOf("MG-1003"),
+      cursor: await idOf("NS-1003"),
       direction: "prev",
     });
 
-    expect(back.orders.map((order) => order.reference)).toEqual(["MG-1002"]);
-    expect(back.prevCursor).toBe(await idOf("MG-1002"));
-    expect(back.nextCursor).toBe(await idOf("MG-1002"));
+    expect(back.orders.map((order) => order.reference)).toEqual(["NS-1002"]);
+    expect(back.prevCursor).toBe(await idOf("NS-1002"));
+    expect(back.nextCursor).toBe(await idOf("NS-1002"));
   });
 
   it("treats a previous request without a cursor as the first page", async () => {
     const result = await listOrders(db, merchant, { limit: 2, direction: "prev" });
 
-    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1010", "MG-1001"]);
+    expect(result.orders.map((order) => order.reference)).toEqual(["NS-1010", "NS-1001"]);
   });
 
   it("only pages through the orders the signed-in user can read", async () => {
-    // Every order on this page must belong to Nordic Bikes, so a page size of 2 reveals no Moonlight Goods.
+    // Every order on this page must belong to Pocket Atelier, so a page size of 2 reveals no Northstar Threads.
     const other: UserClaims = { sub: testAccounts.merchantB, global_roles: [] };
     const result = await listOrders(db, other, { limit: 2 });
 
     expect(result.orders).toHaveLength(2);
-    // By store, not by "NB-" reference: orders created through the API (Night Shift customers) start with DEV-.
+    // By store, not by "PA-" reference: orders created through the API (Night Shift customers) start with DEV-.
     const stores = await db
       .select({ storeId: orders.storeId })
       .from(orders)
@@ -137,26 +137,26 @@ describe("listOrders", () => {
         ),
       );
     expect(stores.map((row) => row.storeId)).toEqual([
-      seedIds.stores.nordicBikesGermany,
-      seedIds.stores.nordicBikesGermany,
+      seedIds.stores.satinSparrow,
+      seedIds.stores.satinSparrow,
     ]);
     expect(result.prevCursor).toBeNull();
   });
 
   it("shows the first page when the cursor is an order the user can't see", async () => {
-    // NB-2001 belongs to Nordic Bikes, so the cursor is invisible to Moonlight Goods.
-    const invisible = await idOf("NB-2001");
+    // PA-2001 belongs to Pocket Atelier, so the cursor is invisible to Northstar Threads.
+    const invisible = await idOf("PA-2001");
     const result = await listOrdersOrFirstPage(db, merchant, {
       limit: 2,
       cursor: invisible,
     });
 
-    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1010", "MG-1001"]);
-    expect(result.nextCursor).toBe(await idOf("MG-1001"));
+    expect(result.orders.map((order) => order.reference)).toEqual(["NS-1010", "NS-1001"]);
+    expect(result.nextCursor).toBe(await idOf("NS-1001"));
   });
 
   it("doesn't skip or repeat orders that share a creation time", async () => {
-    // Two extra orders with the same created_at, in the Moonlight Goods Sweden store.
+    // Two extra orders with the same created_at, in the Velour Vault store.
     const shared = "2026-09-01T00:00:00Z";
     const tied = [
       { id: "aaaaaaaa-0000-4000-8000-000000000001", reference: "TIE-1" },
@@ -166,7 +166,7 @@ describe("listOrders", () => {
       tied.map((order): typeof orders.$inferInsert => ({
         ...order,
         createdAt: new Date(shared),
-        storeId: "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
+        storeId: "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03",
         currency: "SEK",
         customerFirstName: "Test",
         customerLastName: "Customer",
@@ -188,11 +188,11 @@ describe("listOrders", () => {
         cursor = page.nextCursor ?? undefined;
       } while (cursor);
 
-      // Every Moonlight Goods order, the generated ones included, plus the two ties.
+      // Every Northstar Threads order, the generated ones included, plus the two ties.
       const visible = await db.select({ reference: orders.reference }).from(orders);
       const expected = visible
         .map((order) => order.reference)
-        .filter((reference) => reference.startsWith("MG-") || reference.startsWith("TIE-"));
+        .filter((reference) => reference.startsWith("NS-") || reference.startsWith("TIE-"));
       expect(forward).toHaveLength(expected.length);
       expect(new Set(forward.map((order) => order.reference))).toEqual(new Set(expected));
 
@@ -219,32 +219,32 @@ describe("listOrders", () => {
 
 describe("listOrders search and filters", () => {
   it("finds an order by its exact reference", async () => {
-    const result = await listOrders(db, merchant, { limit: 50, q: "MG-1003" });
+    const result = await listOrders(db, merchant, { limit: 50, q: "NS-1003" });
 
-    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1003"]);
+    expect(result.orders.map((order) => order.reference)).toEqual(["NS-1003"]);
   });
 
   it("finds an order by reference, ignoring case", async () => {
-    const result = await listOrders(db, merchant, { limit: 50, q: "mg-1003" });
+    const result = await listOrders(db, merchant, { limit: 50, q: "ns-1003" });
 
-    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1003"]);
+    expect(result.orders.map((order) => order.reference)).toEqual(["NS-1003"]);
   });
 
   it("finds an order by customer email, ignoring case", async () => {
     const result = await listOrders(db, merchant, { limit: 50, q: "ASTRID@Example.COM" });
 
-    expect(result.orders.map((order) => order.reference)).toEqual(["MG-1001"]);
+    expect(result.orders.map((order) => order.reference)).toEqual(["NS-1001"]);
   });
 
   it("filters by status", async () => {
-    const result = await listOrders(db, merchant, { limit: 50, status: "captured" });
+    const result = await listOrders(db, merchant, { limit: 200, status: "captured" });
     const captured = await db
       .select({ reference: orders.reference })
       .from(orders)
       .where(eq(orders.status, "captured"));
     const expected = captured
       .map((order) => order.reference)
-      .filter((reference) => reference.startsWith("MG-"));
+      .filter((reference) => reference.startsWith("NS-"));
 
     expect(result.orders.map((order) => order.reference).sort()).toEqual(expected.sort());
     expect(result.orders.every((order) => order.status === "captured")).toBe(true);
@@ -254,9 +254,9 @@ describe("listOrders search and filters", () => {
     const shipped = await listOrders(db, merchant, { limit: 100, shipped: "true" });
     const notShipped = await listOrders(db, merchant, { limit: 100, shipped: "false" });
 
-    expect(shipped.orders.map((order) => order.reference)).toContain("MG-1010");
+    expect(shipped.orders.map((order) => order.reference)).toContain("NS-1010");
     expect(shipped.orders.every((order) => order.shippedAt !== null)).toBe(true);
-    expect(notShipped.orders.map((order) => order.reference)).not.toContain("MG-1010");
+    expect(notShipped.orders.map((order) => order.reference)).not.toContain("NS-1010");
     expect(notShipped.orders.every((order) => order.shippedAt === null)).toBe(true);
   });
 
@@ -266,9 +266,9 @@ describe("listOrders search and filters", () => {
       sub: testAccounts.developer,
       global_roles: ["platform_developer"],
     };
-    const nordic = { ...newOrder, storeId: seedIds.stores.nordicBikesGermany };
-    const shippedHere = await createOrder(db, developer, { ...nordic, shipped: true });
-    const notShippedHere = await createOrder(db, developer, nordic);
+    const pocket = { ...newOrder, storeId: seedIds.stores.satinSparrow };
+    const shippedHere = await createOrder(db, developer, { ...pocket, shipped: true });
+    const notShippedHere = await createOrder(db, developer, pocket);
     const shippedElsewhere = await createOrder(db, developer, { ...newOrder, shipped: true });
     const created = [shippedHere.id, notShippedHere.id, shippedElsewhere.id];
 
@@ -290,7 +290,7 @@ describe("listOrders search and filters", () => {
         .selectDistinct({ storeId: orders.storeId })
         .from(orders)
         .where(inArray(orders.id, ids));
-      expect(stores).toEqual([{ storeId: seedIds.stores.nordicBikesGermany }]);
+      expect(stores).toEqual([{ storeId: seedIds.stores.satinSparrow }]);
     } finally {
       await db.delete(orders).where(inArray(orders.id, created));
     }
@@ -304,10 +304,10 @@ describe("listOrders search and filters", () => {
       .where(eq(orders.paymentMethod, "paypal"));
     const expected = paypal
       .map((order) => order.reference)
-      .filter((reference) => reference.startsWith("MG-"));
+      .filter((reference) => reference.startsWith("NS-"));
 
     expect(result.orders.map((order) => order.reference).sort()).toEqual(expected.sort());
-    expect(result.orders.map((order) => order.reference)).toContain("MG-1003");
+    expect(result.orders.map((order) => order.reference)).toContain("NS-1003");
     expect(result.orders.every((order) => order.paymentMethod === "paypal")).toBe(true);
   });
 
@@ -318,11 +318,11 @@ describe("listOrders search and filters", () => {
       paymentMethod: "card",
     });
 
-    expect(result.orders.map((order) => order.reference)).toContain("MG-1009");
+    expect(result.orders.map((order) => order.reference)).toContain("NS-1009");
     expect(result.orders.every((order) => order.status === "captured")).toBe(true);
     expect(result.orders.every((order) => order.paymentMethod === "card")).toBe(true);
     expect(
-      await listOrders(db, merchant, { limit: 50, q: "MG-1002", paymentMethod: "card" }),
+      await listOrders(db, merchant, { limit: 50, q: "NS-1002", paymentMethod: "card" }),
     ).toMatchObject({ orders: [] });
   });
 
@@ -341,7 +341,7 @@ describe("listOrders search and filters", () => {
       .where(eq(orders.status, "authorized"));
     const expected = authorized
       .map((order) => order.reference)
-      .filter((reference) => reference.startsWith("MG-"));
+      .filter((reference) => reference.startsWith("NS-"));
 
     expect(forward).toHaveLength(expected.length);
     expect(new Set(forward)).toEqual(new Set(expected));
@@ -359,13 +359,13 @@ describe("listOrders search and filters", () => {
     expect(result.orders.every((order) => order.status === "captured")).toBe(true);
   });
   it("returns nothing for a store the user can't see", async () => {
-    // NB-2001 belongs to Nordic Bikes, so its store is hidden from Moonlight Goods.
-    const [nordic] = await db
+    // PA-2001 belongs to Pocket Atelier, so its store is hidden from Northstar Threads.
+    const [pocket] = await db
       .select({ storeId: orders.storeId })
       .from(orders)
-      .where(eq(orders.reference, "NB-2001"));
+      .where(eq(orders.reference, "PA-2001"));
 
-    const result = await listOrders(db, merchant, { limit: 50, storeId: nordic?.storeId });
+    const result = await listOrders(db, merchant, { limit: 50, storeId: pocket?.storeId });
 
     expect(result.orders).toEqual([]);
   });
@@ -378,7 +378,7 @@ describe("creating orders as the checkout customer", () => {
   it("creates the order and gets its id and reference back", async () => {
     const created = await createOrder(db, customer, {
       ...newOrder,
-      storeId: seedIds.stores.nordicBikesGermany,
+      storeId: seedIds.stores.satinSparrow,
     });
     try {
       expect(created).toMatchObject({
@@ -399,7 +399,7 @@ describe("creating orders as the checkout customer", () => {
     await expect(
       createOrder(db, customer, {
         ...newOrder,
-        storeId: seedIds.stores.nordicBikesGermany,
+        storeId: seedIds.stores.satinSparrow,
         shipped: true,
       }),
     ).rejects.toBeInstanceOf(OrderCreateForbiddenError);
@@ -407,47 +407,47 @@ describe("creating orders as the checkout customer", () => {
 });
 
 describe("getOrder", () => {
-  // MG-1003 in supabase/seed.sql.
+  // NS-1003 in supabase/seed.sql.
   const orderId = "29fb84e7-03da-44f2-9389-dbbe9e12d3f3";
 
   it("returns the order with its store and lines in order", async () => {
     const order = await getOrder(db, merchant, orderId);
 
     expect(order).toMatchObject({
-      reference: "MG-1003",
+      reference: "NS-1003",
       status: "captured",
-      refundedAmount: 4000,
-      storeName: "Moonlight Goods Finland",
+      refundedAmount: 2000,
+      storeName: "Plaid Parade",
     });
-    expect(order?.lines.map((line) => line.name)).toEqual(["Wool blanket", "Night lamp"]);
+    expect(order?.lines.map((line) => line.name)).toEqual(["Wool beanie", "Linen scarf"]);
   });
 
   it("returns line totals and tax computed by the database", async () => {
     const order = await getOrder(db, merchant, orderId);
 
-    // EUR 80.00 including 25.5 % VAT holds EUR 16.25 of tax.
+    // EUR 29.90 including 25.5 % VAT holds EUR 6.08 of tax.
     expect(order?.lines[0]).toMatchObject({
       type: "physical",
-      sku: "BLK-WOL-02",
-      unitPrice: 8000,
+      sku: "PP-FAS-10",
+      unitPrice: 2990,
       taxRate: 2550,
-      totalAmount: 8000,
-      totalTaxAmount: 1625,
+      totalAmount: 2990,
+      totalTaxAmount: 608,
     });
   });
 
   it("returns lines that aren't products without a SKU", async () => {
-    // MG-1002 in supabase/seed.sql: two candle sets and a shipping fee.
+    // NS-1002 in supabase/seed-orders.sql: two sets of socks and a shipping fee.
     const order = await getOrder(db, merchant, "a04509c1-b524-494a-8662-8d6ed7bcfc8d");
 
     expect(order?.lines.map((line) => [line.type, line.sku, line.totalAmount])).toEqual([
-      ["physical", "CND-SET-03", 49800],
+      ["physical", "VV-FAS-05", 43780],
       ["shipping_fee", null, 4900],
     ]);
   });
 
   it("hides an order of another merchant's company as if it didn't exist", async () => {
-    // NB-2001 belongs to Nordic Bikes, not Moonlight Goods.
+    // PA-2001 belongs to Pocket Atelier, not Northstar Threads.
     expect(await getOrder(db, merchant, "f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b")).toBeNull();
   });
 
@@ -460,8 +460,8 @@ describe("getOrder", () => {
   });
 });
 
-// Moonlight Goods Sweden, a SEK store in supabase/seed.sql.
-const swedenStore = "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6";
+// Velour Vault, a SEK store in supabase/seed.sql.
+const swedenStore = "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03";
 
 const newOrder: CreateOrderInput = {
   storeId: swedenStore,
@@ -623,7 +623,7 @@ describe("createOrder", () => {
     const customer: UserClaims = { sub: testAccounts.customer, global_roles: [] };
     const { id } = await createOrder(db, customer, {
       ...newOrder,
-      storeId: seedIds.stores.nordicBikesGermany,
+      storeId: seedIds.stores.satinSparrow,
     });
     created.push(id);
 
@@ -642,27 +642,25 @@ describe("createOrder", () => {
   });
 
   it("hides a store the user can't read as if it didn't exist", async () => {
-    const otherStore = { ...newOrder, storeId: "d2a94f1c-7e3b-4c8d-9a60-b1e2f3a4c5d6" };
+    const otherStore = { ...newOrder, storeId: "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18" };
     const merchant: UserClaims = { sub: testAccounts.merchantA, global_roles: [] };
     await expect(createOrder(db, merchant, otherStore)).rejects.toThrow(StoreNotFoundError);
   });
 });
 
 describe("listStoresForOrder", () => {
-  it("lists all four seed stores for a platform developer, by name", async () => {
+  it("lists all twenty seed stores for a platform developer, by name", async () => {
     const developer: UserClaims = {
       sub: testAccounts.developer,
       global_roles: ["platform_developer"],
     };
     const stores = await listStoresForOrder(db, developer);
 
-    expect(stores.map((store) => store.name)).toEqual([
-      "Moonlight Goods Finland",
-      "Moonlight Goods Norway",
-      "Moonlight Goods Sweden",
-      "Nordic Bikes Germany",
-    ]);
-    expect(stores[0]).toMatchObject({ currency: "EUR", organizationName: "Moonlight Goods" });
+    expect(stores).toHaveLength(20);
+    expect(stores.find((store) => store.name === "Plaid Parade")).toMatchObject({
+      currency: "EUR",
+      organizationName: "Northstar Threads",
+    });
   });
 
   it("shows no stores to a user with no access", async () => {
@@ -731,7 +729,7 @@ describe("applyOrderAction", () => {
   it("lets a second-line agent capture, and refuses a first-line agent with 403", async () => {
     const { id: orderId } = await createOrder(db, developer, {
       ...newOrder,
-      storeId: seedIds.stores.nordicBikesGermany,
+      storeId: seedIds.stores.satinSparrow,
     });
     created.push(orderId);
     const capture = { action: "capture" as const, orderId, amount: 100, reason: "Shipped" };
@@ -748,10 +746,10 @@ describe("applyOrderAction", () => {
   });
 
   it("answers 403 to someone who may read the order but not cancel it", async () => {
-    // Merchant B handles disputes at Nordic Bikes: they read its orders but may not move money.
+    // Merchant B handles disputes at Pocket Atelier: they read its orders but may not move money.
     const { id: orderId } = await createOrder(db, developer, {
       ...newOrder,
-      storeId: seedIds.stores.nordicBikesGermany,
+      storeId: seedIds.stores.satinSparrow,
     });
     created.push(orderId);
     const merchantB: UserClaims = { sub: testAccounts.merchantB, global_roles: [] };
@@ -764,11 +762,11 @@ describe("applyOrderAction", () => {
   describe("inside an agent run", () => {
     const agent: UserClaims = { sub: testAccounts.agent, global_roles: [] };
 
-    // An order at Nordic Bikes Germany, where the second-line agent may capture.
+    // An order at Satin Sparrow, where the second-line agent may capture.
     async function agentOrder() {
       const { id } = await createOrder(db, developer, {
         ...newOrder,
-        storeId: seedIds.stores.nordicBikesGermany,
+        storeId: seedIds.stores.satinSparrow,
       });
       created.push(id);
       return id;

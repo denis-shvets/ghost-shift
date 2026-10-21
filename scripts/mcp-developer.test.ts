@@ -138,7 +138,7 @@ describe("hosted allowlist", () => {
   });
 });
 
-const storeId = seedIds.stores.moonlightSweden;
+const storeId = seedIds.stores.velourVault;
 
 describe("list_sample_products input", () => {
   it("requires a store uuid and accepts a count from 1 to 20", () => {
@@ -155,12 +155,10 @@ describe("list_sample_products input", () => {
 });
 
 describe("list_sample_products tool", () => {
-  it("returns the store's 50 products, physical first, in its currency's prices", async () => {
+  it("returns the store's 30 products, in list order, in its currency's prices", async () => {
     const result = await runTool("list_sample_products", { storeId }, { request: vi.fn() });
     const products = JSON.parse(result.content[0].text);
-    expect(products).toHaveLength(50);
-    expect(products.slice(0, 25).every((p: { type: string }) => p.type === "physical")).toBe(true);
-    expect(products.slice(25).every((p: { type: string }) => p.type === "digital")).toBe(true);
+    expect(products).toHaveLength(30);
   });
 
   it("respects count", async () => {

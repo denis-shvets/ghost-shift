@@ -4,9 +4,9 @@
 export type Money = { amount: number; currency: "SEK" | "EUR" | "NOK" | "GBP" };
 
 export const stores = [
-  { id: "sto_se", name: "Moonlight Goods Sweden", market: "SE", currency: "SEK", status: "live" },
-  { id: "sto_fi", name: "Moonlight Goods Finland", market: "FI", currency: "EUR", status: "live" },
-  { id: "sto_no", name: "Moonlight Goods Norway", market: "NO", currency: "NOK", status: "test" },
+  { id: "sto_se", name: "Velour Vault", market: "SE", currency: "SEK", status: "live" },
+  { id: "sto_fi", name: "Plaid Parade", market: "FI", currency: "EUR", status: "live" },
+  { id: "sto_no", name: "Silk Pine Oslo", market: "NO", currency: "NOK", status: "test" },
 ] as const;
 
 export type OrderStatus =
@@ -39,7 +39,7 @@ const eur = (amount: number): Money => ({ amount, currency: "EUR" });
 export const orders: Order[] = [
   {
     id: "ord_1001",
-    reference: "MG-1001",
+    reference: "NS-1001",
     createdAt: "2026-10-17T08:12:00Z",
     storeId: "sto_se",
     shopper: { name: "Astrid Lind", email: "astrid@example.com", country: "SE" },
@@ -53,7 +53,7 @@ export const orders: Order[] = [
   },
   {
     id: "ord_1002",
-    reference: "MG-1002",
+    reference: "NS-1002",
     createdAt: "2026-10-16T19:40:00Z",
     storeId: "sto_se",
     shopper: { name: "Erik Holm", email: "erik@example.com", country: "SE" },
@@ -67,7 +67,7 @@ export const orders: Order[] = [
   },
   {
     id: "ord_1003",
-    reference: "MG-1003",
+    reference: "NS-1003",
     createdAt: "2026-10-15T11:05:00Z",
     storeId: "sto_fi",
     shopper: { name: "Aino Virtanen", email: "aino@example.com", country: "FI" },
@@ -84,7 +84,7 @@ export const orders: Order[] = [
   },
   {
     id: "ord_1004",
-    reference: "MG-1004",
+    reference: "NS-1004",
     createdAt: "2026-10-03T22:30:00Z",
     storeId: "sto_se",
     shopper: { name: "Maja Berg", email: "maja@example.com", country: "SE" },
@@ -199,7 +199,7 @@ export const emailsSent = [
   {
     id: "em_1",
     to: "owner@example.com",
-    subject: "Dispute needs a response: MG-1002",
+    subject: "Dispute needs a response: NS-1002",
     sentAt: "2026-10-17T07:00:00Z",
     status: "delivered",
   },

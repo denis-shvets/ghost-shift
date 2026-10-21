@@ -7,7 +7,7 @@
 
 Ghost Shift has three kinds of people:
 
-- **Merchants:** representatives of a merchant company. One company (organization) can own many stores, for example Moonlight Goods Sweden and Moonlight Goods Norway.
+- **Merchants:** representatives of a merchant company. One company (organization) can own many stores, for example Velour Vault and Silk Pine Oslo.
 - **Agents:** external support staff assigned to specific stores, sometimes across companies. Agents often hold two support levels on the same store, for example first-line and second-line.
 - **Developers and platform staff:** people who build and run the platform, with access across all companies.
 

@@ -60,7 +60,7 @@ describe("GET /api/v1/stores", () => {
 
   it("returns 200 with the list of stores", async () => {
     readCurrentUser.mockResolvedValue(developer);
-    const stores = [{ id: "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6", name: "Moonlight Goods Sweden" }];
+    const stores = [{ id: "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03", name: "Velour Vault" }];
     listStoresForOrder.mockResolvedValue(stores);
 
     const response = await get();

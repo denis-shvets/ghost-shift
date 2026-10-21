@@ -9,24 +9,34 @@
     "email": "aino.virtanen@example.com"
   },
   "stores": {
-    "fi": {
-      "id": "8916eb8f-667b-4bf9-a6d9-c72316aa3841",
-      "name": "Moonlight Goods Finland (EUR)",
+    "fi1": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b02",
+      "name": "Hemline Helsinki (EUR)",
       "carrier": "Posti",
       "shippingFee": {
         "name": "Shipping, Posti",
         "unitPrice": 590,
-        "taxRate": 0
+        "taxRate": 2550
       }
     },
-    "se": {
-      "id": "e03c55bc-c4a7-4795-a5ba-3b3b3cf800d6",
-      "name": "Moonlight Goods Sweden (SEK)",
+    "fi2": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b10",
+      "name": "Plaid Parade (EUR)",
+      "carrier": "Posti",
+      "shippingFee": {
+        "name": "Shipping, Posti",
+        "unitPrice": 590,
+        "taxRate": 2550
+      }
+    },
+    "se1": {
+      "id": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b03",
+      "name": "Velour Vault (SEK)",
       "carrier": "PostNord",
       "shippingFee": {
         "name": "Shipping, PostNord",
         "unitPrice": 7900,
-        "taxRate": 0
+        "taxRate": 2500
       }
     }
   },

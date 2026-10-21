@@ -36,7 +36,7 @@ const inOneHour = () => new Date(Date.now() + 60 * 60 * 1000).toISOString();
 // Queues one checkout the way the app does: only the planned columns are sent.
 function queue(
   userId: string,
-  storeId = seedIds.stores.nordicBikesGermany,
+  storeId = seedIds.stores.satinSparrow,
   dueAt = inOneHour(),
   payload: object = { storeId },
 ) {
@@ -63,9 +63,9 @@ describe("queuing a checkout", () => {
   });
 
   it("refuses a store where the user may not create orders", async () => {
-    await expect(
-      queue(testAccounts.customer, seedIds.stores.moonlightNorway),
-    ).rejects.toMatchObject(permissionDenied);
+    await expect(queue(testAccounts.customer, seedIds.stores.silkPineOslo)).rejects.toMatchObject(
+      permissionDenied,
+    );
     await expect(queue(testAccounts.merchantA)).rejects.toMatchObject(permissionDenied);
   });
 
@@ -83,8 +83,8 @@ describe("queuing a checkout", () => {
       withUser(db, asUser(testAccounts.customer), (tx) =>
         tx.execute(
           sql`insert into public.scheduled_checkouts (store_id, persona, plan_id, due_at, payload, ${column})
-            values (${seedIds.stores.nordicBikesGermany}::uuid, ${persona}, ${randomUUID()}::uuid,
-              ${inOneHour()}::timestamptz, ${JSON.stringify({ storeId: seedIds.stores.nordicBikesGermany })}::jsonb, ${value})`,
+            values (${seedIds.stores.satinSparrow}::uuid, ${persona}, ${randomUUID()}::uuid,
+              ${inOneHour()}::timestamptz, ${JSON.stringify({ storeId: seedIds.stores.satinSparrow })}::jsonb, ${value})`,
         ),
       ),
     ).rejects.toMatchObject(permissionDenied);
@@ -92,11 +92,11 @@ describe("queuing a checkout", () => {
 
   // Postgres error 23514 is "check_violation". The Data API reaches this table without the API's Zod check.
   it.each([
-    ["an order for another store than the row's", { storeId: seedIds.stores.moonlightSweden }],
+    ["an order for another store than the row's", { storeId: seedIds.stores.velourVault }],
     ["an order with no store", {}],
     [
       "an order that says it already shipped",
-      { storeId: seedIds.stores.nordicBikesGermany, shipped: true },
+      { storeId: seedIds.stores.satinSparrow, shipped: true },
     ],
   ])("refuses %s", async (_, payload) => {
     await expect(queue(testAccounts.customer, undefined, undefined, payload)).rejects.toMatchObject(

@@ -128,9 +128,9 @@ The `default null` keeps every existing caller working: they don't send the argu
 
 ## 8. Sample data
 
-`pnpm db:seed-users` creates the local accounts. It now also creates one ended sample run for the seeded agent ("Sample: capture shipped orders at Nordic Bikes Germany") and links it to the three latest captures at that store. The run has a fixed id: running the script again deletes it (its events lose the link) and makes it again. `supabase/seed.sql` can't do this, because it runs before any users exist and a run must point to a user.
+`pnpm db:seed-users` creates the local accounts. It now also creates one ended sample run for the seeded agent ("Sample: capture shipped orders at Satin Sparrow") and links it to the three latest captures at that store. The run has a fixed id: running the script again deletes it (its events lose the link) and makes it again. `supabase/seed.sql` can't do this, because it runs before any users exist and a run must point to a user.
 
-After `pnpm db:reset` and `pnpm db:seed-users`, sign in as the agent or the developer and open `/audit-log`: three captures show the sample purpose in the Run column. As `merchant-nordic@ghostshift.test` you see the same events with only the short run id.
+After `pnpm db:reset` and `pnpm db:seed-users`, sign in as the agent or the developer and open `/audit-log`: three captures show the sample purpose in the Run column. As `merchant-pocket@ghostshift.test` you see the same events with only the short run id.
 
 ## 9. Try it yourself (Supabase Studio, SQL editor)
 

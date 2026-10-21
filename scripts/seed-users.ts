@@ -12,14 +12,30 @@ import seedIds from "../src/shared/seed/seed-ids.json" with { type: "json" };
 
 import { CHECKOUT_EMAIL } from "./night-shift.ts";
 
-const moonlightGoods = seedIds.organizations.moonlightGoods;
-const nordicBikes = seedIds.organizations.nordicBikes;
-const nordicBikesGermany = seedIds.stores.nordicBikesGermany;
-// The live stores. Night Shift customers may order only here; Moonlight Goods Norway is a test store.
+const northstarThreads = seedIds.organizations.northstarThreads;
+const pocketAtelier = seedIds.organizations.pocketAtelier;
+const satinSparrow = seedIds.stores.satinSparrow;
+// The live stores. Night Shift customers may order only here; Silk Pine Oslo is a test store.
 const liveStores = [
-  seedIds.stores.moonlightSweden,
-  seedIds.stores.moonlightFinland,
-  nordicBikesGermany,
+  seedIds.stores.larkLoomStockholm,
+  seedIds.stores.hemlineHelsinki,
+  seedIds.stores.velourVault,
+  seedIds.stores.mossAndMirror,
+  seedIds.stores.ginghamGalaxy,
+  seedIds.stores.cobaltCloset,
+  seedIds.stores.tangerineThread,
+  seedIds.stores.fjordFabric,
+  seedIds.stores.plaidParade,
+  seedIds.stores.woolWhisper,
+  seedIds.stores.denimDune,
+  seedIds.stores.linenLantern,
+  seedIds.stores.corduroyComet,
+  seedIds.stores.rayonRhapsody,
+  seedIds.stores.chiffonCascade,
+  seedIds.stores.thimbleThyme,
+  seedIds.stores.satinSparrow,
+  seedIds.stores.buttonBazaar,
+  seedIds.stores.zipperZenith,
 ];
 // A fixed id, so running the script again updates the same sample run.
 const sampleRunId = "5a3b1e00-0000-4000-8000-000000000001";
@@ -61,15 +77,15 @@ const seedUsers = [
     email: "merchant-orders@ghostshift.test",
     globalRoles: [],
     organizationRoles: [
-      { organizationId: moonlightGoods, role: "merchant_order_manager" },
-      { organizationId: moonlightGoods, role: "merchant_dispute_handler" },
+      { organizationId: northstarThreads, role: "merchant_order_manager" },
+      { organizationId: northstarThreads, role: "merchant_dispute_handler" },
     ],
     storeRoles: [],
   },
   {
     email: "merchant-nordic@ghostshift.test",
     globalRoles: [],
-    organizationRoles: [{ organizationId: nordicBikes, role: "merchant_dispute_handler" }],
+    organizationRoles: [{ organizationId: pocketAtelier, role: "merchant_dispute_handler" }],
     storeRoles: [],
   },
   { email: "viewer@ghostshift.test", globalRoles: [], organizationRoles: [], storeRoles: [] },
@@ -79,8 +95,8 @@ const seedUsers = [
     globalRoles: [],
     organizationRoles: [],
     storeRoles: [
-      { storeId: nordicBikesGermany, role: "agent_first_line" },
-      { storeId: nordicBikesGermany, role: "agent_second_line" },
+      { storeId: satinSparrow, role: "agent_first_line" },
+      { storeId: satinSparrow, role: "agent_second_line" },
     ],
   },
   // The Night Shift customers' checkout account (docs/guides/night-shift.md). Creates orders, nothing else.
@@ -102,7 +118,7 @@ async function seedSampleRun(agentUserId: string) {
       select e.id, e.occurred_at
       from public.order_events e
       join public.orders o on o.id = e.order_id
-      where o.store_id = ${nordicBikesGermany} and e.action = 'captured'
+      where o.store_id = ${satinSparrow} and e.action = 'captured'
       order by e.occurred_at desc, e.id desc
       limit 3`;
     if (events.length === 0) return;
@@ -112,7 +128,7 @@ async function seedSampleRun(agentUserId: string) {
     // An insert, not an update: the agent_runs_end_now trigger would set ended_at to now().
     await tx`insert into public.agent_runs (id, agent_user_id, started_at, ended_at, purpose, summary)
       values (${sampleRunId}, ${agentUserId}, ${startedAt}, ${endedAt},
-        'Sample: capture shipped orders at Nordic Bikes Germany',
+        'Sample: capture shipped orders at Satin Sparrow',
         ${`Captured ${events.length} shipped orders.`})`;
     await tx`update public.order_events set agent_run_id = ${sampleRunId}
       where id in ${tx(events.map((event) => event.id))}`;
