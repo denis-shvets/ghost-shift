@@ -177,17 +177,17 @@ The app connects to Postgres as the `postgres` admin, and admins skip RLS. So a 
 
 ## 7. Accounts for local testing
 
-`pnpm db:seed-users` creates seven sign-in accounts in your local Supabase, and gives each one its access. Run `pnpm db:start`, then `pnpm db:reset`, then `pnpm db:seed-users`. Reset wipes accounts, so seed again after every reset.
+`pnpm db:seed-users` creates the shared sign-in accounts in your local Supabase, and gives each one its access. Your personal accounts (developer, agent, and your own) come from a local file, described below. Run `pnpm db:start`, then `pnpm db:reset`, then `pnpm db:seed-users`. Reset wipes accounts, so seed again after every reset.
 
-| Email                                 | Access                                                                       | What it's for                                                                                                                                                                                                                            |
-| ------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `developer@ghostshift.test`           | `platform_developer` (global)                                                | Sees every order.                                                                                                                                                                                                                        |
-| `platform-operator@ghostshift.test`   | `platform_operator` (global)                                                 | Sees every order and store, without the developer's permissions. Can't read organization names.                                                                                                                                          |
-| `merchant-orders@ghostshift.test`     | `merchant_order_manager` and `merchant_dispute_handler` at Northstar Threads | Sees and edits Northstar Threads orders, and handles their disputes (merchant A, with two roles).                                                                                                                                        |
-| `merchant-pocket@ghostshift.test`     | `merchant_dispute_handler` at Pocket Atelier                                 | Sees Pocket Atelier orders and handles disputes, but can't edit them (merchant B).                                                                                                                                                       |
-| `viewer@ghostshift.test`              | none                                                                         | Signed in, but sees nothing. Shows that signing in alone grants nothing.                                                                                                                                                                 |
-| `SEED_AGENT_EMAIL` (from `.dev.vars`) | `agent_first_line` and `agent_second_line` on Satin Sparrow                  | The agent identity ([ADR 0007](../adr/0007-agent-identities.md)). Two support levels on one store. The address is any email you can receive mail at; a Gmail plus-address keeps the mail in your inbox while the account stays separate. |
-| `checkout@ghostshift.test`            | `checkout_customer` on the three live stores                                 | The Night Shift customers' account ([Night Shift](night-shift.md)). Queues and creates orders, nothing else.                                                                                                                             |
+| Email                               | Access                                                                       | What it's for                                                                                                                                                                                                                            |
+| ----------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SEED_DEVELOPER_EMAIL` (local file) | `platform_developer` (global)                                                | Sees every order.                                                                                                                                                                                                                        |
+| `platform-operator@ghostshift.test` | `platform_operator` (global)                                                 | Sees every order and store, without the developer's permissions. Can't read organization names.                                                                                                                                          |
+| `merchant-orders@ghostshift.test`   | `merchant_order_manager` and `merchant_dispute_handler` at Northstar Threads | Sees and edits Northstar Threads orders, and handles their disputes (merchant A, with two roles).                                                                                                                                        |
+| `merchant-pocket@ghostshift.test`   | `merchant_dispute_handler` at Pocket Atelier                                 | Sees Pocket Atelier orders and handles disputes, but can't edit them (merchant B).                                                                                                                                                       |
+| `viewer@ghostshift.test`            | none                                                                         | Signed in, but sees nothing. Shows that signing in alone grants nothing.                                                                                                                                                                 |
+| `SEED_AGENT_EMAIL` (local file)     | `agent_first_line` and `agent_second_line` on Satin Sparrow                  | The agent identity ([ADR 0007](../adr/0007-agent-identities.md)). Two support levels on one store. The address is any email you can receive mail at; a Gmail plus-address keeps the mail in your inbox while the account stays separate. |
+| `checkout@ghostshift.test`          | `checkout_customer` on the three live stores                                 | The Night Shift customers' account ([Night Shift](night-shift.md)). Queues and creates orders, nothing else.                                                                                                                             |
 
 The seed script reads the local keys from `supabase status`, and it refuses to run against anything other than `127.0.0.1` or `localhost`. Its password comes from `SEED_PASSWORD` in `.dev.vars`, which Git ignores.
 
@@ -268,3 +268,24 @@ Run them with `pnpm db:start`, `pnpm db:reset`, then `pnpm test`.
 - [Supabase: Custom access token hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)
 - [Supabase: Row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
 - [Supabase: JWT claims](https://supabase.com/docs/guides/auth/jwt-fields)
+
+### Your personal accounts
+
+The developer, agent and any other account with your own address are not in the tracked seed script. They come from `scripts/seed-users.local.ts` in the main checkout, which is git-ignored. Worktrees read the same file, because the seed script looks in the main checkout.
+
+Create it with one entry per account. Each email comes from `.dev.vars`, and `pnpm db:seed-users` skips the file when it is missing:
+
+```ts
+export default function localSeedUsers(seedIds) {
+  return [
+    {
+      email: process.env.SEED_DEVELOPER_EMAIL || "developer@ghostshift.test",
+      globalRoles: ["platform_developer"],
+      organizationRoles: [],
+      storeRoles: [],
+    },
+  ];
+}
+```
+
+Without the file, `pnpm db:seed-users` creates only the shared accounts above. The developer and agent MCP servers still read their emails from `.dev.vars`, so they can't sign in until the file exists and the seed has run.

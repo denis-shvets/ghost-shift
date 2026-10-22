@@ -2,10 +2,12 @@
 // Run `pnpm db:start` and `pnpm db:reset` first, then `pnpm db:seed-users`.
 // Safe to run again: accounts get their password reset and their access rows replaced.
 import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
-import { z } from "zod";
 
 // Ids shared with supabase/seed.sql through src/shared/seed/seed-ids.json.
 import seedIds from "../src/shared/seed/seed-ids.json" with { type: "json" };
@@ -40,32 +42,17 @@ const liveStores = [
 // A fixed id, so running the script again updates the same sample run.
 const sampleRunId = "5a3b1e00-0000-4000-8000-000000000001";
 
-// The agent's address lives in .dev.vars, not in this public repo, so any address works.
-// The script checks it is a valid email and stops with a clear error if it is missing or wrong.
-const agentEmail = z.email().safeParse(process.env.SEED_AGENT_EMAIL);
-if (!agentEmail.success) {
-  throw new Error(
-    "Set SEED_AGENT_EMAIL in .dev.vars to a valid email address (see .dev.vars.example).",
-  );
-}
-
-// The MCP server signs in with the same address, so both read SEED_DEVELOPER_EMAIL. Empty means the default.
-const developerEmail = z
-  .email()
-  .default("developer@ghostshift.test")
-  .safeParse(process.env.SEED_DEVELOPER_EMAIL || undefined);
-if (!developerEmail.success) {
-  throw new Error("SEED_DEVELOPER_EMAIL must be a valid email address, or empty for the default.");
-}
+// Your own accounts live in the main checkout's scripts/ folder, git-ignored, so worktrees read the same file. Skipped when absent.
+const mainRoot = dirname(
+  execSync("git rev-parse --path-format=absolute --git-common-dir", { encoding: "utf8" }).trim(),
+);
+const localPath = join(mainRoot, "scripts", "seed-users.local.ts");
+const localSeedUsers = existsSync(localPath)
+  ? (await import(pathToFileURL(localPath).href)).default(seedIds)
+  : [];
 
 // A person may hold several roles at the same company or store (ADR 0015).
 const seedUsers = [
-  {
-    email: developerEmail.data,
-    globalRoles: ["platform_developer"],
-    organizationRoles: [],
-    storeRoles: [],
-  },
   {
     email: "platform-operator@ghostshift.test",
     globalRoles: ["platform_operator"],
@@ -89,16 +76,6 @@ const seedUsers = [
     storeRoles: [],
   },
   { email: "viewer@ghostshift.test", globalRoles: [], organizationRoles: [], storeRoles: [] },
-  // The agent's address comes from SEED_AGENT_EMAIL. Two roles at one store.
-  {
-    email: agentEmail.data,
-    globalRoles: [],
-    organizationRoles: [],
-    storeRoles: [
-      { storeId: satinSparrow, role: "agent_first_line" },
-      { storeId: satinSparrow, role: "agent_second_line" },
-    ],
-  },
   // The Night Shift customers' checkout account (docs/guides/night-shift.md). Creates orders, nothing else.
   {
     email: CHECKOUT_EMAIL,
@@ -106,6 +83,7 @@ const seedUsers = [
     organizationRoles: [],
     storeRoles: liveStores.map((storeId) => ({ storeId, role: "checkout_customer" })),
   },
+  ...localSeedUsers,
 ];
 
 // One finished agent run for the agent, linked to the three latest captures at its store, so the
@@ -212,7 +190,7 @@ try {
       }
     });
 
-    if (seedUser.email === agentEmail.data) await seedSampleRun(userId);
+    if (seedUser.email === process.env.SEED_AGENT_EMAIL) await seedSampleRun(userId);
 
     const access = [
       ...seedUser.globalRoles,
