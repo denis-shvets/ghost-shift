@@ -13,11 +13,8 @@ export const Route = createFileRoute("/orders/")({
 });
 
 function Orders() {
-  const { q, status, storeId, paymentMethod, shipped } = Route.useSearch();
+  const { q, status, storeId, paymentMethod } = Route.useSearch();
   return (
-    <OrderListPage
-      {...Route.useLoaderData()}
-      filters={{ q, status, storeId, paymentMethod, shipped }}
-    />
+    <OrderListPage {...Route.useLoaderData()} filters={{ q, status, storeId, paymentMethod }} />
   );
 }

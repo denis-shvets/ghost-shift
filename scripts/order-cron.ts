@@ -8,7 +8,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { z } from "zod";
 
-import type { PlaceOrderInput } from "../src/features/orders/model/create-order-input.ts";
+import type { CreateOrderInput } from "../src/features/orders/model/create-order-input.ts";
 import { PAYMENT_METHODS } from "../src/features/orders/model/payment-methods.ts";
 import { catalogProducts } from "../src/features/orders/model/store-catalogs.ts";
 import {
@@ -52,7 +52,7 @@ export function pickOrder(
   storeIds: string[],
   personas: Persona[],
   random: () => number,
-): PlaceOrderInput | string {
+): CreateOrderInput | string {
   if (storeIds.length === 0) return "the account has no stores";
   // Only stores a persona shops at, so no pick is wasted on a store with no customer.
   const shopped = storeIds.filter((id) =>

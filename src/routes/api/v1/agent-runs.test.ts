@@ -51,7 +51,7 @@ describe("POST /api/v1/agent-runs", () => {
   it("returns 401 JSON when nobody is signed in", async () => {
     readCurrentUser.mockResolvedValue(null);
 
-    const response = await post(JSON.stringify({ purpose: "Capture shipped orders" }));
+    const response = await post(JSON.stringify({ purpose: "Review open orders" }));
 
     expect(response.status).toBe(401);
     expect(startAgentRun).not.toHaveBeenCalled();
@@ -79,12 +79,12 @@ describe("POST /api/v1/agent-runs", () => {
     const run = { id: "5a3b1e00-0000-4000-8000-000000000001", startedAt: "2026-10-20T02:00:00Z" };
     startAgentRun.mockResolvedValue(run);
 
-    const response = await post(JSON.stringify({ purpose: " Capture shipped orders " }));
+    const response = await post(JSON.stringify({ purpose: " Review open orders " }));
 
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual(run);
     expect(startAgentRun).toHaveBeenCalledWith(expect.anything(), agent, {
-      purpose: "Capture shipped orders",
+      purpose: "Review open orders",
     });
     expect(close).toHaveBeenCalled();
   });

@@ -67,7 +67,7 @@ Agent work this enables, for example: capture orders when they ship, cancel orde
 
 ## First agents
 
-The first agents are **Claude runs on the owner's machine**, started on a timer ([ADR 0017](adr/0017-local-agents-hosted-app.md)), that sign in as agent users and call the `/api/` routes. The first one will most likely work on **orders**, for example capturing shipped orders and canceling expired ones. Which tasks exactly is still open.
+The first agents are **Claude runs on the owner's machine**, started on a timer ([ADR 0017](adr/0017-local-agents-hosted-app.md)), that sign in as agent users and call the `/api/` routes. The first one will most likely work on **orders**, for example canceling expired ones. Which tasks exactly is still open.
 
 Agents decide on their own. There are **no human approvals** in the first version; the activity log and live view are how humans follow what happened.
 
@@ -86,4 +86,4 @@ Agents decide on their own. There are **no human approvals** in the first versio
 3. ~~Which domains go into the first version?~~ Decided 2026-10-17: the first version is a simple scaffold with routes and mocked pages only, to show the structure. Features come later.
 4. ~~Keep shifts and handover notes?~~ Not decided, moved to "Not in scope yet".
 5. ~~Which actions need human approval?~~ Decided 2026-10-17: none for now, agents act on their own.
-6. Which scheduled tasks does the first orders agent run? _Proposal (2026-10-21), for the owner to accept:_ one task to start with, for Satin Sparrow: capture authorized orders that have shipped. It runs as a scheduled Claude task on the owner's machine. Part-captured orders, cancels and refunds stay with people. The rules are in plain words in [docs/agents/orders-agent.md](agents/orders-agent.md), so the owner can add conditions without code. See [the orders agent guide](guides/orders-agent.md).
+6. Which scheduled tasks does the first orders agent run? ~~Proposal (2026-10-21): capture authorized orders.~~ Decided 2026-10-22: the orders agent reads orders and records its runs. It does not capture, cancel or refund.

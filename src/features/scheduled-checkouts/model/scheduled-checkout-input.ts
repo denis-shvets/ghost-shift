@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { placeOrderInput } from "../../orders/model/create-order-input.ts";
+import { createOrderInput } from "../../orders/model/create-order-input.ts";
 
 export const SCHEDULED_CHECKOUT_STATUSES = [
   "pending",
@@ -17,7 +17,7 @@ export const MAX_SCHEDULED_CHECKOUTS = 500;
 export const scheduledCheckoutInput = z.object({
   dueAt: z.iso.datetime({ offset: true }),
   persona: z.string().min(1).max(60),
-  order: placeOrderInput,
+  order: createOrderInput,
 });
 
 // A plan file from `pnpm night-shift:plan`, as `pnpm night-shift:upload` sends it.

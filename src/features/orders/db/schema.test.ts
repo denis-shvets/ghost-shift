@@ -1,4 +1,4 @@
-import { TransactionRollbackError, and, eq, sql } from "drizzle-orm";
+import { TransactionRollbackError, eq, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -9,7 +9,6 @@ import {
 } from "~/features/access/db/test-accounts";
 import type { OrderStatus } from "~/features/orders/model/order-statuses";
 import { organizations } from "~/features/organizations/db/schema";
-import { scheduledCheckouts } from "~/features/scheduled-checkouts/db/schema";
 import { stores } from "~/features/stores/db/schema";
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { createDb, withRole, withUser } from "~/shared/db/client";
@@ -427,12 +426,11 @@ describe("creating orders", () => {
   });
 
   // The orders table is reachable through the Data API too, so the policy refuses an order that
-  // fakes captured money, is backdated, already shipped, or is put in someone else's name.
+  // fakes captured money, is backdated, or is put in someone else's name.
   it.each<[string, Partial<typeof orders.$inferInsert>]>([
     ["a captured order", { status: "captured", capturedAmount: 20000 }],
     ["a captured amount on an authorization", { capturedAmount: 100 }],
     ["an order dated 8 hours ago", { createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000) }],
-    ["an order that already shipped", { shippedAt: sql`now()` as unknown as Date }],
     ["an order in another user's name", { createdBy: testAccounts.developer }],
   ])("a checkout customer can't create %s", async (_, values) => {
     const reference = `TEST-${randomUUID()}`;
@@ -446,21 +444,6 @@ describe("creating orders", () => {
         }),
       ),
     ).rejects.toMatchObject(permissionDenied);
-  });
-
-  it("a platform developer can still create an order that already shipped", async () => {
-    const reference = `TEST-${randomUUID()}`;
-    try {
-      await withUser(db, asUser(testAccounts.developer), (tx) =>
-        tx
-          .insert(orders)
-          .values({ ...newOrder(reference), shippedAt: sql`now()` as unknown as Date }),
-      );
-      const [saved] = await db.select().from(orders).where(eq(orders.reference, reference));
-      expect(saved?.shippedAt).not.toBeNull();
-    } finally {
-      await removeOrder(reference);
-    }
   });
 
   it("a checkout customer can add to its own order, but not to another order in its store", async () => {
@@ -709,141 +692,6 @@ describe("expiring authorizations", () => {
   });
 });
 
-describe("shipping after a delay", () => {
-  const HOUR = 60 * 60 * 1000;
-
-  // The delay is 4 hours plus the id's last byte modulo 45, so these endings give 4 and 48 hours.
-  const shipsAfter4Hours = () => `${randomUUID().slice(0, -2)}00`;
-  const shipsAfter48Hours = () => `${randomUUID().slice(0, -2)}2c`;
-
-  // An order created 5 hours ago by the Night Shift customer from the queue, with one line, unless
-  // told otherwise.
-  async function addOrder(
-    tx: Tx,
-    {
-      id = shipsAfter4Hours(),
-      reference = `DEV-${randomUUID()}`,
-      status = "authorized",
-      lineType = "physical",
-      queued = true,
-    }: {
-      id?: string;
-      reference?: string;
-      status?: OrderStatus;
-      lineType?: "physical" | "digital";
-      queued?: boolean;
-    } = {},
-  ) {
-    const createdAt = new Date(Date.now() - 5 * HOUR);
-    const [order] = await tx
-      .insert(orders)
-      .values({
-        id,
-        reference,
-        createdAt,
-        createdBy: testAccounts.customer,
-        storeId: satinSparrow,
-        currency: "EUR",
-        customerFirstName: "Test",
-        customerLastName: "Customer",
-        customerEmail: "customer@ghostshift.test",
-        paymentMethod: "card",
-        status,
-        totalAmount: 20000,
-        capturedAmount: status === "part_captured" ? 5000 : 0,
-        shippingCarrier: "PostNord",
-      })
-      .returning();
-    await tx.insert(orderLines).values({
-      orderId: id,
-      position: 1,
-      type: lineType,
-      name: "Test product",
-      quantity: 1,
-      unitPrice: 20000,
-      taxRate: 2500,
-    });
-    if (queued)
-      await tx.insert(scheduledCheckouts).values({
-        createdBy: testAccounts.customer,
-        storeId: satinSparrow,
-        persona: "test",
-        planId: randomUUID(),
-        dueAt: createdAt,
-        payload: { storeId: satinSparrow } as never,
-        status: "placed",
-        orderId: id,
-      });
-    return order!;
-  }
-
-  async function shipOrders(tx: Tx) {
-    const [row] = await tx.execute<{ shipped: number }>(
-      sql`select public.ship_orders() as shipped`,
-    );
-    return row?.shipped;
-  }
-
-  function shippingOf(tx: Tx, id: string) {
-    return tx
-      .select({ shippedAt: orders.shippedAt, tracking: orders.shippingTracking })
-      .from(orders)
-      .where(eq(orders.id, id))
-      .then(([row]) => row);
-  }
-
-  it("ships an order once its delay has passed, dated when the delay ran out", async () => {
-    await inRollback(async (tx) => {
-      const order = await addOrder(tx);
-      expect(await shipOrders(tx)).toBeGreaterThanOrEqual(1);
-
-      expect(await shippingOf(tx, order.id)).toEqual({
-        shippedAt: new Date(order.createdAt.getTime() + 4 * HOUR),
-        tracking: order.id.replace(/-/g, "").slice(0, 12).toUpperCase(),
-      });
-      // The timeline gets one shipped event from the system, and a second run adds none.
-      const before = await shippingOf(tx, order.id);
-      await shipOrders(tx);
-      expect(await shippingOf(tx, order.id)).toEqual(before);
-      const events = await tx
-        .select()
-        .from(orderEvents)
-        .where(and(eq(orderEvents.orderId, order.id), eq(orderEvents.action, "shipped")));
-      expect(events.map((event) => event.actorUserId)).toEqual([null]);
-    });
-  });
-
-  it("leaves alone orders that aren't due, digital, not from the queue or not authorized", async () => {
-    await inRollback(async (tx) => {
-      const notDue = await addOrder(tx, { id: shipsAfter48Hours() });
-      const digital = await addOrder(tx, { lineType: "digital" });
-      // Seed orders and the owner's own test orders never come from the queue.
-      const notQueued = await addOrder(tx, { queued: false });
-      const partCaptured = await addOrder(tx, { status: "part_captured" });
-      await shipOrders(tx);
-
-      for (const order of [notDue, digital, notQueued, partCaptured]) {
-        expect(await shippingOf(tx, order.id)).toEqual({ shippedAt: null, tracking: null });
-      }
-    });
-  });
-
-  it("can't be run by signed-in users, not even a developer", async () => {
-    await expect(
-      withUser(db, asUser(testAccounts.developer), (tx) =>
-        tx.execute(sql`select public.ship_orders()`),
-      ),
-    ).rejects.toMatchObject(permissionDenied);
-  });
-
-  it("runs every 15 minutes", async () => {
-    const [job] = await db.execute<{ schedule: string }>(
-      sql`select schedule from cron.job where jobname = 'ship-orders'`,
-    );
-    expect(job?.schedule).toBe("*/15 * * * *");
-  });
-});
-
 describe("capture, cancel and refund", () => {
   const DAY = 24 * 60 * 60 * 1000;
   const checkViolation = { cause: { code: "23514" } };
@@ -1030,11 +878,11 @@ describe("capture, cancel and refund", () => {
     ).rejects.toMatchObject(permissionDenied);
   });
 
-  it("an agent with second-line support may capture at an assigned store", async () => {
+  it("an agent with second-line support can't capture, since the agent role lost that right", async () => {
     const order = await newOrder({ storeId: satinSparrow, currency: "EUR" });
-    expect(await act(testAccounts.agent, order.id, "capture", 100, "Shipped")).toBe(
-      "part_captured",
-    );
+    await expect(
+      act(testAccounts.agent, order.id, "capture", 100, "Shipped"),
+    ).rejects.toMatchObject(permissionDenied);
   });
 
   it("reports another company's order as not found", async () => {
@@ -1120,16 +968,6 @@ describe("capture, cancel and refund", () => {
       const order = await newOrder();
       await expect(
         db.update(orders).set({ status: "expired" }).where(eq(orders.id, order.id)),
-      ).rejects.toMatchObject(checkViolation);
-    });
-
-    it("refuses a shipped time before the order was created", async () => {
-      const order = await newOrder();
-      await expect(
-        db
-          .update(orders)
-          .set({ shippedAt: new Date("2000-01-01T00:00:00Z") })
-          .where(eq(orders.id, order.id)),
       ).rejects.toMatchObject(checkViolation);
     });
 

@@ -66,10 +66,10 @@ Each role then has permissions, listed in `role_permissions`:
 | `merchant_order_manager`   | organization | read and edit orders, move money, read stores                  |
 | `merchant_dispute_handler` | organization | read orders, handle disputes, read stores                      |
 | `agent_first_line`         | store        | read orders and stores                                         |
-| `agent_second_line`        | store        | read and edit orders, move money, handle disputes, read stores |
+| `agent_second_line`        | store        | read and edit orders, handle disputes, read stores             |
 | `checkout_customer`        | store        | create orders, read its own orders, read stores                |
 
-"Move money" is three permissions: `orders.capture`, `orders.cancel` and `orders.refund` (added 2026-10-20, section 4). They went to exactly the roles that could already edit orders.
+"Move money" is three permissions: `orders.capture`, `orders.cancel` and `orders.refund` (added 2026-10-20, section 4). They went to the roles that could already edit orders, except `agent_second_line`, which no longer holds them.
 
 `checkout_customer` (added 2026-10-21) is the Night Shift customers' role. Besides `platform_developer`, it is the only role that may create orders, and only in the stores it is assigned to. The same `orders.create` lets it queue orders in `scheduled_checkouts`, which the Worker cron places later as that account. See [Night Shift](night-shift.md#4-the-queue-database-changes).
 
@@ -108,7 +108,7 @@ create policy "developers can create orders" on public.orders
   for insert to authenticated with check (public.has_permission('orders.create', store_id));
 ```
 
-Read it as "a new order may be saved when the user has `orders.create` for that order's store". (Since Night Shift a checkout customer holds `orders.create` too, so this policy was replaced by a stricter one: the order must be your own, start as an authorization, not be backdated and not be shipped. See [Night Shift, section 4e](night-shift.md#e-what-a-new-order-may-look-like).) An insert also needs a grant (`grant insert on ... to authenticated`), and the grant and the policy work together: the grant lets the role ask, and the policy decides each row.
+Read it as "a new order may be saved when the user has `orders.create` for that order's store". (Since Night Shift a checkout customer holds `orders.create` too, so this policy was replaced by a stricter one: the order must be your own, start as an authorization, not be backdated. See [Night Shift, section 4e](night-shift.md#e-what-a-new-order-may-look-like).) An insert also needs a grant (`grant insert on ... to authenticated`), and the grant and the policy work together: the grant lets the role ask, and the policy decides each row.
 
 Order lines get the same check, made through their order. A line has no `store_id` of its own, so the policy looks up the line's order and asks `has_permission` about that order's store:
 
@@ -239,10 +239,10 @@ Our own server code logs to the `pnpm dev` terminal. A wrong password shows as a
   - a platform operator can't read organization names, a developer can, and a merchant reads only their own company;
   - a store role can't be given at company level, and a company role can't be given at store level;
   - direct updates are refused for everyone;
-  - capture, cancel and refund through `order_action` follow the permissions: a dispute handler is refused, another company's order is "not found", and an agent with second-line support may capture at their store;
+  - capture, cancel and refund through `order_action` follow the permissions: a dispute handler is refused, another company's order is "not found", and an agent with second-line support is refused, because that role no longer holds `orders.capture`;
   - the token hook copies global roles into the claim.
 - `src/features/orders/server/orders-repository.test.ts` runs the real order queries as a merchant, including one order that belongs to another company.
-- The same file checks that a second-line agent can capture while a first-line-only agent gets `403`, using the `firstLineAgent` account in `test-accounts.ts`, and that the `customer` account creates orders only in its store and can't capture.
+- The same file checks that both agent accounts get `403` on a capture (the second-line one since the agent role lost `orders.capture`), using the `firstLineAgent` account in `test-accounts.ts`, and that the `customer` account creates orders only in its store and can't capture.
 - `src/shared/env/server-env.test.ts`, `src/shared/auth/user-claims.test.ts` and `src/features/auth/model/login-input.test.ts` cover the input checks.
 
 The access tests create their own accounts with fixed ids, in `src/features/access/db/test-accounts.ts`. They need only the database, not the Auth service, so CI can run them.

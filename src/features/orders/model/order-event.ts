@@ -11,8 +11,6 @@ type MetadataByAction = {
   canceled: { releasedAmount: number; reason?: string };
   // Written by public.expire_orders() and the seed.
   expired: { releasedAmount: number; reason: string };
-  // Written by public.ship_orders() when the warehouse ships an order. Nothing to store yet.
-  shipped: Record<string, never>;
 };
 
 // The database enum reads this list. Every action needs a metadata shape above, or this fails typecheck.
@@ -22,7 +20,6 @@ export const ORDER_EVENT_ACTIONS = [
   "refunded",
   "canceled",
   "expired",
-  "shipped",
 ] as const satisfies readonly (keyof MetadataByAction)[];
 
 export type OrderEventAction = (typeof ORDER_EVENT_ACTIONS)[number];

@@ -2,7 +2,7 @@
 
 A small local tool that lets a Claude agent create test orders and capture, cancel or refund them. It runs on your machine, talks to your local app, and signs in as the seeded `platform_developer` account. It never touches the hosted project.
 
-The orders agent has its own server, `ghost-shift-agent` (`pnpm mcp:agent`). It signs in as the agent account: see [the orders agent guide](orders-agent.md).
+The orders agent has its own server, `ghost-shift-agent` (`pnpm mcp:agent`). It signs in as the agent account, reads orders and records its own agent runs.
 
 ## What it offers
 
@@ -10,7 +10,7 @@ The orders agent has its own server, `ghost-shift-agent` (`pnpm mcp:agent`). It 
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `list_stores`          | Lists the stores you can see, with their currency. Calls `GET /api/v1/stores`.                                                                                                                                                 |
 | `list_sample_products` | Lists a store's 50 products (25 physical, then 25 digital) with prices in that store's currency. Takes `storeId` (from `list_stores`) and optional `count` (1 to 20) for the first N. No network. Unknown stores get an error. |
-| `create_order`         | Creates a test order. Calls `POST /api/v1/orders` and returns `{ id, reference }`. `shipped: true` creates it as already handed to the carrier, so the orders agent can capture it.                                            |
+| `create_order`         | Creates a test order. Calls `POST /api/v1/orders` and returns `{ id, reference }`.                                                                                                                                             |
 | `capture_order`        | Captures `amount` (minor units) of an order, with a `reason`. Partial captures are allowed.                                                                                                                                    |
 | `refund_order`         | Refunds `amount` (minor units) of what was captured, with a `reason`.                                                                                                                                                          |
 | `cancel_order`         | Cancels what is left of the authorization, with a `reason`.                                                                                                                                                                    |

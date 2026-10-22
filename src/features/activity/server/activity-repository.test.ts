@@ -173,15 +173,15 @@ describe("listActivity", () => {
   });
 
   it("shows the run's purpose to platform staff and only its id to merchants", async () => {
-    // A capture by the second-line agent at Satin Sparrow, inside a run.
-    const agent: UserClaims = { sub: testAccounts.agent, global_roles: [] };
+    // A capture inside an agent run at Satin Sparrow. The agent role can't capture any more, so the
+    // platform developer makes it, in a run the developer started.
     const { id: orderId } = await createOrder(db, developer, {
       ...newOrder,
       storeId: seedIds.stores.satinSparrow,
     });
     created.push(orderId);
-    const run = await startAgentRun(db, agent, { purpose: "Activity test run" });
-    await applyOrderAction(db, agent, {
+    const run = await startAgentRun(db, developer, { purpose: "Activity test run" });
+    await applyOrderAction(db, developer, {
       action: "capture",
       orderId,
       amount: 100,

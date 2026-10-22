@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// What the agent is about to do, for example "Capture shipped orders". The database allows 200 characters.
+// What the agent is about to do, for example "Review open orders". The database allows 200 characters.
 export const agentRunStartInput = z.object({ purpose: z.string().trim().min(1).max(200) });
 
 // What the agent says it did. Optional: a run can end without one.

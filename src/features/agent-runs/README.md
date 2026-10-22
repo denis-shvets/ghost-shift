@@ -1,6 +1,6 @@
 # Agent runs
 
-One execution of an agent, for example a scheduled job that captures shipped orders. Every order event the agent makes during the run points back to it.
+One execution of an agent, for example a scheduled job that captures orders. Every order event the agent makes during the run points back to it.
 
 ## What it does now
 

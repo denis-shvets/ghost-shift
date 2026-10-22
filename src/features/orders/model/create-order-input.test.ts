@@ -41,9 +41,8 @@ describe("createOrderInput", () => {
     expect(createOrderInput.parse(valid)).toEqual(valid);
   });
 
-  it("accepts an order created as already shipped, and leaves the flag out by default", () => {
-    expect(createOrderInput.parse({ ...valid, shipped: true }).shipped).toBe(true);
-    expect(createOrderInput.parse(valid).shipped).toBeUndefined();
+  it("ignores a field it doesn't know", () => {
+    expect(createOrderInput.parse({ ...valid, unknownField: true })).toEqual(valid);
   });
 
   it("requires at least one line and allows at most 50", () => {

@@ -18,15 +18,15 @@ The routes share one helper, `handleApiRequest` in `src/features/orders/server/a
 
 ## 3. The endpoints
 
-| Method | Path                     | What it does                                                                                                                                                                                                                                      | Success | Refusals                                                                                                                                              |
-| ------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/v1/orders`         | Lists orders you can see, newest first. Query: `limit` (1 to 100, default 50), `cursor`, `direction` (`next` or `prev`), `q`, `status`, `storeId`, `paymentMethod`, `shipped` (see below). Each order includes `shippingCarrier` and `shippedAt`. | 200     | 400 bad query, 401 no token                                                                                                                           |
-| GET    | `/api/v1/orders/:id`     | Reads one order with its lines, addresses and timeline.                                                                                                                                                                                           | 200     | 400 id longer than 100 characters, 401 no token, 404 not found, not a uuid, or not visible to you                                                     |
-| POST   | `/api/v1/orders`         | Creates an order. Body: store, customer, addresses, payment method, carrier and lines (see `createOrderInput`).                                                                                                                                   | 201     | 400 bad body, 401 no token, 403 your role may not create orders in this store, 404 store not found or not visible to you                              |
-| POST   | `/api/v1/order-actions`  | Captures, cancels or refunds one order. Body: `action`, `orderId`, `reason`, `amount` for capture and refund, and optionally `agentRunId`.                                                                                                        | 200     | 400 bad body or invalid amount, 401 no token, 403 your role may not do this, 404 not visible to you, 409 the order's status or amounts don't allow it |
-| POST   | `/api/v1/agent-runs`     | Starts an agent run for you. Body: `purpose` (1 to 200 characters). Answers `{ id, startedAt }`.                                                                                                                                                  | 201     | 400 bad body, 401 no token                                                                                                                            |
-| PATCH  | `/api/v1/agent-runs/:id` | Ends one of your runs. Body: `{}` or `{ "summary": "..." }` (up to 2,000 characters).                                                                                                                                                             | 200     | 400 bad id or body, 401 no token, 404 not your run or not found, 409 already ended                                                                    |
-| GET    | `/api/v1/stores`         | Lists the stores you can see, with their currency.                                                                                                                                                                                                | 200     | 401 no token                                                                                                                                          |
+| Method | Path                     | What it does                                                                                                                                                                                                           | Success | Refusals                                                                                                                                              |
+| ------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/orders`         | Lists orders you can see, newest first. Query: `limit` (1 to 100, default 50), `cursor`, `direction` (`next` or `prev`), `q`, `status`, `storeId`, `paymentMethod` (see below). Each order includes `shippingCarrier`. | 200     | 400 bad query, 401 no token                                                                                                                           |
+| GET    | `/api/v1/orders/:id`     | Reads one order with its lines, addresses and timeline.                                                                                                                                                                | 200     | 400 id longer than 100 characters, 401 no token, 404 not found, not a uuid, or not visible to you                                                     |
+| POST   | `/api/v1/orders`         | Creates an order. Body: store, customer, addresses, payment method, carrier and lines (see `createOrderInput`). Unknown fields are ignored.                                                                            | 201     | 400 bad body, 401 no token, 403 your role may not create orders in this store, 404 store not found or not visible to you                              |
+| POST   | `/api/v1/order-actions`  | Captures, cancels or refunds one order. Body: `action`, `orderId`, `reason`, `amount` for capture and refund, and optionally `agentRunId`.                                                                             | 200     | 400 bad body or invalid amount, 401 no token, 403 your role may not do this, 404 not visible to you, 409 the order's status or amounts don't allow it |
+| POST   | `/api/v1/agent-runs`     | Starts an agent run for you. Body: `purpose` (1 to 200 characters). Answers `{ id, startedAt }`.                                                                                                                       | 201     | 400 bad body, 401 no token                                                                                                                            |
+| PATCH  | `/api/v1/agent-runs/:id` | Ends one of your runs. Body: `{}` or `{ "summary": "..." }` (up to 2,000 characters).                                                                                                                                  | 200     | 400 bad id or body, 401 no token, 404 not your run or not found, 409 already ended                                                                    |
+| GET    | `/api/v1/stores`         | Lists the stores you can see, with their currency.                                                                                                                                                                     | 200     | 401 no token                                                                                                                                          |
 
 Search and filters on the list, all optional:
 
@@ -34,7 +34,6 @@ Search and filters on the list, all optional:
 - `status`: one of `authorized`, `captured`, `part_captured`, `expired`, `canceled`, `refunded`.
 - `storeId`: a store id (uuid). You only get orders from stores you can see.
 - `paymentMethod`: one of the payment method codes, for example `card` or `paypal`.
-- `shipped`: `true` for orders handed to the carrier (`shippedAt` is set), `false` for orders not shipped yet. The orders agent asks for `status=authorized&shipped=true` ([orders agent guide](orders-agent.md)).
 
 Filters combine with "and", and they keep working with `cursor` and `direction`. An unknown value is a 400.
 
@@ -75,7 +74,7 @@ The same capture inside an agent run. Start the run; the reply has its `id`:
 curl -s -X POST "$APP_URL/api/v1/agent-runs" \
   -H "Authorization: Bearer $API_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"purpose":"Capture shipped orders"}'
+  -d '{"purpose":"Review open orders"}'
 ```
 
 Act with the run's id:
@@ -98,7 +97,7 @@ curl -s -X PATCH "$APP_URL/api/v1/agent-runs/<run id>" \
 
 ## 5. How to get a token
 
-The token comes from signing in to Supabase with an email and password; the `access_token` in the reply is the bearer token. The token carries that person's rights: sign in as the seeded agent (`SEED_AGENT_EMAIL` in `.dev.vars`) to act as an agent, or as the seeded developer (`SEED_DEVELOPER_EMAIL`, which `scripts/mcp-developer.ts` uses) to create test orders. Both use `SEED_PASSWORD`. The token expires, so sign in again when calls start answering 401.
+The token comes from signing in to Supabase with an email and password; the `access_token` in the reply is the bearer token. The token carries that person's rights: sign in as the seeded agent (`SEED_AGENT_EMAIL` in `.dev.vars`) to list orders and start and end runs. That account no longer holds `orders.capture`, `orders.cancel` or `orders.refund`, so its capture, cancel and refund calls get `403`, including the examples in section 4. Sign in as the seeded developer (`SEED_DEVELOPER_EMAIL`, which `scripts/mcp-developer.ts` uses) to create test orders and to try those actions. Both use `SEED_PASSWORD`. The token expires, so sign in again when calls start answering 401.
 
 Sign-in is yours to run. Keep the password and token out of the chat and out of files you commit.
 
@@ -117,6 +116,6 @@ Each signed-in user may make 60 requests a minute to `/api/v1`. Above that, the 
 ## 8. Tests
 
 - Route tests sit next to each file in `src/routes/api/v1/`. They check 401, 400, 403, 404, 409 and 201, and that a user with no global roles isn't refused by the app.
-- The database test in `src/features/orders/server/orders-repository.test.ts` checks that the second-line agent can capture and the first-line agent gets `403`. It also checks each refused user gets the exact error: 403 for a store they can see, 404 for one they can't.
+- The database test in `src/features/orders/server/orders-repository.test.ts` checks that both agent accounts get `403` on a capture, since the agent role no longer holds `orders.capture`. It also checks each refused user gets the exact error: 403 for a store they can see, 404 for one they can't.
 
 Run them with `pnpm db:start`, `pnpm db:reset` and `pnpm test`.

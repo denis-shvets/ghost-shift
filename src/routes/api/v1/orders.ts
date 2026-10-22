@@ -5,7 +5,7 @@ import { orderListQuery } from "~/features/orders/model/order-list-input";
 import { handleApiRequest, json } from "~/features/orders/server/api-request";
 import { createOrder, listOrders } from "~/features/orders/server/orders-repository";
 
-// List orders the signed-in user can see (query: limit, cursor, direction, q, status, storeId, paymentMethod, shipped), or create one.
+// List orders the signed-in user can see (query: limit, cursor, direction, q, status, storeId, paymentMethod), or create one.
 // No role check here: row-level security decides which orders a user sees and who may create.
 export const Route = createFileRoute("/api/v1/orders")({
   server: {

@@ -9,7 +9,7 @@ import type { fetchOrders } from "~/features/orders/server/functions";
 import { formatMockDateTime } from "~/mocks/format";
 
 type OrderListPageProps = Awaited<ReturnType<typeof fetchOrders>> & {
-  filters: Pick<OrderListInput, "q" | "status" | "storeId" | "paymentMethod" | "shipped">;
+  filters: Pick<OrderListInput, "q" | "status" | "storeId" | "paymentMethod">;
 };
 
 // A GET form: submitting it puts the search and filters in the URL, so the links and the API match the page.
@@ -63,14 +63,6 @@ export function OrderListPage({
                 {store.name}
               </option>
             ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="order-shipped">Shipped</label>
-          <select id="order-shipped" name="shipped" defaultValue={filters.shipped ?? ""}>
-            <option value="">All</option>
-            <option value="true">Shipped</option>
-            <option value="false">Not shipped</option>
           </select>
         </div>
         <button type="submit">Search</button>

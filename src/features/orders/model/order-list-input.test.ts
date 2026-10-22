@@ -38,22 +38,9 @@ describe("orderListInput", () => {
   });
 
   it("rejects an unknown status, payment method or store id", () => {
-    expect(orderListInput.safeParse({ status: "shipped" }).success).toBe(false);
+    expect(orderListInput.safeParse({ status: "archived" }).success).toBe(false);
     expect(orderListInput.safeParse({ paymentMethod: "cash" }).success).toBe(false);
     expect(orderListInput.safeParse({ storeId: "not-a-uuid" }).success).toBe(false);
-  });
-});
-
-describe("orderListInput shipped filter", () => {
-  it("accepts true and false, as text or as a boolean from the router", () => {
-    expect(orderListInput.parse({ shipped: "true" }).shipped).toBe("true");
-    expect(orderListInput.parse({ shipped: "false" }).shipped).toBe("false");
-    expect(orderListInput.parse({ shipped: true }).shipped).toBe("true");
-  });
-
-  it("treats an empty value as not sent and rejects anything else", () => {
-    expect(orderListInput.parse({ shipped: "" }).shipped).toBeUndefined();
-    expect(orderListInput.safeParse({ shipped: "yes" }).success).toBe(false);
   });
 });
 

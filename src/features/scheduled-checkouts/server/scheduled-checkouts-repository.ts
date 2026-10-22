@@ -1,6 +1,6 @@
 import { and, eq, inArray, max, sql } from "drizzle-orm";
 
-import type { PlaceOrderInput } from "~/features/orders/model/create-order-input";
+import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
 import {
   OrderCreateForbiddenError,
   StoreNotFoundError,
@@ -79,7 +79,7 @@ export function planningContext(db: Database, user: UserClaims) {
   });
 }
 
-type ClaimedRow = { id: string; created_by: string; due_at: string; payload: PlaceOrderInput };
+type ClaimedRow = { id: string; created_by: string; due_at: string; payload: CreateOrderInput };
 
 // The Worker cron's job, not a request: it runs as the connection's own user, so it sees every
 // creator's rows. Each order is still placed through createOrder as the row's creator, so

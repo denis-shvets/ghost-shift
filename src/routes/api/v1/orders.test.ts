@@ -145,7 +145,7 @@ describe("GET /api/v1/orders", () => {
   });
 
   it("returns 400 for an unknown status in the query string", async () => {
-    const response = await get("?status=shipped");
+    const response = await get("?status=archived");
 
     expect(response.status).toBe(400);
     expect(listOrders).not.toHaveBeenCalled();

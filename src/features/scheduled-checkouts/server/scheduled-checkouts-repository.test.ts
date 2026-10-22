@@ -8,7 +8,7 @@ import {
   testDatabaseUrl,
 } from "~/features/access/db/test-accounts";
 import { orderEvents, orders } from "~/features/orders/db/schema";
-import type { PlaceOrderInput } from "~/features/orders/model/create-order-input";
+import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
 import {
   OrderCreateForbiddenError,
   StoreNotFoundError,
@@ -34,7 +34,7 @@ const HOUR = 60 * MINUTE;
 
 const customer: UserClaims = { sub: testAccounts.customer, global_roles: [] };
 
-const order: PlaceOrderInput = {
+const order: CreateOrderInput = {
   storeId: seedIds.stores.satinSparrow,
   customer: { firstName: "Jonas", lastName: "Weber", email: "jonas.weber@example.com" },
   billingAddress: {
@@ -81,7 +81,7 @@ afterEach(cleanUp);
 afterAll(() => db.close());
 
 // Adds a row as the table owner, the way only tests can: the insert policy refuses past times.
-async function addDue(dueAt: Date, payload: PlaceOrderInput = order) {
+async function addDue(dueAt: Date, payload: CreateOrderInput = order) {
   const [row] = await db
     .insert(scheduledCheckouts)
     .values({
