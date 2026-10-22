@@ -144,7 +144,6 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
           // The server validates these values; the select only offers valid options.
           paymentMethod: String(form.get("paymentMethod")) as CreateOrderInput["paymentMethod"],
           shippingCarrier: String(form.get("shippingCarrier")),
-          shipped: form.get("shipped") === "on",
           lines: lines.map(({ sku, name, type, unitPrice, taxRate, quantity }) => ({
             sku,
             name,
@@ -284,9 +283,6 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
           </label>
           <label>
             Shipping carrier <input name="shippingCarrier" required />
-          </label>
-          <label className="flex flex-row items-center gap-2 text-sm font-normal sm:col-span-2">
-            <input type="checkbox" name="shipped" /> Already shipped
           </label>
         </fieldset>
 

@@ -64,13 +64,6 @@ export const createOrderInput = z.object({
   shippingAddress: addressInput,
   paymentMethod: z.enum(PAYMENT_METHODS),
   shippingCarrier: z.string().min(1),
-  // The server stamps shipped_at with the order's creation time, so a client can't pick a date.
-  shipped: z
-    .boolean()
-    .optional()
-    .describe(
-      "true: the parcel is already with the carrier, so the orders agent may capture the order.",
-    ),
   lines: z
     .array(orderLineInput)
     .min(1)
@@ -80,9 +73,3 @@ export const createOrderInput = z.object({
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderInput>;
-
-// What a simulated customer orders. A customer can't say the parcel already shipped; that is the
-// merchant's side. strict() refuses unknown fields instead of dropping them, so a wrong plan fails loudly.
-export const placeOrderInput = createOrderInput.omit({ shipped: true }).strict();
-
-export type PlaceOrderInput = z.infer<typeof placeOrderInput>;

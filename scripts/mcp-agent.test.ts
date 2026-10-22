@@ -11,44 +11,20 @@ describe("agent tools", () => {
   it("list_orders sends the filters as a query string", async () => {
     const request = vi.fn(async () => ({ orders: [], nextCursor: null }));
 
-    await runAgentTool("list_orders", { status: "authorized", shipped: true }, { request });
+    await runAgentTool("list_orders", { status: "authorized" }, { request });
 
-    expect(request).toHaveBeenCalledWith("/api/v1/orders?status=authorized&shipped=true");
-  });
-
-  it("capture_order sends the action with the run id", async () => {
-    const request = vi.fn(async () => ({ status: "captured" }));
-    const args = { orderId, amount: 45000, reason: "Shipped with DHL", agentRunId: runId };
-
-    await runAgentTool("capture_order", args, { request });
-
-    expect(request).toHaveBeenCalledWith("/api/v1/order-actions", {
-      method: "POST",
-      body: JSON.stringify({ ...args, action: "capture" }),
-    });
-  });
-
-  it("refuses an action without a run, before any request", async () => {
-    const request = vi.fn();
-    const result = await runAgentTool(
-      "capture_order",
-      { orderId, amount: 45000, reason: "Shipped with DHL" },
-      { request },
-    );
-
-    expect(result).toMatchObject({ isError: true });
-    expect(request).not.toHaveBeenCalled();
+    expect(request).toHaveBeenCalledWith("/api/v1/orders?status=authorized");
   });
 
   it("start_agent_run and end_agent_run call the run endpoints", async () => {
     const request = vi.fn(async () => ({ id: runId }));
 
-    await runAgentTool("start_agent_run", { purpose: "Capture shipped orders" }, { request });
+    await runAgentTool("start_agent_run", { purpose: "Review open orders" }, { request });
     await runAgentTool("end_agent_run", { runId, summary: "Captured 3 orders." }, { request });
 
     expect(request).toHaveBeenNthCalledWith(1, "/api/v1/agent-runs", {
       method: "POST",
-      body: JSON.stringify({ purpose: "Capture shipped orders" }),
+      body: JSON.stringify({ purpose: "Review open orders" }),
     });
     expect(request).toHaveBeenNthCalledWith(2, `/api/v1/agent-runs/${runId}`, {
       method: "PATCH",
@@ -71,7 +47,7 @@ describe("agent tools", () => {
     const request = vi.fn();
     const args = { orderId, amount: 100, reason: "Test", agentRunId: runId };
 
-    for (const name of ["create_order", "cancel_order", "refund_order"]) {
+    for (const name of ["create_order", "capture_order", "cancel_order", "refund_order"]) {
       expect(await runAgentTool(name, args, { request })).toMatchObject({ isError: true });
     }
     expect(request).not.toHaveBeenCalled();

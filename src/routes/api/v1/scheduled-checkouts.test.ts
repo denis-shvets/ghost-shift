@@ -112,17 +112,6 @@ describe("POST /api/v1/scheduled-checkouts", () => {
     expect(queueCheckouts).not.toHaveBeenCalled();
   });
 
-  it("refuses an order that says it already shipped", async () => {
-    const shipped = { ...order, shipped: true };
-    const response = await post({
-      planId,
-      checkouts: [{ dueAt: inOneHour(), persona: "jonas-weber", order: shipped }],
-    });
-
-    expect(response.status).toBe(400);
-    expect(queueCheckouts).not.toHaveBeenCalled();
-  });
-
   it("refuses an empty plan", async () => {
     const response = await post({ planId, checkouts: [] });
     expect(response.status).toBe(400);

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 
 import { organizations } from "~/features/organizations/db/schema";
 import { stores } from "~/features/stores/db/schema";
@@ -21,7 +21,7 @@ import { authorizationExpiresAt } from "../model/payment-methods";
 export function listOrders(
   db: Database,
   user: UserClaims,
-  { limit, cursor, direction, q, status, storeId, paymentMethod, shipped }: OrderListInput,
+  { limit, cursor, direction, q, status, storeId, paymentMethod }: OrderListInput,
 ) {
   return withUser(db, user, async (tx) => {
     // "prev" reads the orders newer than the cursor. Without a cursor there is nothing to go back from.
@@ -45,7 +45,6 @@ export function listOrders(
         totalAmount: orders.totalAmount,
         capturedAmount: orders.capturedAmount,
         shippingCarrier: orders.shippingCarrier,
-        shippedAt: orders.shippedAt,
       })
       .from(orders)
       .where(
@@ -58,8 +57,6 @@ export function listOrders(
           status ? eq(orders.status, status) : undefined,
           storeId ? eq(orders.storeId, storeId) : undefined,
           paymentMethod ? eq(orders.paymentMethod, paymentMethod) : undefined,
-          shipped === "true" ? isNotNull(orders.shippedAt) : undefined,
-          shipped === "false" ? isNull(orders.shippedAt) : undefined,
         ),
       )
       .orderBy(
@@ -128,10 +125,6 @@ export function createOrder(
       .where(eq(stores.id, input.storeId));
     if (!store) throw new StoreNotFoundError("Store not found");
     if (!store.canCreate) throw new OrderCreateForbiddenError("Forbidden");
-    // Only platform staff may say the parcel already shipped; the insert policy checks it too.
-    if (input.shipped && user.global_roles.length === 0)
-      throw new OrderCreateForbiddenError("Forbidden");
-
     const totalAmount = orderTotal(input.lines);
     // shortcut: 8 hex characters, a clash fails on the unique reference constraint, upgrade to a retry if clashes become common
     const reference = `DEV-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
@@ -157,7 +150,6 @@ export function createOrder(
         capturedAmount: 0,
         refundedAmount: 0,
         shippingCarrier: input.shippingCarrier,
-        shippedAt: input.shipped ? createdAt : null,
       })
       .returning({ id: orders.id, reference: orders.reference });
     if (!order) throw new Error("Order was not created");

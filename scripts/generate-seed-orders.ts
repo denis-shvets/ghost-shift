@@ -128,7 +128,6 @@ export type SeedOrder = {
   refundedAmount: number;
   shippingCarrier: string;
   shippingTracking: string | null;
-  shippedAt: Date | null;
   lines: SeedLine[];
   addresses: SeedAddress[];
   events: SeedEvent[];
@@ -147,7 +146,6 @@ type OrderInput = {
   refunded: number;
   shippingCarrier: string;
   shippingTracking: string | null;
-  shippedAt?: Date;
   sameShipping: boolean;
 };
 
@@ -288,7 +286,6 @@ function makeOrder(input: OrderInput): SeedOrder {
     refundedAmount: input.refunded,
     shippingCarrier: input.shippingCarrier,
     shippingTracking: input.shippingTracking,
-    shippedAt: input.shippedAt ?? null,
     lines,
     addresses,
   };
@@ -387,7 +384,6 @@ function fixedOrders(): SeedOrder[] {
       refunded: 0,
       shippingCarrier: "DHL",
       shippingTracking: null,
-      shippedAt: at("2026-10-17T09:00:00Z"),
       sameShipping: true,
     }),
     // Added scenarios: every status and payment method shows up at least once.
@@ -479,8 +475,6 @@ function fixedOrders(): SeedOrder[] {
       refunded: 0,
       shippingCarrier: "Posti",
       shippingTracking: null,
-      // Shipped but at another company, so the Satin Sparrow agent never sees it.
-      shippedAt: at("2026-10-18T15:00:00Z"),
       sameShipping: true,
     }),
     makeOrder({
@@ -496,7 +490,6 @@ function fixedOrders(): SeedOrder[] {
       refunded: 0,
       shippingCarrier: "DHL",
       shippingTracking: "DHL-4420",
-      shippedAt: at("2026-10-11T08:00:00Z"),
       sameShipping: false,
     }),
     makeOrder({
@@ -517,14 +510,13 @@ function fixedOrders(): SeedOrder[] {
   ];
 }
 
-// Work for the orders agent: open Satin Sparrow orders, some shipped. Built after the random
-// orders, so adding them doesn't change the Faker sequence the earlier orders came from.
-function shippedOrders(): SeedOrder[] {
+// Open Satin Sparrow orders for the demo. Built after the random orders, so adding them doesn't
+// change the Faker sequence the earlier orders came from.
+function pocketOrders(): SeedOrder[] {
   const pocket = (
     id: string,
     reference: string,
     status: "authorized" | "part_captured",
-    shippedAt: Date | undefined,
     carrier: string,
     captured = 0,
   ) =>
@@ -556,25 +548,14 @@ function shippedOrders(): SeedOrder[] {
       captured,
       refunded: 0,
       shippingCarrier: carrier,
-      shippingTracking: shippedAt ? `${carrier.toUpperCase()}-${reference.slice(3)}` : null,
-      shippedAt,
+      shippingTracking: null,
       sameShipping: true,
     });
-  const shipped = new Date("2026-10-18T16:00:00Z");
   return [
-    pocket("5b1d0a00-0000-4000-8000-000000002004", "PA-2004", "authorized", shipped, "UPS"),
-    pocket("5b1d0a00-0000-4000-8000-000000002005", "PA-2005", "authorized", shipped, "DHL"),
-    // Not shipped yet, so the agent leaves it.
-    pocket("5b1d0a00-0000-4000-8000-000000002006", "PA-2006", "authorized", undefined, "DHL"),
-    // Shipped, but a person captured part of it. The agent leaves the rest to them.
-    pocket(
-      "5b1d0a00-0000-4000-8000-000000002007",
-      "PA-2007",
-      "part_captured",
-      shipped,
-      "DHL",
-      2000,
-    ),
+    pocket("5b1d0a00-0000-4000-8000-000000002004", "PA-2004", "authorized", "UPS"),
+    pocket("5b1d0a00-0000-4000-8000-000000002005", "PA-2005", "authorized", "DHL"),
+    pocket("5b1d0a00-0000-4000-8000-000000002006", "PA-2006", "authorized", "DHL"),
+    pocket("5b1d0a00-0000-4000-8000-000000002007", "PA-2007", "part_captured", "DHL", 2000),
   ];
 }
 
@@ -689,7 +670,7 @@ export function buildSeedOrders(): SeedOrder[] {
     northstarCount += 1;
     return randomOrder(index, `NS-${2000 + northstarCount}`);
   });
-  return [...fixed, ...random, ...shippedOrders()];
+  return [...fixed, ...random, ...pocketOrders()];
 }
 
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
@@ -720,7 +701,6 @@ export function toSql(orders: SeedOrder[]): string {
       String(order.refundedAmount),
       quote(order.shippingCarrier),
       nullable(order.shippingTracking),
-      order.shippedAt ? stamp(order.shippedAt) : "null",
     ].join(", "),
   );
   const lineRows = orders.flatMap((order) =>
@@ -791,7 +771,6 @@ export function toSql(orders: SeedOrder[]): string {
         "refunded_amount",
         "shipping_carrier",
         "shipping_tracking",
-        "shipped_at",
       ],
       orderRows,
     ),

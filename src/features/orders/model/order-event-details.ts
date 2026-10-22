@@ -21,8 +21,6 @@ export function describeEvent(event: OrderEvent, currency: string): string {
       return `Captured ${formatMoney(event.metadata.amount, currency)}${withReason(event.metadata.reason)}${describeLines(event.metadata.lines)}`;
     case "refunded":
       return `Refunded ${formatMoney(event.metadata.amount, currency)}${withReason(event.metadata.reason)}${describeLines(event.metadata.lines)}`;
-    case "shipped":
-      return "Shipped by the warehouse";
     case "canceled":
     case "expired":
       return `Released ${formatMoney(event.metadata.releasedAmount, currency)}${withReason(event.metadata.reason)}`;

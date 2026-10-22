@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlaceOrderInput } from "../src/features/orders/model/create-order-input.ts";
+import type { CreateOrderInput } from "../src/features/orders/model/create-order-input.ts";
 import { catalogProducts } from "../src/features/orders/model/store-catalogs.ts";
 import { itemAt } from "./item-at.ts";
 import { cronRange, nextDelay, pickOrder } from "./order-cron.ts";
@@ -45,7 +45,7 @@ describe("pickOrder", () => {
 
   it("builds an order that passes the create-order checks", () => {
     const random = sequence([0.1, 0.5, 0.9, 0.3, 0.7, 0.2]);
-    const order = pickOrder([storeId], personas, random) as PlaceOrderInput;
+    const order = pickOrder([storeId], personas, random) as CreateOrderInput;
     expect(order.storeId).toBe(storeId);
     expect(customers).toContainEqual(order.customer);
     expect(order.lines.some((line) => line.type === "physical")).toBe(true);
@@ -54,7 +54,7 @@ describe("pickOrder", () => {
   it("never lists the same product twice", () => {
     const products = catalogProducts(storeId).length;
     for (let i = 0; i < 50; i++) {
-      const order = pickOrder([storeId], personas, () => Math.random()) as PlaceOrderInput;
+      const order = pickOrder([storeId], personas, () => Math.random()) as CreateOrderInput;
       const names = order.lines
         .filter((line) => line.type !== "shipping_fee")
         .map((line) => line.name);

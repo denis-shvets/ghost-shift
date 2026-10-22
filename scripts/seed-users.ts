@@ -113,8 +113,8 @@ async function seedSampleRun(agentUserId: string) {
     // An insert, not an update: the agent_runs_end_now trigger would set ended_at to now().
     await tx`insert into public.agent_runs (id, agent_user_id, started_at, ended_at, purpose, summary)
       values (${sampleRunId}, ${agentUserId}, ${startedAt}, ${endedAt},
-        'Sample: capture shipped orders at Satin Sparrow',
-        ${`Captured ${events.length} shipped orders.`})`;
+        'Sample: capture orders at Satin Sparrow',
+        ${`Captured ${events.length} orders.`})`;
     await tx`update public.order_events set agent_run_id = ${sampleRunId}
       where id in ${tx(events.map((event) => event.id))}`;
   });

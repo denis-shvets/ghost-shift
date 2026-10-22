@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
 
-import type { PlaceOrderInput } from "~/features/orders/model/create-order-input";
+import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
 import { orders } from "~/features/orders/db/schema";
 import { stores } from "~/features/stores/db/schema";
 
@@ -41,8 +41,8 @@ export const scheduledCheckouts = pgTable(
     planId: uuid().notNull(),
     // When the customer shops. The order gets this as its created_at.
     dueAt: timestamp({ withTimezone: true }).notNull(),
-    // The order to place, checked against placeOrderInput when it was queued.
-    payload: jsonb().$type<PlaceOrderInput>().notNull(),
+    // The order to place, checked against createOrderInput when it was queued.
+    payload: jsonb().$type<CreateOrderInput>().notNull(),
     status: scheduledCheckoutStatus().notNull().default("pending"),
     orderId: uuid(),
     // Why the order was not placed, for failed and skipped rows.
@@ -75,15 +75,13 @@ export const scheduledCheckouts = pgTable(
       "scheduled_checkouts_order_when_placed_check",
       sql`(${table.status} = 'placed') = (${table.orderId} is not null)`,
     ),
-    // Rows can be inserted through the Data API, past the API's Zod check, so the database holds
-    // the two rules the cron relies on: the order goes to the store the insert policy checked,
-    // and a customer can't queue an order that has already shipped.
+    // Rows can be inserted through the Data API, past the API's Zod check, so the database checks
+    // that the order goes to the store the insert policy checked.
     // `is not distinct from`, not `=`: a payload with no storeId gives null, and `=` would let it pass.
     check(
       "scheduled_checkouts_payload_store_check",
       sql`${table.payload} ->> 'storeId' is not distinct from ${table.storeId}::text`,
     ),
-    check("scheduled_checkouts_payload_shipped_check", sql`not ${table.payload} ? 'shipped'`),
     // The cron's claim query: pending rows by due time.
     index("scheduled_checkouts_status_due_at_idx").on(table.status, table.dueAt),
   ],

@@ -94,10 +94,6 @@ describe("queuing a checkout", () => {
   it.each([
     ["an order for another store than the row's", { storeId: seedIds.stores.velourVault }],
     ["an order with no store", {}],
-    [
-      "an order that says it already shipped",
-      { storeId: seedIds.stores.satinSparrow, shipped: true },
-    ],
   ])("refuses %s", async (_, payload) => {
     await expect(queue(testAccounts.customer, undefined, undefined, payload)).rejects.toMatchObject(
       { cause: { code: "23514" } },

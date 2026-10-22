@@ -22,8 +22,7 @@ import {
   type AddressInput,
   addressInput,
   createOrderInput,
-  type PlaceOrderInput,
-  placeOrderInput,
+  type CreateOrderInput,
 } from "../src/features/orders/model/create-order-input.ts";
 import {
   PAYMENT_METHODS,
@@ -481,10 +480,10 @@ export function storeOrder(
   shippingAddress: AddressInput,
   paymentMethod: PaymentMethod,
   products: CatalogLine[],
-): PlaceOrderInput | string {
+): CreateOrderInput | string {
   const fee = { type: "shipping_fee" as const, quantity: 1, ...shop.shippingFee };
   const physical = products.some((line) => line.type === "physical");
-  const order = placeOrderInput.safeParse({
+  const order = createOrderInput.safeParse({
     storeId: shop.id,
     customer,
     billingAddress,
@@ -498,7 +497,7 @@ export function storeOrder(
 
 // Builds the whole order from Claude's choices for one visit, or says why it can't. Customer,
 // addresses, prices, names, carrier and shipping fee all come from the persona and the store catalog.
-export function buildOrder(answer: unknown, persona: Persona): PlaceOrderInput | string {
+export function buildOrder(answer: unknown, persona: Persona): CreateOrderInput | string {
   const parsed = visitAnswer.safeParse(answer);
   if (!parsed.success) return oneLine(parsed.error);
   const { store, items, payment, billTo, shipTo } = parsed.data;

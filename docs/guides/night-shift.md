@@ -114,9 +114,8 @@ Elin and Felix are the shopaholics: between them every hour of the day has order
 
 Three migrations, all from 2026-10-21. This builds on [Sign-in and access](auth-and-policies.md).
 
-- `20261021085934_night_shift_schema`: the `scheduled_checkouts` table with its payload checks (section c), `orders.created_by` and the `shipped` event action.
+- `20261021085934_night_shift_schema`: the `scheduled_checkouts` table with its payload checks (section c) and `orders.created_by`.
 - `20261021085941_night_shift_access`: the `checkout_customer` role, the stricter orders insert policy (section e), the `created_by` policies, and who may use the queue.
-- `20261021085942_orders_ship_after_delay`: the ship job ([orders database, section 6e](orders-database.md#6e-the-ship-job-orders-ship-some-hours-later-2026-10-21)).
 
 ### a. The checkout account and its role
 
@@ -124,7 +123,7 @@ Three migrations, all from 2026-10-21. This builds on [Sign-in and access](auth-
 2. **Two permissions for it:**
    - `orders.create`: the insert policies on `orders`, `order_lines`, `order_addresses` and `order_events` all ask `has_permission('orders.create', store_id)`. The queue's insert policy asks the same, so whoever may create orders in a store may also queue orders for it.
    - `stores.read`: before inserting, the code looks up the store to take its currency. A store the user can't read counts as "not found".
-3. **No `orders.read`.** A customer must not read other people's orders. Saving an order uses `insert ... returning id, reference`, and Postgres only returns rows the user may also **read**. So a select policy lets the customer read the orders it created (`created_by = auth.uid()`), and nothing else. That is enough for `returning`, and for the child-row inserts, which look up their order. See [orders database, section 6f](orders-database.md#6f-who-placed-an-order-created_by-2026-10-21).
+3. **No `orders.read`.** A customer must not read other people's orders. Saving an order uses `insert ... returning id, reference`, and Postgres only returns rows the user may also **read**. So a select policy lets the customer read the orders it created (`created_by = auth.uid()`), and nothing else. That is enough for `returning`, and for the child-row inserts, which look up their order. See [orders database, section 6d](orders-database.md#6d-who-placed-an-order-created_by-2026-10-21).
 4. **No other permissions.** It can't capture, cancel, refund or edit.
 5. **The seed assigns it to the live stores only.** `pnpm db:seed-users` creates `checkout@ghostshift.test` with `checkout_customer` on Velour Vault, Plaid Parade and Satin Sparrow. Silk Pine Oslo is a `test` store, so it isn't assigned there, and the database refuses an order for it, both when it is queued and when it is placed.
 
@@ -140,7 +139,7 @@ To open another store for Night Shift, add a `checkout_customer` assignment for 
 | `persona`     | The persona file it was planned for, e.g. `jonas-weber`. Only for reading the queue.                             |
 | `plan_id`     | One upload. A whole plan can be found, or removed, by this id.                                                   |
 | `due_at`      | When the customer shops. The order gets this as its `created_at`.                                                |
-| `payload`     | The order itself, as JSON, in the same shape the orders API takes. Two checks guard it (section c).              |
+| `payload`     | The order itself, as JSON, in the same shape the orders API takes. A check guards it (section c).                |
 | `status`      | `pending`, `placing`, `placed`, `failed` or `skipped` (section d).                                               |
 | `order_id`    | The order that was placed. Set only when `placed`; a check constraint keeps the two together.                    |
 | `error`       | Why a row `failed` or was `skipped`.                                                                             |
@@ -166,16 +165,14 @@ Step by step:
 3. **No update, no delete.** Only the cron changes rows. It connects as the table owner, which grants don't limit. You can remove rows with SQL in Studio.
 4. **The insert policy** asks three things of every new row: `created_by = auth.uid()` (your own), `has_permission('orders.create', store_id)` (a store you may order in) and `due_at > now()` (in the future). The last one matters because the order gets `due_at` as its creation time: without it, someone could queue a row in the past and so backdate an order.
 5. **The select policy** shows you your own rows, and platform staff (anyone with a global role) all rows. Merchants see none: the queue shows orders that haven't happened yet.
-6. **Two check constraints on `payload`.** The API checks every order with Zod before it queues it, but the table can also be reached through Supabase's Data API (`/rest/v1/scheduled_checkouts`), which skips that check. So the database holds the two rules the cron relies on:
+6. **A check constraint on `payload`.** The API checks every order with Zod before it queues it, but the table can also be reached through Supabase's Data API (`/rest/v1/scheduled_checkouts`), which skips that check. So the database holds the rule the cron relies on:
 
    ```sql
    check (payload ->> 'storeId' is not distinct from store_id::text)
-   check (not payload ? 'shipped')
    ```
 
    - `->>` reads one field of the JSON as text. The first check says the order goes to the same store as the row's `store_id`, the column the insert policy checked. Without it, a row could pass the policy for one store and place its order in another.
    - `is not distinct from` instead of `=`: a payload with no `storeId` gives `null`, and `null = 'x'` is not false but unknown. A check only refuses a row when it is false, so `=` would let that row in.
-   - `?` asks whether the JSON object has that key. A customer can't say the parcel already shipped, so a payload with `shipped` is refused.
    - A refused row fails with error `23514` (`check_violation`).
 
 ### d. How the cron places orders, safely
@@ -218,10 +215,6 @@ create policy "creators can create authorized orders" on public.orders
     and captured_amount = 0
     and refunded_amount = 0
     and created_at between now() - interval '7 hours' and now() + interval '5 minutes'
-    and (
-      shipped_at is null
-      or exists (select 1 from public.user_roles ur where ur.user_id = (select auth.uid()))
-    )
   );
 ```
 
@@ -231,11 +224,10 @@ Line by line, a new order must:
 2. **Be in a store where you have `orders.create`.** As before.
 3. **Start as an authorization, with nothing captured or refunded.** Money only moves through `order_action()` (capture, cancel, refund), which checks its own permissions and writes the timeline. Without this, someone could insert an order that looks already paid.
 4. **Not be backdated.** At most 7 hours in the past: the cron places an order up to 6 hours after its planned time, and gives it that time. 5 minutes ahead allows for the Worker's clock being slightly ahead of the database's.
-5. **Not have shipped yet, unless you are platform staff.** Developers may still create a shipped test order (`shipped: true` on the create-order page or the API); a customer can't. `createOrder` checks the same thing first, so the API answers a clear `403 Forbidden` instead of a raw database error.
 
 A policy can't be changed in place, so the migration drops the old one and creates this one. It's tested in `src/features/orders/db/schema.test.ts` ("a checkout customer can't create ...").
 
-The creation time is up to 30 minutes in the past (the cron runs every 30 minutes), or up to 6 hours after the cron was down, never in the future, so authorization expiry and the ship delay work as for any order. The `createdAt` option on `createOrder` is for server code only: no API input carries it.
+The creation time is up to 30 minutes in the past (the cron runs every 30 minutes), or up to 6 hours after the cron was down, never in the future, so authorization expiry works as for any order. The `createdAt` option on `createOrder` is for server code only: no API input carries it.
 
 ## 5. Run it locally
 
@@ -312,7 +304,7 @@ To see the queue: `select persona, status, due_at, error from scheduled_checkout
 
 You do these, not an agent. They change the live database and create real accounts.
 
-1. **Push the new migrations.** Preview first, then push:
+1. **Push the new migration.** Deploy first, which is step 7 below, then come back here and push, because the live Worker still writes to a column this migration drops, until it is redeployed. Preview first, then push:
 
    ```bash
    pnpm exec supabase db push --dry-run
@@ -322,7 +314,7 @@ You do these, not an agent. They change the live database and create real accoun
    pnpm exec supabase db push
    ```
 
-   The dry run should list `20261021085934_night_shift_schema`, `20261021085941_night_shift_access` and `20261021085942_orders_ship_after_delay`.
+   The dry run should list `20261021085934_night_shift_schema`, `20261021085941_night_shift_access`, `20261021085942_orders_ship_after_delay`, `20261022173735_orders_drop_shipped_tracking`.
 
 2. **Check that the store ids match.** The personas name their stores by id, from `src/shared/seed/seed-ids.json`. In the Supabase dashboard, open **SQL Editor** and run:
 
@@ -356,13 +348,13 @@ You do these, not an agent. They change the live database and create real accoun
 
    - **A Northstar Threads store is missing:** the hosted stores have other ids than the seed. Stop and sort that out first. The planner would skip the personas of a missing store (section 5), so nothing breaks, but those customers would never shop.
 
-3. **Check that the ship job is scheduled:**
+3. **Check that the scheduled jobs are running:**
 
    ```sql
    select jobname, schedule from cron.job order by jobname;
    ```
 
-   Expect `expire-orders` and `ship-orders`, both `*/15 * * * *`.
+   Expect `expire-orders`, `*/15 * * * *`.
 
 4. **Create the two accounts.** In the dashboard, **Authentication → Users → Add user → Create new user**, twice:
    - `checkout@ghostshift.test`, a new strong password from your password manager, **Auto Confirm User** ticked.
@@ -445,8 +437,6 @@ Run steps 8 again before the queue runs out. `select max(due_at) from scheduled_
 
 ## 8. Limits and next steps
 
-- Orders ship by themselves 4 to 48 hours after they're placed, if they have a physical item: a database job stamps `shipped_at` and a tracking number every 15 minutes ([orders database, section 6e](orders-database.md#6e-the-ship-job-orders-ship-some-hours-later-2026-10-21)). The orders agent then captures them, but only at Satin Sparrow, the one store it works for. Orders at Northstar Threads ship but stay authorized until a person captures them or they expire.
-- Only orders from the queue ship. The owner's own test orders and the seed orders never ship.
 - The plan is fixed when it's made. If a store closes or a product changes later, the affected rows fail when they come due, with the reason in `error`.
 - When the queue runs empty, orders stop until you plan again.
 - One `variety` number drives every choice in a visit, so some choices go together (for example, Jonas's gifts tend to be smaller baskets).
@@ -457,6 +447,6 @@ Run steps 8 again before the queue runs out. `select max(due_at) from scheduled_
 - `scripts/night-shift.test.ts`: every persona pair reads; `persona.schema.json` matches the Zod schema; a half pair, misspelled keys and address fields, bad keys, bad store ids, no stores, bad addresses, bad windows, rates and time zones are refused; windows follow local time across the end of summer time and past midnight; a year of draws always falls inside the windows and comes close to `ordersPerWeek` (fixed seed); gaps are irregular; a plan's visits fall inside the windows, in time order, the same for the same seed; Claude runs on Haiku at low effort with no tools or MCP servers and the answer schema; an order is built from the choices with the persona's customer, addresses, carrier and the catalog's SKUs, names and prices, plus the shipping fee only for physical products; unknown store and address keys (also prototype names such as `constructor`), a pick past the list, a type other than physical or digital, a product listed twice, a quantity of 0, unknown payment methods, missing and doubled visits are refused; the prompt holds the `.md` and lists the keys, but no products; every persona's stores have a catalog; Claude gets at most 150 visits per run; only the failed visits are asked again, once; personas keep only the open stores, and one with none left is skipped; an uploaded plan file gets its `.uploaded.json` name; `claude.exe` is found on Windows, also behind an npm shim; a Claude run gets its prompt on stdin and is killed when it runs too long.
 - `src/features/scheduled-checkouts/db/schema.test.ts`: the checkout account can queue in its store, as itself and pending; a store it may not order in, a time in the past, another user's id and a status are refused; merchants read nothing and platform staff read all; nobody signed in can update or delete; anonymous visitors get nothing.
 - `src/features/scheduled-checkouts/server/scheduled-checkouts-repository.test.ts`: a plan is queued with the right rows, or not at all; the open stores are exactly those the user may create orders in; a due checkout is placed as its creator at the planned time, with its first event at the same time; a future one waits; one 7 hours late is skipped; a refused order fails without stopping the next; two overlapping runs place each checkout once; one run places at most 10, oldest first.
-- `src/routes/api/v1/scheduled-checkouts.test.ts`: the API queues a plan and answers the latest pending time and the open stores, and refuses a time in the past, a shipped order and an empty plan.
+- `src/routes/api/v1/scheduled-checkouts.test.ts`: the API queues a plan and answers the latest pending time and the open stores, and refuses a time in the past and an empty plan.
 - `src/features/orders/server/orders-repository.test.ts`: a creation time given by server code dates the order, its expiry and its first event.
 - `scripts/mcp-developer.test.ts`: the hosted allowlist accepts exactly the live app and a `<project-ref>.supabase.co` host over https, and refuses `http://`, ports, look-alike hosts, other hosts and local URLs.

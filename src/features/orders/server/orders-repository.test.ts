@@ -250,49 +250,30 @@ describe("listOrders search and filters", () => {
     expect(result.orders.every((order) => order.status === "captured")).toBe(true);
   });
 
-  it("filters by shipped or not shipped", async () => {
-    const shipped = await listOrders(db, merchant, { limit: 100, shipped: "true" });
-    const notShipped = await listOrders(db, merchant, { limit: 100, shipped: "false" });
-
-    expect(shipped.orders.map((order) => order.reference)).toContain("NS-1010");
-    expect(shipped.orders.every((order) => order.shippedAt !== null)).toBe(true);
-    expect(notShipped.orders.map((order) => order.reference)).not.toContain("NS-1010");
-    expect(notShipped.orders.every((order) => order.shippedAt === null)).toBe(true);
-  });
-
-  // Makes its own orders, so it doesn't depend on whether the seed's demo orders were captured or expired.
-  it("gives the agent only the shipped open orders of its own store", async () => {
+  it("lets the agent list only its own store's authorized orders", async () => {
     const developer: UserClaims = {
       sub: testAccounts.developer,
       global_roles: ["platform_developer"],
     };
-    const pocket = { ...newOrder, storeId: seedIds.stores.satinSparrow };
-    const shippedHere = await createOrder(db, developer, { ...pocket, shipped: true });
-    const notShippedHere = await createOrder(db, developer, pocket);
-    const shippedElsewhere = await createOrder(db, developer, { ...newOrder, shipped: true });
-    const created = [shippedHere.id, notShippedHere.id, shippedElsewhere.id];
-
+    // Makes its own order, so it doesn't depend on the seed's demo orders.
+    const { id } = await createOrder(db, developer, {
+      ...newOrder,
+      storeId: seedIds.stores.satinSparrow,
+    });
     try {
       const agent: UserClaims = { sub: testAccounts.agent, global_roles: [] };
-      const result = await listOrders(db, agent, {
-        limit: 100,
-        status: "authorized",
-        shipped: "true",
-      });
+      const result = await listOrders(db, agent, { limit: 100, status: "authorized" });
       const ids = result.orders.map((order) => order.id);
 
-      expect(ids).toContain(shippedHere.id);
-      expect(ids).not.toContain(notShippedHere.id);
-      expect(ids).not.toContain(shippedElsewhere.id);
+      expect(ids).toContain(id);
       expect(result.orders.every((order) => order.status === "authorized")).toBe(true);
-      expect(result.orders.every((order) => order.shippedAt !== null)).toBe(true);
       const stores = await db
         .selectDistinct({ storeId: orders.storeId })
         .from(orders)
         .where(inArray(orders.id, ids));
       expect(stores).toEqual([{ storeId: seedIds.stores.satinSparrow }]);
     } finally {
-      await db.delete(orders).where(inArray(orders.id, created));
+      await db.delete(orders).where(eq(orders.id, id));
     }
   });
 
@@ -393,16 +374,6 @@ describe("creating orders as the checkout customer", () => {
     } finally {
       await db.delete(orders).where(inArray(orders.id, [created.id]));
     }
-  });
-
-  it("refuses an order that says it already shipped", async () => {
-    await expect(
-      createOrder(db, customer, {
-        ...newOrder,
-        storeId: seedIds.stores.satinSparrow,
-        shipped: true,
-      }),
-    ).rejects.toBeInstanceOf(OrderCreateForbiddenError);
   });
 });
 
@@ -537,18 +508,6 @@ describe("createOrder", () => {
     expect(event?.occurredAt).toEqual(createdAt);
   });
 
-  it("leaves shipped_at empty unless the order is created as shipped", async () => {
-    const { id } = await createOrder(db, developer, newOrder);
-    created.push(id);
-    const { id: shippedId } = await createOrder(db, developer, { ...newOrder, shipped: true });
-    created.push(shippedId);
-
-    const [open] = await db.select().from(orders).where(eq(orders.id, id));
-    const [shipped] = await db.select().from(orders).where(eq(orders.id, shippedId));
-    expect(open?.shippedAt).toBeNull();
-    // Stamped with the creation time, so it satisfies orders_shipped_after_created_check.
-    expect(shipped?.shippedAt).toEqual(shipped?.createdAt);
-  });
   it("creates the order and its lines, with the store's currency and the correct total", async () => {
     const { id, reference } = await createOrder(db, developer, newOrder);
     created.push(id);
@@ -726,7 +685,7 @@ describe("applyOrderAction", () => {
     expect(error).toMatchObject({ status });
   });
 
-  it("lets a second-line agent capture, and refuses a first-line agent with 403", async () => {
+  it("refuses both agent accounts with 403, since the agent role no longer captures", async () => {
     const { id: orderId } = await createOrder(db, developer, {
       ...newOrder,
       storeId: seedIds.stores.satinSparrow,
@@ -734,12 +693,8 @@ describe("applyOrderAction", () => {
     created.push(orderId);
     const capture = { action: "capture" as const, orderId, amount: 100, reason: "Shipped" };
 
-    const result = await applyOrderAction(
-      db,
-      { sub: testAccounts.agent, global_roles: [] },
-      capture,
-    );
-    expect(result).toMatchObject({ id: orderId, capturedAmount: 100 });
+    const secondLine: UserClaims = { sub: testAccounts.agent, global_roles: [] };
+    await expect(applyOrderAction(db, secondLine, capture)).rejects.toMatchObject({ status: 403 });
 
     const firstLine: UserClaims = { sub: testAccounts.firstLineAgent, global_roles: [] };
     await expect(applyOrderAction(db, firstLine, capture)).rejects.toMatchObject({ status: 403 });
@@ -762,7 +717,8 @@ describe("applyOrderAction", () => {
   describe("inside an agent run", () => {
     const agent: UserClaims = { sub: testAccounts.agent, global_roles: [] };
 
-    // An order at Satin Sparrow, where the second-line agent may capture.
+    // An order at Satin Sparrow. The agent may still start runs and end them, but not capture,
+    // so the captures in these tests are made by the platform developer.
     async function agentOrder() {
       const { id } = await createOrder(db, developer, {
         ...newOrder,
@@ -774,9 +730,9 @@ describe("applyOrderAction", () => {
 
     it("links the event to the run", async () => {
       const orderId = await agentOrder();
-      const run = await startAgentRun(db, agent, { purpose: "Orders repository test run" });
+      const run = await startAgentRun(db, developer, { purpose: "Orders repository test run" });
 
-      await applyOrderAction(db, agent, {
+      await applyOrderAction(db, developer, {
         action: "capture",
         orderId,
         amount: 100,

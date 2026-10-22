@@ -4,8 +4,8 @@ import { agentRunEndInput, agentRunStartInput } from "./agent-run-input";
 
 describe("agentRunStartInput", () => {
   it("trims the purpose", () => {
-    expect(agentRunStartInput.parse({ purpose: " Capture shipped orders " })).toEqual({
-      purpose: "Capture shipped orders",
+    expect(agentRunStartInput.parse({ purpose: " Review open orders " })).toEqual({
+      purpose: "Review open orders",
     });
   });
 

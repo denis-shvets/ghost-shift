@@ -17,9 +17,6 @@ export const orderListInput = z.object({
   status: optionalParam(z.enum(ORDER_STATUSES)),
   storeId: optionalParam(z.uuid()),
   paymentMethod: optionalParam(z.enum(PAYMENT_METHODS)),
-  // "true": only shipped orders, "false": only orders not shipped yet. coerce: the router
-  // parses search values as JSON, so true can arrive as a boolean.
-  shipped: optionalParam(z.coerce.string().pipe(z.enum(["true", "false"]))),
 });
 
 export type OrderListInput = z.infer<typeof orderListInput>;

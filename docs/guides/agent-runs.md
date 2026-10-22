@@ -1,6 +1,6 @@
 # Agent runs
 
-An **agent run** is one execution of an agent: the 02:00 job that captures shipped orders, for example. This guide explains how runs are stored and checked, step by step. Read it once top to bottom, then try the queries in section 9 in Supabase Studio.
+An **agent run** is one execution of an agent: the 02:00 job that captures orders, for example. This guide explains how runs are stored and checked, step by step. Read it once top to bottom, then try the queries in section 9 in Supabase Studio.
 
 ## 1. The big picture
 
@@ -9,7 +9,7 @@ Before this change, the audit log said who did something and why, but not as par
 Now:
 
 1. The agent starts a run: `POST /api/v1/agent-runs` with a purpose. The database adds a row to `agent_runs` and returns its id.
-2. The agent sends that id as `agentRunId` with every capture, cancel or refund.
+2. An agent that moves money sends that id as `agentRunId` with every capture, cancel or refund. The orders agent no longer has those permissions, so this applies to roles that still hold them.
 3. `order_action()` checks the run and writes its id on the timeline event (`order_events.agent_run_id`).
 4. The agent ends the run: `PATCH /api/v1/agent-runs/<id>` with an optional summary.
 5. The audit log shows a Run column next to each event.
@@ -128,7 +128,7 @@ The `default null` keeps every existing caller working: they don't send the argu
 
 ## 8. Sample data
 
-`pnpm db:seed-users` creates the local accounts. It now also creates one ended sample run for the seeded agent ("Sample: capture shipped orders at Satin Sparrow") and links it to the three latest captures at that store. The run has a fixed id: running the script again deletes it (its events lose the link) and makes it again. `supabase/seed.sql` can't do this, because it runs before any users exist and a run must point to a user.
+`pnpm db:seed-users` creates the local accounts. It now also creates one ended sample run for the seeded agent ("Sample: capture orders at Satin Sparrow") and links it to the three latest captures at that store. The run has a fixed id: running the script again deletes it (its events lose the link) and makes it again. `supabase/seed.sql` can't do this, because it runs before any users exist and a run must point to a user.
 
 After `pnpm db:reset` and `pnpm db:seed-users`, sign in as the agent or the developer and open `/audit-log`: three captures show the sample purpose in the Run column. As `merchant-pocket@ghostshift.test` you see the same events with only the short run id.
 
