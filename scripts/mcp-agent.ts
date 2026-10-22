@@ -51,7 +51,7 @@ export const agentHostedConfigInput = hostedConfigInput.extend({
   ),
 });
 
-export function readAgentConfig(env: NodeJS.ProcessEnv, hosted: boolean) {
+export function readAgentConfig(env: Record<string, string | undefined>, hosted: boolean) {
   if (hosted) {
     const config = parseConfig(agentHostedConfigInput, env);
     return {

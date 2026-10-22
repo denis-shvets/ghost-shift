@@ -18,6 +18,7 @@ import {
   parseConfig,
   runIfMain,
 } from "./mcp-developer.ts";
+import { itemAt } from "./item-at.ts";
 import { type Persona, readPersonas, storeOrder } from "./night-shift.ts";
 
 const MIN_DELAY = 5_000;
@@ -26,7 +27,7 @@ const MAX_DELAY = 15_000;
 const storesResponse = z.array(z.object({ id: z.uuid() }));
 
 const choose = <T>(items: T[], random: () => number): T =>
-  items[Math.floor(random() * items.length)];
+  itemAt(items, Math.floor(random() * items.length));
 
 // A wait between min and max milliseconds, 5 to 15 seconds unless the command line says otherwise.
 export const nextDelay = (random: () => number, min = MIN_DELAY, max = MAX_DELAY) =>
@@ -72,6 +73,7 @@ export function pickOrder(
   const count = Math.min(1 + Math.floor(random() * 3), products.length);
   const lines = Array.from({ length: count }, () => {
     const [product] = products.splice(Math.floor(random() * products.length), 1);
+    if (!product) throw new Error("count is at most products.length, so a product is always left");
     return {
       type: product.type,
       sku: product.sku,

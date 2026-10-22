@@ -108,8 +108,16 @@ const visitWindow = z
   .string()
   .regex(windowPattern, { error: 'Write a window like "Mon-Fri 19:00-23:00".' })
   .transform((text) => {
-    const [, first, last = first, startHour, startMinute, endHour, endMinute] =
-      windowPattern.exec(text) ?? [];
+    // The regex guarantees every group, so these defaults only satisfy the types.
+    const [
+      ,
+      first = "",
+      last = first,
+      startHour = "0",
+      startMinute = "0",
+      endHour = "0",
+      endMinute = "0",
+    ] = windowPattern.exec(text) ?? [];
     const days = new Set<number>();
     for (let index = DAYS.indexOf(first); ; index = (index + 1) % 7) {
       days.add((index + 1) % 7);
@@ -117,8 +125,8 @@ const visitWindow = z
     }
     return {
       days,
-      start: +startHour * 60 + +startMinute,
-      end: +endHour * 60 + +endMinute,
+      start: Number(startHour) * 60 + Number(startMinute),
+      end: Number(endHour) * 60 + Number(endMinute),
     };
   })
   .refine((window) => window.start !== window.end, {
@@ -159,7 +167,13 @@ function offset(zone: string, at: number): number {
     formatters.set(zone, format);
   }
   const parts = Object.fromEntries(format.formatToParts(at).map((part) => [part.type, part.value]));
-  const local = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+  const local = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+  );
   return local - Math.floor(at / MINUTE) * MINUTE;
 }
 

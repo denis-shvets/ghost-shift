@@ -15,6 +15,7 @@ import {
   productsInput,
   runTool,
 } from "./mcp-developer.ts";
+import { itemAt } from "./item-at.ts";
 
 const validOrder = {
   storeId: "00000000-0000-4000-8000-000000000001",
@@ -157,7 +158,7 @@ describe("list_sample_products input", () => {
 describe("list_sample_products tool", () => {
   it("returns the store's 30 products, in list order, in its currency's prices", async () => {
     const result = await runTool("list_sample_products", { storeId }, { request: vi.fn() });
-    const products = JSON.parse(result.content[0].text);
+    const products = JSON.parse(itemAt(result.content, 0).text);
     expect(products).toHaveLength(30);
   });
 
@@ -167,7 +168,7 @@ describe("list_sample_products tool", () => {
       { storeId, count: 3 },
       { request: vi.fn() },
     );
-    expect(JSON.parse(result.content[0].text)).toHaveLength(3);
+    expect(JSON.parse(itemAt(result.content, 0).text)).toHaveLength(3);
   });
 
   it("answers a clear error for an unknown store", async () => {
@@ -178,7 +179,7 @@ describe("list_sample_products tool", () => {
       { request: vi.fn() },
     );
     expect(result).toMatchObject({ isError: true });
-    expect(result.content[0].text).toContain("Unknown store");
+    expect(itemAt(result.content, 0).text).toContain("Unknown store");
   });
 
   it("rejects input without a store", async () => {

@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type { PlaceOrderInput } from "../src/features/orders/model/create-order-input.ts";
 import { catalogProducts } from "../src/features/orders/model/store-catalogs.ts";
+import { itemAt } from "./item-at.ts";
 import { cronRange, nextDelay, pickOrder } from "./order-cron.ts";
 import { readPersonas } from "./night-shift.ts";
 
 const sequence = (values: number[]) => {
   let index = 0;
-  return () => values[index++ % values.length];
+  return () => itemAt(values, index++ % values.length);
 };
 
 describe("nextDelay", () => {
@@ -38,7 +39,8 @@ describe("cronRange", () => {
 
 describe("pickOrder", () => {
   const personas = readPersonas();
-  const storeId = personas.flatMap((persona) => Object.values(persona.data.stores))[0].id;
+  const stores = personas.flatMap((persona) => Object.values(persona.data.stores));
+  const { id: storeId } = itemAt(stores, 0);
   const customers = personas.map((persona) => persona.data.customer);
 
   it("builds an order that passes the create-order checks", () => {

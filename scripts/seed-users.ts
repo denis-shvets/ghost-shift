@@ -52,7 +52,14 @@ const localSeedUsers = existsSync(localPath)
   : [];
 
 // A person may hold several roles at the same company or store (ADR 0015).
-const seedUsers = [
+type SeedUser = {
+  email: string;
+  globalRoles: string[];
+  organizationRoles: { organizationId: string; role: string }[];
+  storeRoles: { storeId: string; role: string }[];
+};
+
+const seedUsers: SeedUser[] = [
   {
     email: "platform-operator@ghostshift.test",
     globalRoles: ["platform_operator"],
