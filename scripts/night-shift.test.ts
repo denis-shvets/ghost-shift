@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { catalogPick } from "../src/features/orders/model/store-catalogs.ts";
+import { itemAt } from "./item-at.ts";
 
 import {
   buildOrder,
@@ -130,7 +131,9 @@ describe("nextVisit", () => {
     const gaps = new Set(
       year(mikko, 4)
         .slice(0, 30)
-        .map((visit, index, visits) => (index ? visit.getTime() - visits[index - 1].getTime() : 0)),
+        .map((visit, index, visits) =>
+          index ? visit.getTime() - itemAt(visits, index - 1).getTime() : 0,
+        ),
     );
     expect(gaps.size).toBeGreaterThan(25);
   });
@@ -472,7 +475,7 @@ describe("claudeArgs", () => {
     expect(args[args.indexOf("--tools") + 1]).toBe("");
     expect(args).toContain("--strict-mcp-config");
     expect(args).not.toContain("--mcp-config");
-    const schema = JSON.parse(args[args.indexOf("--json-schema") + 1]);
+    const schema = JSON.parse(itemAt(args, args.indexOf("--json-schema") + 1));
     expect(schema.properties.orders.type).toBe("array");
   });
 });

@@ -1,10 +1,11 @@
 // Generates supabase/seed-orders.sql: fixed demo orders plus random ones, all from a fixed Faker seed.
 // Run with `pnpm db:generate-seed`. Do not edit the SQL by hand.
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { type Faker, faker, fakerDE, fakerFI, fakerNB_NO, fakerSV } from "@faker-js/faker";
 
+import seedIds from "../src/shared/seed/seed-ids.json" with { type: "json" };
 import type { OrderEventAction } from "../src/features/orders/model/order-event.ts";
 import type { OrderStatus } from "../src/features/orders/model/order-statuses.ts";
 import {
@@ -32,10 +33,6 @@ const REFUND_REASONS = [
 ];
 
 // Same store ids as src/shared/seed/seed-ids.json. Currency and market are from supabase/seed.sql.
-const seedIds = JSON.parse(
-  readFileSync(new URL("../src/shared/seed/seed-ids.json", import.meta.url), "utf8"),
-) as { stores: Record<string, string> };
-
 const CURRENCIES: Record<Market, string> = { SE: "SEK", FI: "EUR", NO: "NOK", DE: "EUR" };
 const storeIn = (id: string, market: Market): Store => ({
   id,
@@ -77,7 +74,7 @@ const POCKET_STORES: Store[] = [
   storeIn(seedIds.stores.zipperZenith, "FI"),
 ];
 // Addresses and shipping names look local to each store's market.
-const LOCAL_FAKERS: Record<string, Faker> = {
+const LOCAL_FAKERS: Record<Market, Faker> = {
   SE: fakerSV,
   FI: fakerFI,
   NO: fakerNB_NO,
@@ -85,7 +82,7 @@ const LOCAL_FAKERS: Record<string, Faker> = {
 };
 
 // vat is the market's standard rate in basis points, the same as the store's catalog.
-type Store = { id: string; market: string; currency: string; vat: number };
+type Store = { id: string; market: Market; currency: string; vat: number };
 type Customer = {
   firstName: string;
   lastName: string;

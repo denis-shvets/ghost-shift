@@ -125,7 +125,11 @@ describe("readAgentConfig", () => {
     expect(() => readAgentConfig(hosted, true)).toThrow(/HOSTED_AGENT_EMAIL/);
     expect(
       readAgentConfig(
-        { ...hosted, HOSTED_AGENT_EMAIL: "agent@example.com", HOSTED_AGENT_PASSWORD: "hosted" },
+        {
+          ...hosted,
+          HOSTED_AGENT_EMAIL: "agent@example.com",
+          HOSTED_AGENT_PASSWORD: "hosted",
+        },
         true,
       ),
     ).toMatchObject({ email: "agent@example.com", password: "hosted" });
