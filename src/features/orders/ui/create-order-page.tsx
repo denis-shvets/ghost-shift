@@ -15,68 +15,53 @@ import { registerWebMcpTools } from "./web-mcp-tools";
 type StoreOption = Awaited<ReturnType<typeof listStoresForOrder>>[number];
 type Line = SampleProduct & { quantity: number };
 
+// Every section is a bordered fieldset. Fields sit in a two-column grid on wide screens, one column on phones.
+const sectionClass = "grid gap-4 rounded border border-neutral-200 p-4 sm:grid-cols-2";
+// Full-width item inside a section grid, such as a checkbox or a long select.
+const wideClass = "sm:col-span-2";
+
 // One address block. The prefix matches the names address-form.ts reads.
 function AddressFields({ prefix, legend }: { prefix: "billing" | "shipping"; legend: string }) {
   const name = (field: string) => `${prefix}${field}`;
   return (
-    <fieldset>
-      <legend>{legend}</legend>
-      <p>
-        <label>
-          First name <input name={name("FirstName")} required />
-        </label>
-      </p>
-      <p>
-        <label>
-          Last name <input name={name("LastName")} required />
-        </label>
-      </p>
-      <p>
-        <label>
-          Company (optional) <input name={name("Company")} />
-        </label>
-      </p>
-      <p>
-        <label>
-          Street address <input name={name("StreetAddress")} required />
-        </label>
-      </p>
-      <p>
-        <label>
-          Street address 2 (optional) <input name={name("StreetAddress2")} />
-        </label>
-      </p>
-      <p>
-        <label>
-          Postal code <input name={name("PostalCode")} required />
-        </label>
-      </p>
-      <p>
-        <label>
-          City <input name={name("City")} required />
-        </label>
-      </p>
-      <p>
-        <label>
-          Region (optional) <input name={name("Region")} />
-        </label>
-      </p>
-      <p>
-        <label>
-          Country (2 letters){" "}
-          <input name={name("Country")} required pattern="[A-Z]{2}" maxLength={2} />
-        </label>
-      </p>
-      <p>
-        <label>
-          Phone (optional) <input name={name("Phone")} type="tel" />
-        </label>
-      </p>
+    <fieldset className={sectionClass}>
+      <legend className="px-1 font-semibold">{legend}</legend>
+      <label>
+        First name <input name={name("FirstName")} required />
+      </label>
+      <label>
+        Last name <input name={name("LastName")} required />
+      </label>
+      <label className={wideClass}>
+        Company (optional) <input name={name("Company")} />
+      </label>
+      <label className={wideClass}>
+        Street address <input name={name("StreetAddress")} required />
+      </label>
+      <label className={wideClass}>
+        Street address 2 (optional) <input name={name("StreetAddress2")} />
+      </label>
+      <label>
+        Postal code <input name={name("PostalCode")} required />
+      </label>
+      <label>
+        City <input name={name("City")} required />
+      </label>
+      <label>
+        Region (optional) <input name={name("Region")} />
+      </label>
+      <label>
+        Country (2 letters){" "}
+        <input name={name("Country")} required pattern="[A-Z]{2}" maxLength={2} />
+      </label>
+      <label>
+        Phone (optional) <input name={name("Phone")} type="tel" />
+      </label>
     </fieldset>
   );
 }
 
-// Plain HTML on purpose: no design system yet (ADR 0014).
+// Structure only; the global base styles in src/styles/app.css style the form (ADR 0018).
 export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
   const createOrderOnServer = useServerFn(createOrderFn);
   const navigate = useNavigate();
@@ -181,58 +166,64 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
   return (
     <>
       <h1>Create test order</h1>
+      <p>Step 1 picks the products. Step 2 fills in the order. Everything here is test data.</p>
 
-      <h2>Products</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>SKU</th>
-            <th>Type</th>
-            <th>Unit price</th>
-            <th>Quantity</th>
-            <th>Add</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((product) => (
-            <tr key={product.sku}>
-              <td>{product.name}</td>
-              <td>{product.sku}</td>
-              <td>{product.type}</td>
-              <td>{formatMoney(product.unitPrice, currency)}</td>
-              <td>
-                <label>
-                  Quantity for {product.sku}{" "}
-                  <input
-                    type="number"
-                    min={1}
-                    max={MAX_LINE_QUANTITY}
-                    step={1}
-                    value={quantities[product.sku] ?? 1}
-                    onChange={(event) =>
-                      setQuantities((current) => ({
-                        ...current,
-                        [product.sku]: Number(event.target.value),
-                      }))
-                    }
-                  />
-                </label>
-              </td>
-              <td>
-                <button type="button" onClick={() => addLine(product)} disabled={!currency}>
-                  Add
-                </button>
-              </td>
+      <h2>1. Products</h2>
+      <div className="overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>SKU</th>
+              <th>Type</th>
+              <th>Unit price</th>
+              <th>Quantity</th>
+              <th>Add</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {products.map((product) => (
+              <tr key={product.sku}>
+                <td>{product.name}</td>
+                <td>{product.sku}</td>
+                <td>{product.type}</td>
+                <td>{formatMoney(product.unitPrice, currency)}</td>
+                <td>
+                  <label>
+                    <span className="sr-only">Quantity for {product.sku}</span>
+                    <input
+                      className="w-24"
+                      type="number"
+                      min={1}
+                      max={MAX_LINE_QUANTITY}
+                      step={1}
+                      value={quantities[product.sku] ?? 1}
+                      onChange={(event) =>
+                        setQuantities((current) => ({
+                          ...current,
+                          [product.sku]: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                </td>
+                <td>
+                  <button type="button" onClick={() => addLine(product)} disabled={!currency}>
+                    Add
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <form onSubmit={onSubmit}>
-        <h2>Order</h2>
-        <p>
-          <label>
+      <form onSubmit={onSubmit} className="mt-6 grid gap-6">
+        <h2>2. Order</h2>
+
+        <fieldset className={sectionClass}>
+          <legend className="px-1 font-semibold">Store and customer</legend>
+          <label className={wideClass}>
             Store{" "}
             <select
               name="storeId"
@@ -253,40 +244,34 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
               ))}
             </select>
           </label>
-        </p>
-        <p>
           <label>
             First name <input name="firstName" required />
           </label>
-        </p>
-        <p>
           <label>
             Last name <input name="lastName" required />
           </label>
-        </p>
-        <p>
           <label>
             Email <input name="email" type="email" required />
           </label>
-        </p>
-        <p>
           <label>
             Phone (optional) <input name="phone" type="tel" />
           </label>
-        </p>
+        </fieldset>
+
         <AddressFields prefix="shipping" legend="Shipping address" />
-        <p>
-          <label>
-            <input
-              type="checkbox"
-              checked={billingSameAsShipping}
-              onChange={(event) => setBillingSameAsShipping(event.target.checked)}
-            />{" "}
-            Billing address same as shipping
-          </label>
-        </p>
+
+        <label className="flex flex-row items-center gap-2 text-sm font-normal">
+          <input
+            type="checkbox"
+            checked={billingSameAsShipping}
+            onChange={(event) => setBillingSameAsShipping(event.target.checked)}
+          />
+          Billing address same as shipping
+        </label>
         {billingSameAsShipping ? null : <AddressFields prefix="billing" legend="Billing address" />}
-        <p>
+
+        <fieldset className={sectionClass}>
+          <legend className="px-1 font-semibold">Payment and delivery</legend>
           <label>
             Payment method{" "}
             <select name="paymentMethod" defaultValue="card">
@@ -297,60 +282,66 @@ export function CreateOrderPage({ stores }: { stores: StoreOption[] }) {
               ))}
             </select>
           </label>
-        </p>
-        <p>
           <label>
             Shipping carrier <input name="shippingCarrier" required />
           </label>
-        </p>
-        <p>
-          <label>
+          <label className="flex flex-row items-center gap-2 text-sm font-normal sm:col-span-2">
             <input type="checkbox" name="shipped" /> Already shipped
           </label>
-        </p>
+        </fieldset>
 
-        <h2>Lines</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Type</th>
-              <th>Quantity</th>
-              <th>Unit price</th>
-              <th>Line total</th>
-              <th>Remove</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((line) => (
-              <tr key={line.sku}>
-                <td>{line.name}</td>
-                <td>{line.type}</td>
-                <td>{line.quantity}</td>
-                <td>{formatMoney(line.unitPrice, currency)}</td>
-                <td>{formatMoney(lineTotal(line), currency)}</td>
-                <td>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setLines((current) => current.filter((other) => other.sku !== line.sku))
-                    }
-                  >
-                    Remove {line.sku}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p>Total: {formatMoney(orderTotal(lines), currency)}</p>
+        <section className="grid gap-4">
+          <h2>3. Lines</h2>
+          {lines.length === 0 ? (
+            <p>No lines yet. Add products in step 1.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Unit price</th>
+                    <th>Line total</th>
+                    <th>Remove</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line) => (
+                    <tr key={line.sku}>
+                      <td>{line.name}</td>
+                      <td>{line.type}</td>
+                      <td>{line.quantity}</td>
+                      <td>{formatMoney(line.unitPrice, currency)}</td>
+                      <td>{formatMoney(lineTotal(line), currency)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLines((current) => current.filter((other) => other.sku !== line.sku))
+                          }
+                        >
+                          Remove {line.sku}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-right text-base font-semibold">
+            Total: {formatMoney(orderTotal(lines), currency)}
+          </p>
+        </section>
 
-        <p>
+        {message ? <p role="alert">{message}</p> : null}
+        <div>
           <button type="submit" disabled={lines.length === 0 || !store}>
             Create order
           </button>
-        </p>
-        {message ? <p role="alert">{message}</p> : null}
+        </div>
       </form>
     </>
   );

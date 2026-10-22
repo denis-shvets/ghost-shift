@@ -9,7 +9,7 @@ export const Route = createFileRoute("/login")({
   component: Login,
 });
 
-// Plain HTML on purpose: no design system yet (ADR 0014).
+// Structure only; the global base styles in src/styles/app.css style the form (ADR 0018).
 function Login() {
   const signInOnServer = useServerFn(signIn);
   const navigate = useNavigate();

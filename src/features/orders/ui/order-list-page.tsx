@@ -23,46 +23,56 @@ export function OrderListPage({
   return (
     <>
       <h1>Orders</h1>
-      <form method="get" action="/orders">
-        <label htmlFor="order-search">Reference or email</label>{" "}
-        <input id="order-search" name="q" type="search" defaultValue={filters.q} />{" "}
-        <label htmlFor="order-status">Status</label>{" "}
-        <select id="order-status" name="status" defaultValue={filters.status ?? ""}>
-          <option value="">All</option>
-          {ORDER_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {ORDER_STATUS_LABELS[status]}
-            </option>
-          ))}
-        </select>{" "}
-        <label htmlFor="order-payment-method">Payment method</label>{" "}
-        <select
-          id="order-payment-method"
-          name="paymentMethod"
-          defaultValue={filters.paymentMethod ?? ""}
-        >
-          <option value="">All</option>
-          {PAYMENT_METHODS.map((method) => (
-            <option key={method} value={method}>
-              {PAYMENT_METHOD_LABELS[method]}
-            </option>
-          ))}
-        </select>{" "}
-        <label htmlFor="order-store">Store</label>{" "}
-        <select id="order-store" name="storeId" defaultValue={filters.storeId ?? ""}>
-          <option value="">All</option>
-          {stores.map((store) => (
-            <option key={store.id} value={store.id}>
-              {store.name}
-            </option>
-          ))}
-        </select>{" "}
-        <label htmlFor="order-shipped">Shipped</label>{" "}
-        <select id="order-shipped" name="shipped" defaultValue={filters.shipped ?? ""}>
-          <option value="">All</option>
-          <option value="true">Shipped</option>
-          <option value="false">Not shipped</option>
-        </select>{" "}
+      <form method="get" action="/orders" className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="order-search">Reference or email</label>
+          <input id="order-search" name="q" type="search" defaultValue={filters.q} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="order-status">Status</label>
+          <select id="order-status" name="status" defaultValue={filters.status ?? ""}>
+            <option value="">All</option>
+            {ORDER_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {ORDER_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="order-payment-method">Payment method</label>
+          <select
+            id="order-payment-method"
+            name="paymentMethod"
+            defaultValue={filters.paymentMethod ?? ""}
+          >
+            <option value="">All</option>
+            {PAYMENT_METHODS.map((method) => (
+              <option key={method} value={method}>
+                {PAYMENT_METHOD_LABELS[method]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="order-store">Store</label>
+          <select id="order-store" name="storeId" defaultValue={filters.storeId ?? ""}>
+            <option value="">All</option>
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="order-shipped">Shipped</label>
+          <select id="order-shipped" name="shipped" defaultValue={filters.shipped ?? ""}>
+            <option value="">All</option>
+            <option value="true">Shipped</option>
+            <option value="false">Not shipped</option>
+          </select>
+        </div>
         <button type="submit">Search</button>
       </form>
       <table>

@@ -1,6 +1,6 @@
 # 0014. No UI design in the first scaffold
 
-- **Status:** Accepted
+- **Status:** Superseded by 0018
 - **Date:** 2026-10-17
 
 ## Context
