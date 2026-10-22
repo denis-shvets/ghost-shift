@@ -11,10 +11,15 @@ export function RefundsPage({ events, nextCursor, prevCursor, stores, storeId }:
   return (
     <>
       <h1>Refunds</h1>
-      <form key={storeId ?? ""} method="get" action="/refunds">
-        <label>
-          Store{" "}
-          <select name="storeId" defaultValue={storeId ?? ""}>
+      <form
+        key={storeId ?? ""}
+        method="get"
+        action="/refunds"
+        className="flex flex-wrap items-end gap-3"
+      >
+        <div className="flex flex-col gap-1">
+          <label htmlFor="refunds-store">Store</label>
+          <select id="refunds-store" name="storeId" defaultValue={storeId ?? ""}>
             <option value="">All stores</option>
             {stores.map((store) => (
               <option key={store.id} value={store.id}>
@@ -22,7 +27,7 @@ export function RefundsPage({ events, nextCursor, prevCursor, stores, storeId }:
               </option>
             ))}
           </select>
-        </label>{" "}
+        </div>
         <button type="submit">Filter</button>
       </form>
       <table>
