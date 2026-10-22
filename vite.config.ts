@@ -1,5 +1,6 @@
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import tailwindcss from "@tailwindcss/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -13,6 +14,7 @@ export default defineConfig({
   plugins: [
     // Runs server code in the Cloudflare Workers runtime, in dev and in the build.
     cloudflare({ viteEnvironment: { name: "ssr" } }),
+    tailwindcss(),
     tanstackStart({
       // Tests sit next to route files; keep them out of the route tree.
       router: { routeFileIgnorePattern: "\\.test\\.tsx?$" },
