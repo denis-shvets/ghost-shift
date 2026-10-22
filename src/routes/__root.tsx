@@ -4,6 +4,7 @@ import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-r
 
 import { fetchCurrentUser } from "~/features/layout/server/functions";
 import { AppLayout } from "~/features/layout/ui/app-layout";
+import appCss from "~/styles/app.css?url";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -12,6 +13,7 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Ghost Shift" },
     ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
   // Sign-in and sign-out reload the page, so the user rarely changes between navigations.
   staleTime: 60_000,
