@@ -31,7 +31,7 @@ Ghost Shift deliberately runs without a paid domain for now. That means:
 
 - The app lives on a `*.workers.dev` URL.
 - **Real email only reaches the project owner's own address.** Resend refuses other recipients until a domain is verified. Tests and demos use Resend's test inboxes (`delivered+<label>@resend.dev`) and Mailpit.
-- Agent accounts use an email address you choose, such as a Gmail plus-address on your own inbox. It comes from `SEED_AGENT_EMAIL` in `.dev.vars`, so it stays out of this public repo.
+- Agent accounts use an email address you choose, such as a Gmail plus-address on your own inbox. It comes from `SEED_AGENT_EMAIL` in `.dev.vars`, and the account is created from `scripts/seed-users.local.ts` in the main checkout, so it stays out of this public repo.
 
 When a domain is added: verify it in Resend, change the sender address, and update [ADR 0009](docs/adr/0009-email.md).
 

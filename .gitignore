@@ -24,3 +24,6 @@ dist/
 
 # Night Shift plan files (pnpm night-shift:plan)
 .night-shift/
+
+# Your own local files, such as the seed accounts in scripts/seed-users.local.ts (read from the main checkout)
+*.local.*

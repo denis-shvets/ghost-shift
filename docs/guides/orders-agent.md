@@ -43,7 +43,7 @@ Claude never sees the password. It's not in the instructions, the tool arguments
 
 1. Start the database: `pnpm db:start`.
 2. Load the demo data: `pnpm db:reset`. PA-2004 and PA-2005 are shipped and authorized until 2026-11-15. PA-2001 is too, until its card authorization runs out on 2026-10-23.
-3. Create the accounts: `pnpm db:seed-users`. `.dev.vars` needs `SEED_PASSWORD` and `SEED_AGENT_EMAIL`.
+3. Create the accounts: `pnpm db:seed-users`. `.dev.vars` needs `SEED_PASSWORD` and `SEED_AGENT_EMAIL`, and the agent account comes from `scripts/seed-users.local.ts` in the main checkout (see [section 7 of the auth guide](auth-and-policies.md#7-accounts-for-local-testing)). Without that file the agent account is not created, and the agent can't sign in.
 4. Start the app: `pnpm dev`, and keep it running.
 5. Run the agent once by hand, from the repo root:
 
