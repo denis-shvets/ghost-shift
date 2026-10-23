@@ -16,3 +16,8 @@ export function toUserClaims(source: unknown): UserClaims | null {
   const result = userClaimsSchema.safeParse(source);
   return result.success ? result.data : null;
 }
+
+// For showing developer-only UI. The server still checks what the person may do.
+export function isPlatformDeveloper(user: UserClaims | null): boolean {
+  return user?.global_roles.includes("platform_developer") ?? false;
+}

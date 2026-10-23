@@ -4,6 +4,7 @@ import { organizations } from "~/features/organizations/db/schema";
 import { stores } from "~/features/stores/db/schema";
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { type Database, withUser } from "~/shared/db/client";
+import { pgError } from "~/shared/db/pg-error";
 import { isUuid } from "~/shared/ids/is-uuid";
 
 import { orderAddresses, orderEvents, orderLines, orders } from "../db/schema";
@@ -319,8 +320,7 @@ export async function applyOrderAction(db: Database, user: UserClaims, input: Or
       };
     });
   } catch (error) {
-    // Drizzle wraps the Postgres error, so the code and message sit on its `cause`.
-    const cause = (error as { cause?: { code?: string; message?: string } }).cause;
+    const cause = pgError(error);
     const status = cause?.code ? ACTION_ERROR_STATUS[cause.code] : undefined;
     if (status && cause?.message) throw new OrderActionError(cause.message, status);
     throw error;

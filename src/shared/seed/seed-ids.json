@@ -26,5 +26,11 @@
     "satinSparrow": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18",
     "buttonBazaar": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b19",
     "zipperZenith": "b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b20"
+  },
+  "payoutAccounts": {
+    "larkLoomSek": "c3a5e9f4-6d7f-4e0a-8a32-4b8d9e0f1c01",
+    "larkLoomSavings": "c3a5e9f4-6d7f-4e0a-8a32-4b8d9e0f1c02",
+    "northstarEur": "c3a5e9f4-6d7f-4e0a-8a32-4b8d9e0f1c03",
+    "northstarSek": "c3a5e9f4-6d7f-4e0a-8a32-4b8d9e0f1c04"
   }
 }

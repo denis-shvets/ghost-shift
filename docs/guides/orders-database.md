@@ -74,7 +74,7 @@ The answer travels back up the same way, and the page renders it.
 
 What it defines:
 
-- Table **`stores`** (in `src/features/stores/db/schema.ts`): one row per store, with name, market (country), currency and status (`live` or `test`).
+- Table **`stores`** (in `src/features/stores/db/schema.ts`): one row per store, with name, market (country), currency and status (`live` or `test`). Settings add `support_email` and `payout_account_id`, a foreign key to `payout_accounts`, which holds sample payout accounts with only the last four digits of each number (see [the stores README](../../src/features/stores/README.md)).
 - Two **enums**: `order_status` (authorized, captured, part_captured, expired, canceled, refunded) and `payment_method` (amazon_pay, amex, apple_pay, bank_transfer, card, google_pay, paypal). Section 4 explains how these changed.
 - Table **`orders`**: one row per order, with reference, dates, store, customer details, payment method, status, amounts and shipping.
 - Table **`order_lines`**: one row per item in an order. `order_id` is a foreign key to `orders.id`, and `on delete cascade` means deleting an order also deletes its lines. `position` is 1 for the first item, 2 for the second. A database keeps rows in no guaranteed order, so without it the items could come back shuffled. Each order can only have one position 1, one position 2 and so on.

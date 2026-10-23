@@ -1,4 +1,4 @@
-import type { UserClaims } from "~/shared/auth/user-claims";
+import { type UserClaims, isPlatformDeveloper } from "~/shared/auth/user-claims";
 
 // `mock` marks routes that still read src/mocks/data. Drop it when a page is connected to the database.
 const navigationGroups = [
@@ -33,7 +33,7 @@ const navigationGroups = [
     label: "Setup",
     developerOnly: false,
     items: [
-      { to: "/stores", label: "Stores", mock: true },
+      { to: "/stores", label: "Stores", mock: false },
       { to: "/team", label: "Team and agents", mock: true },
       { to: "/developers", label: "Developers", mock: true },
     ],
@@ -50,6 +50,6 @@ export type NavGroup = (typeof navigationGroups)[number];
 // Signed-out visitors get no navigation. Developer tools show only to platform developers.
 export function navigationFor(user: UserClaims | null): readonly NavGroup[] {
   if (!user) return [];
-  const isDeveloper = user.global_roles.includes("platform_developer");
+  const isDeveloper = isPlatformDeveloper(user);
   return navigationGroups.filter((group) => isDeveloper || !group.developerOnly);
 }

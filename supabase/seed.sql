@@ -32,3 +32,10 @@ insert into stores (id, organization_id, name, market, currency, status) values
   ('b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b18', 'a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a04', 'Satin Sparrow', 'DE', 'EUR', 'live'),
   ('b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b19', 'a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a04', 'Button Bazaar', 'SE', 'SEK', 'live'),
   ('b2e4d8f3-5c6e-4d9b-8f21-3a7c8e9d0b20', 'a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a04', 'Zipper Zenith', 'FI', 'EUR', 'live');
+
+-- Sample payout accounts. Invented numbers: only the last four digits are kept.
+insert into payout_accounts (id, organization_id, label, account_holder_name, last_four, currency) values
+  ('c3a5e9f4-6d7f-4e0a-8a32-4b8d9e0f1c01', 'a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a01', 'Main account (SEK)', 'Lark & Loom AB', '0987', 'SEK'),
+  ('c3a5e9f4-6d7f-4e0a-8a32-4b8d9e0f1c02', 'a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a01', 'Savings (SEK)', 'Lark & Loom AB', '4411', 'SEK'),
+  ('c3a5e9f4-6d7f-4e0a-8a32-4b8d9e0f1c03', 'a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a03', 'Main account (EUR)', 'Northstar Threads Oy', '2305', 'EUR'),
+  ('c3a5e9f4-6d7f-4e0a-8a32-4b8d9e0f1c04', 'a1f3c7e2-4b5d-4c8a-9e10-2f6b7d8c9a03', 'Main account (SEK)', 'Northstar Threads AB', '7720', 'SEK');

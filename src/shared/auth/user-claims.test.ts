@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { toUserClaims } from "./user-claims";
+import { isPlatformDeveloper, toUserClaims } from "./user-claims";
 
 const sub = "5f1f7b3e-2a4d-4c1e-9b0a-1d2e3f4a5b6c";
 
@@ -29,5 +29,13 @@ describe("toUserClaims", () => {
 
   it("returns null for anything that isn't an object", () => {
     expect(toUserClaims(null)).toBeNull();
+  });
+});
+
+describe("isPlatformDeveloper", () => {
+  it("is true only for a signed-in platform developer", () => {
+    expect(isPlatformDeveloper({ sub, global_roles: ["platform_developer"] })).toBe(true);
+    expect(isPlatformDeveloper({ sub, global_roles: ["platform_operator"] })).toBe(false);
+    expect(isPlatformDeveloper(null)).toBe(false);
   });
 });

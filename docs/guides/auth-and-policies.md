@@ -58,18 +58,20 @@ The roles themselves are listed in `roles`, with their scope. A role's scope lim
 
 Each role then has permissions, listed in `role_permissions`:
 
-| Role                       | Scope        | Permissions                                                    |
-| -------------------------- | ------------ | -------------------------------------------------------------- |
-| `platform_developer`       | global       | all of the below, plus read organizations and create orders    |
-| `platform_operator`        | global       | read orders and stores                                         |
-| `merchant_admin`           | organization | read and edit orders, move money, handle disputes, read stores |
-| `merchant_order_manager`   | organization | read and edit orders, move money, read stores                  |
-| `merchant_dispute_handler` | organization | read orders, handle disputes, read stores                      |
-| `agent_first_line`         | store        | read orders and stores                                         |
-| `agent_second_line`        | store        | read and edit orders, handle disputes, read stores             |
-| `checkout_customer`        | store        | create orders, read its own orders, read stores                |
+| Role                       | Scope        | Permissions                                                                                  |
+| -------------------------- | ------------ | -------------------------------------------------------------------------------------------- |
+| `platform_developer`       | global       | all of the below, plus read organizations and create orders                                  |
+| `platform_operator`        | global       | read orders and stores                                                                       |
+| `merchant_admin`           | organization | read and edit orders, move money, handle disputes, read and edit stores, see payout accounts |
+| `merchant_order_manager`   | organization | read and edit orders, move money, read stores, see payout accounts                           |
+| `merchant_dispute_handler` | organization | read orders, handle disputes, read stores, see payout accounts                               |
+| `agent_first_line`         | store        | read orders and stores                                                                       |
+| `agent_second_line`        | store        | read and edit orders, handle disputes, read stores                                           |
+| `checkout_customer`        | store        | create orders, read its own orders, read stores                                              |
 
 "Move money" is three permissions: `orders.capture`, `orders.cancel` and `orders.refund` (added 2026-10-20, section 4). They went to the roles that could already edit orders, except `agent_second_line`, which no longer holds them.
+
+`stores.edit` (added 2026-10-23) lets `merchant_admin` and `platform_developer` change store settings and add payout accounts. A store's settings are checked per store; adding a payout account is checked per organization. `payout_accounts.read` (same date) lets the organization roles that read stores, and `platform_developer`, see payout accounts. `platform_operator` reads stores but not payout accounts, because account holder names reveal the organization.
 
 `checkout_customer` (added 2026-10-21) is the Night Shift customers' role. Besides `platform_developer`, it is the only role that may create orders, and only in the stores it is assigned to. The same `orders.create` lets it queue orders in `scheduled_checkouts`, which the Worker cron places later as that account. See [Night Shift](night-shift.md#4-the-queue-database-changes).
 

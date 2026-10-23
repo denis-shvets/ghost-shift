@@ -27,6 +27,8 @@ export const testAccounts = {
   merchantA: "11111111-1111-4111-8111-111111111111",
   // merchant_dispute_handler at Pocket Atelier (merchant B).
   merchantB: "22222222-2222-4222-8222-222222222222",
+  // merchant_admin at Northstar Threads. The only test account that may edit store settings.
+  merchantAdmin: "99999999-9999-4999-8999-999999999999",
   // agent_first_line and agent_second_line at Satin Sparrow only.
   agent: "33333333-3333-4333-8333-333333333333",
   // agent_first_line only at Satin Sparrow. Cannot capture, cancel or refund.
@@ -67,7 +69,8 @@ export async function createTestAccounts(db: Database) {
     sql`insert into public.org_members (user_id, organization_id, role) values
       (${testAccounts.merchantA}::uuid, ${northstarThreads}::uuid, 'merchant_order_manager'),
       (${testAccounts.merchantA}::uuid, ${northstarThreads}::uuid, 'merchant_dispute_handler'),
-      (${testAccounts.merchantB}::uuid, ${pocketAtelier}::uuid, 'merchant_dispute_handler')
+      (${testAccounts.merchantB}::uuid, ${pocketAtelier}::uuid, 'merchant_dispute_handler'),
+      (${testAccounts.merchantAdmin}::uuid, ${northstarThreads}::uuid, 'merchant_admin')
       on conflict do nothing`,
   );
   await db.execute(
