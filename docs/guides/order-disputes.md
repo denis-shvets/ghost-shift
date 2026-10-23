@@ -21,4 +21,4 @@ Row-level security is in `supabase/migrations/20261023203832_orders_disputes.sql
 
 ## The developer tool
 
-`/developer/disputes` is for platform developers. It lists open disputes and opens a new one for any order they can see. The server functions in `src/features/disputes/server/functions.ts` check for the developer role first. The database check still decides who may open a dispute.
+`/developer/disputes` is for platform developers. It lists open disputes and opens a new one for any order they can see. The developer server functions in `src/features/disputes/server/functions.ts` check for the developer role first. The disputes list (`/disputes`, `fetchDisputesFn`) needs only a signed-in user, because row-level security limits it to the disputes of the user's stores. The database check still decides who may open a dispute.

@@ -3,12 +3,19 @@ import { env } from "cloudflare:workers";
 
 import { requirePlatformDeveloper } from "~/features/access/server/require-platform-developer";
 import { requireUser } from "~/features/auth/server/session";
+import { listReadableStores } from "~/features/stores/server/stores-repository";
 import { withDb } from "~/shared/db/request-db";
 import { parseServerEnv } from "~/shared/env/server-env";
 import { refusalOrLog } from "~/shared/errors/refusal-or-log";
 
+import { listDisputesInput } from "../model/list-disputes-input";
 import { openDisputeInput } from "../model/open-dispute-input";
-import { DisputeError, listOpenDisputes, openDispute } from "./disputes-repository";
+import {
+  DisputeError,
+  listDisputesOrFirstPage,
+  listOpenDisputes,
+  openDispute,
+} from "./disputes-repository";
 
 const refuse = refusalOrLog(DisputeError);
 
@@ -20,6 +27,17 @@ export const fetchOpenDisputesFn = createServerFn({ method: "GET" }).handler(asy
   requirePlatformDeveloper(user);
   return withDb((db) => listOpenDisputes(db, user));
 });
+
+// Any signed-in user may read the disputes RLS shows them. requireUser redirects anonymous visitors to /login.
+export const fetchDisputesFn = createServerFn({ method: "GET" })
+  .validator(listDisputesInput)
+  .handler(async ({ data }) => {
+    const user = await requireUser(parseServerEnv(env));
+    return withDb(async (db) => ({
+      ...(await listDisputesOrFirstPage(db, user, data)),
+      stores: await listReadableStores(db, user),
+    }));
+  });
 
 export const openDisputeFn = createServerFn({ method: "POST" })
   .validator(openDisputeInput)

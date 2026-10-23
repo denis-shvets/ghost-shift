@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UserClaims } from "~/shared/auth/user-claims";
 
-import { fetchOpenDisputesFn, openDisputeFn } from "./functions";
+import { fetchDisputesFn, fetchOpenDisputesFn, openDisputeFn } from "./functions";
 
 const { requireUser } = vi.hoisted(() => ({ requireUser: vi.fn() }));
 
@@ -50,6 +50,14 @@ describe("openDisputeFn", () => {
       }),
     ).rejects.toThrow();
     expect(requireUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("fetchDisputesFn", () => {
+  it("stops before the database for an anonymous visitor", async () => {
+    requireUser.mockRejectedValue(new Response(null, { status: 302 }));
+
+    await expect(fetchDisputesFn({ data: { limit: 20 } })).rejects.toBeInstanceOf(Response);
   });
 });
 

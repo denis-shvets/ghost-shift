@@ -1,0 +1,1 @@
+CREATE INDEX "order_disputes_list_index" ON "order_disputes" USING btree ("opened_at" DESC NULLS LAST,"id" DESC NULLS LAST);

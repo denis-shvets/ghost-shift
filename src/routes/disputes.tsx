@@ -1,45 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { formatMoney } from "~/features/orders/model/money";
-import { disputes } from "~/mocks/data";
-import { MockNotice } from "~/features/layout/ui/mock-notice";
+import { listDisputesInput } from "~/features/disputes/model/list-disputes-input";
+import { fetchDisputesFn } from "~/features/disputes/server/functions";
+import { DisputesListPage } from "~/features/disputes/ui/disputes-list-page";
 
 export const Route = createFileRoute("/disputes")({
   head: () => ({ meta: [{ title: "Disputes · Ghost Shift" }] }),
+  validateSearch: listDisputesInput.omit({ limit: true }),
+  loaderDeps: ({ search }) => search,
+  loader: ({ deps }) => fetchDisputesFn({ data: deps }),
   component: Disputes,
 });
 
 function Disputes() {
-  return (
-    <>
-      <h1>Disputes</h1>
-      <MockNotice />
-      <table>
-        <thead>
-          <tr>
-            <th>Dispute</th>
-            <th>Order</th>
-            <th>Type</th>
-            <th>Reason</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th>Respond by</th>
-          </tr>
-        </thead>
-        <tbody>
-          {disputes.map((dispute) => (
-            <tr key={dispute.id}>
-              <td>{dispute.id}</td>
-              <td>{dispute.orderId}</td>
-              <td>{dispute.type}</td>
-              <td>{dispute.reason}</td>
-              <td>{formatMoney(dispute.amount.amount * 100, dispute.amount.currency)}</td>
-              <td>{dispute.status}</td>
-              <td>{dispute.respondBy}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
-  );
+  const { status, storeId } = Route.useSearch();
+  return <DisputesListPage {...Route.useLoaderData()} filters={{ status, storeId }} />;
 }

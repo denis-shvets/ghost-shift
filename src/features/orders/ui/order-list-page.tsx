@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 import type { OrderListInput } from "~/features/orders/model/order-list-input";
 import { formatMoney } from "~/features/orders/model/money";
+import { PageLinks } from "~/shared/ui/page-links";
 import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "~/features/orders/model/order-labels";
 import { ORDER_STATUSES } from "~/features/orders/model/order-statuses";
 import { PAYMENT_METHODS } from "~/features/orders/model/payment-methods";
@@ -24,6 +25,17 @@ export function OrderListPage({
     <>
       <h1>Orders</h1>
       <form method="get" action="/orders" className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="order-store">Store</label>
+          <select id="order-store" name="storeId" defaultValue={filters.storeId ?? ""}>
+            <option value="">All</option>
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="order-search">Reference or email</label>
           <input id="order-search" name="q" type="search" defaultValue={filters.q} />
@@ -50,17 +62,6 @@ export function OrderListPage({
             {PAYMENT_METHODS.map((method) => (
               <option key={method} value={method}>
                 {PAYMENT_METHOD_LABELS[method]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="order-store">Store</label>
-          <select id="order-store" name="storeId" defaultValue={filters.storeId ?? ""}>
-            <option value="">All</option>
-            {stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.name}
               </option>
             ))}
           </select>
@@ -101,18 +102,7 @@ export function OrderListPage({
           ))}
         </tbody>
       </table>
-      <p>
-        {prevCursor && (
-          <Link to="/orders" search={{ ...filters, cursor: prevCursor, direction: "prev" }}>
-            Previous page
-          </Link>
-        )}{" "}
-        {nextCursor && (
-          <Link to="/orders" search={{ ...filters, cursor: nextCursor, direction: "next" }}>
-            Next page
-          </Link>
-        )}
-      </p>
+      <PageLinks to="/orders" filters={filters} prevCursor={prevCursor} nextCursor={nextCursor} />
     </>
   );
 }
