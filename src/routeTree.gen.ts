@@ -21,6 +21,7 @@ import { Route as RefundsRouteImport } from './routes/refunds'
 import { Route as SettlementsRouteImport } from './routes/settlements'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as DeveloperCreateOrderRouteImport } from './routes/developer/create-order'
+import { Route as DeveloperDisputesRouteImport } from './routes/developer/disputes'
 import { Route as HealthDatabaseRouteImport } from './routes/health/database'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
@@ -92,6 +93,11 @@ const TeamRoute = TeamRouteImport.update({
 const DeveloperCreateOrderRoute = DeveloperCreateOrderRouteImport.update({
   id: '/developer/create-order',
   path: '/developer/create-order',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeveloperDisputesRoute = DeveloperDisputesRouteImport.update({
+  id: '/developer/disputes',
+  path: '/developer/disputes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HealthDatabaseRoute = HealthDatabaseRouteImport.update({
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/settlements': typeof SettlementsRoute
   '/team': typeof TeamRoute
   '/developer/create-order': typeof DeveloperCreateOrderRoute
+  '/developer/disputes': typeof DeveloperDisputesRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/stores/$storeId': typeof StoresStoreIdRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/settlements': typeof SettlementsRoute
   '/team': typeof TeamRoute
   '/developer/create-order': typeof DeveloperCreateOrderRoute
+  '/developer/disputes': typeof DeveloperDisputesRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/stores/$storeId': typeof StoresStoreIdRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/settlements': typeof SettlementsRoute
   '/team': typeof TeamRoute
   '/developer/create-order': typeof DeveloperCreateOrderRoute
+  '/developer/disputes': typeof DeveloperDisputesRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/stores/$storeId': typeof StoresStoreIdRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/settlements'
     | '/team'
     | '/developer/create-order'
+    | '/developer/disputes'
     | '/health/database'
     | '/orders/$orderId'
     | '/stores/$storeId'
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/settlements'
     | '/team'
     | '/developer/create-order'
+    | '/developer/disputes'
     | '/health/database'
     | '/orders/$orderId'
     | '/stores/$storeId'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/settlements'
     | '/team'
     | '/developer/create-order'
+    | '/developer/disputes'
     | '/health/database'
     | '/orders/$orderId'
     | '/stores/$storeId'
@@ -328,6 +340,7 @@ export interface RootRouteChildren {
   SettlementsRoute: typeof SettlementsRoute
   TeamRoute: typeof TeamRoute
   DeveloperCreateOrderRoute: typeof DeveloperCreateOrderRoute
+  DeveloperDisputesRoute: typeof DeveloperDisputesRoute
   HealthDatabaseRoute: typeof HealthDatabaseRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   StoresStoreIdRoute: typeof StoresStoreIdRoute
@@ -424,6 +437,13 @@ declare module '@tanstack/react-router' {
       path: '/developer/create-order'
       fullPath: '/developer/create-order'
       preLoaderRoute: typeof DeveloperCreateOrderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/developer/disputes': {
+      id: '/developer/disputes'
+      path: '/developer/disputes'
+      fullPath: '/developer/disputes'
+      preLoaderRoute: typeof DeveloperDisputesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/health/database': {
@@ -550,6 +570,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettlementsRoute: SettlementsRoute,
   TeamRoute: TeamRoute,
   DeveloperCreateOrderRoute: DeveloperCreateOrderRoute,
+  DeveloperDisputesRoute: DeveloperDisputesRoute,
   HealthDatabaseRoute: HealthDatabaseRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   StoresStoreIdRoute: StoresStoreIdRoute,

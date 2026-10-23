@@ -41,7 +41,10 @@ const navigationGroups = [
   {
     label: "Developer tools",
     developerOnly: true,
-    items: [{ to: "/developer/create-order", label: "Create test order", mock: false }],
+    items: [
+      { to: "/developer/create-order", label: "Create test order", mock: false },
+      { to: "/developer/disputes", label: "Dispute an order", mock: false },
+    ],
   },
 ] as const;
 
