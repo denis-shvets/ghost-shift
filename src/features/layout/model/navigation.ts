@@ -9,7 +9,7 @@ const navigationGroups = [
       { to: "/", label: "Dashboard", mock: true },
       { to: "/orders", label: "Orders", mock: false },
       { to: "/refunds", label: "Refunds", mock: false },
-      { to: "/disputes", label: "Disputes", mock: true },
+      { to: "/disputes", label: "Disputes", mock: false },
     ],
   },
   {

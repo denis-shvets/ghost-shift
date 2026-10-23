@@ -183,6 +183,13 @@
       "when": 1792787912137,
       "tag": "20261023203832_orders_disputes",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792797302744,
+      "tag": "20261023231502_order_disputes_list_index",
+      "breakpoints": true
     }
   ]
 }

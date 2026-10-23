@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { auditLog, disputes, orders } from "~/mocks/data";
+import { auditLog, orders } from "~/mocks/data";
 import { formatMockDateTime } from "~/mocks/format";
 import { MockNotice } from "~/features/layout/ui/mock-notice";
 
@@ -11,7 +11,6 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const toCapture = orders.filter((order) => order.status === "authorized").length;
-  const openDisputes = disputes.filter((dispute) => dispute.status === "needs_response").length;
 
   return (
     <>
@@ -20,7 +19,6 @@ function Dashboard() {
       <ul>
         <li>Orders today: {orders.length}</li>
         <li>Waiting for capture: {toCapture}</li>
-        <li>Disputes needing a response: {openDisputes}</li>
       </ul>
       <h2>Latest activity</h2>
       <ul>

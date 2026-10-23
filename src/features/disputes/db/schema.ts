@@ -39,6 +39,8 @@ export const orderDisputes = pgTable(
       sql`(${table.status} = 'closed') = (${table.closedAt} is not null)`,
     ),
     index("order_disputes_order_idx").on(table.orderId),
+    // The list page pages newest first by (opened_at, id), so this index matches that order.
+    index("order_disputes_list_index").on(table.openedAt.desc(), table.id.desc()),
     // One open dispute per order. Closed ones don't count, so a new dispute can follow a closed one.
     uniqueIndex("order_disputes_open_order_unique")
       .on(table.orderId)

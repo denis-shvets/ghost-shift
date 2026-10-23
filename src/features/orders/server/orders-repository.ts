@@ -4,6 +4,7 @@ import { organizations } from "~/features/organizations/db/schema";
 import { stores } from "~/features/stores/db/schema";
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { type Database, withUser } from "~/shared/db/client";
+import { keysetPage } from "~/shared/db/keyset-page";
 import { pgError } from "~/shared/db/pg-error";
 import { isUuid } from "~/shared/ids/is-uuid";
 
@@ -67,21 +68,8 @@ export function listOrders(
       // One extra row tells us whether another page exists in this direction.
       .limit(limit + 1);
 
-    const hasMore = rows.length > limit;
-    const page = rows.slice(0, limit);
-    // Going back, the nearest rows came first, so flip them to newest first.
-    if (newer) page.reverse();
-    const first = page.at(0);
-    const last = page.at(-1);
-    return {
-      orders: page,
-      // Going forward, "older" exists only if there is an extra row. Going back, it always
-      // exists, because the cursor order is older than this page.
-      nextCursor: (newer || hasMore) && last ? last.id : null,
-      // Going back, "newer" exists only if there is an extra row. Going forward with a
-      // cursor, it always exists, because the cursor order is newer than this page.
-      prevCursor: (newer ? hasMore : cursor !== undefined) && first ? first.id : null,
-    };
+    const { page, nextCursor, prevCursor } = keysetPage(rows, { limit, cursor, newer });
+    return { orders: page, nextCursor, prevCursor };
   });
 }
 
