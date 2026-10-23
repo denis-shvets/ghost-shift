@@ -13,6 +13,8 @@ import {
 import { formatTaxRate } from "~/features/orders/model/tax-rate";
 import { type fetchOrder, orderActionFn } from "~/features/orders/server/functions";
 import { formatMockDateTime } from "~/mocks/format";
+import { errorMessage } from "~/shared/errors/error-message";
+import { issuesMessage } from "~/shared/validation/issues-message";
 
 import { registerOrderActionTools } from "./web-mcp-tools";
 
@@ -101,7 +103,7 @@ function OrderActionForm({
       action === "cancel" ? { action, orderId, reason } : { action, orderId, reason, amount },
     );
     if (!input.success) {
-      setMessage(input.error.issues.map((issue) => issue.message).join("; "));
+      setMessage(issuesMessage(input.error.issues));
       return;
     }
     setMessage("");
@@ -112,7 +114,7 @@ function OrderActionForm({
       // Reloads the order, so the amounts, the timeline and these forms show the new state.
       await router.invalidate();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Something went wrong");
+      setMessage(errorMessage(error));
     } finally {
       setBusy(false);
     }

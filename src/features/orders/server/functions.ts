@@ -6,6 +6,7 @@ import { listReadableStores } from "~/features/stores/server/stores-repository";
 import { requirePlatformDeveloper } from "~/features/access/server/require-platform-developer";
 import { withDb } from "~/shared/db/request-db";
 import { parseServerEnv } from "~/shared/env/server-env";
+import { refusalOrLog } from "~/shared/errors/refusal-or-log";
 
 import { createOrderInput } from "../model/create-order-input";
 import { orderActionInput } from "../model/order-action-input";
@@ -63,11 +64,5 @@ export const orderActionFn = createServerFn({ method: "POST" })
   .validator(orderActionInput)
   .handler(async ({ data }) => {
     const user = await requireUser(parseServerEnv(env));
-    return withDb((db) =>
-      applyOrderAction(db, user, data).catch((error: unknown) => {
-        if (error instanceof OrderActionError) throw new Error(error.message);
-        console.error(error);
-        throw new Error("Something went wrong");
-      }),
-    );
+    return withDb((db) => applyOrderAction(db, user, data).catch(refusalOrLog(OrderActionError)));
   });

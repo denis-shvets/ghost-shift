@@ -155,6 +155,27 @@
       "when": 1792690655260,
       "tag": "20261022173735_orders_drop_shipped_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792773894205,
+      "tag": "20261023164454_stores_settings_payout_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792773900851,
+      "tag": "20261023164500_stores_settings_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792773910111,
+      "tag": "20261023164510_payout_accounts_grants",
+      "breakpoints": true
     }
   ]
 }

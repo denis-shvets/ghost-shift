@@ -1,18 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 
-import { stores } from "~/mocks/data";
-import { MockNotice } from "~/features/layout/ui/mock-notice";
+import type { fetchStores } from "~/features/stores/server/functions";
 
-export const Route = createFileRoute("/stores")({
-  head: () => ({ meta: [{ title: "Stores · Ghost Shift" }] }),
-  component: Stores,
-});
+type Store = Awaited<ReturnType<typeof fetchStores>>[number];
 
-function Stores() {
+export function StoreListPage({ stores }: { stores: Store[] }) {
   return (
     <>
       <h1>Stores</h1>
-      <MockNotice />
       <table>
         <thead>
           <tr>
@@ -25,7 +20,11 @@ function Stores() {
         <tbody>
           {stores.map((store) => (
             <tr key={store.id}>
-              <td>{store.name}</td>
+              <td>
+                <Link to="/stores/$storeId" params={{ storeId: store.id }}>
+                  {store.name}
+                </Link>
+              </td>
               <td>{store.market}</td>
               <td>{store.currency}</td>
               <td>{store.status}</td>

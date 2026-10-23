@@ -19,12 +19,13 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as PaymentLinksRouteImport } from './routes/payment-links'
 import { Route as RefundsRouteImport } from './routes/refunds'
 import { Route as SettlementsRouteImport } from './routes/settlements'
-import { Route as StoresRouteImport } from './routes/stores'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as DeveloperCreateOrderRouteImport } from './routes/developer/create-order'
 import { Route as HealthDatabaseRouteImport } from './routes/health/database'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
+import { Route as StoresIndexRouteImport } from './routes/stores/index'
+import { Route as StoresStoreIdRouteImport } from './routes/stores/$storeId'
 import { Route as ApiV1AgentRunsRouteImport } from './routes/api/v1/agent-runs'
 import { Route as ApiV1OrderActionsRouteImport } from './routes/api/v1/order-actions'
 import { Route as ApiV1OrdersRouteImport } from './routes/api/v1/orders'
@@ -83,11 +84,6 @@ const SettlementsRoute = SettlementsRouteImport.update({
   path: '/settlements',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StoresRoute = StoresRouteImport.update({
-  id: '/stores',
-  path: '/stores',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const TeamRoute = TeamRouteImport.update({
   id: '/team',
   path: '/team',
@@ -111,6 +107,16 @@ const OrdersIndexRoute = OrdersIndexRouteImport.update({
 const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
   id: '/orders/$orderId',
   path: '/orders/$orderId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoresIndexRoute = StoresIndexRouteImport.update({
+  id: '/stores/',
+  path: '/stores/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoresStoreIdRoute = StoresStoreIdRouteImport.update({
+  id: '/stores/$storeId',
+  path: '/stores/$storeId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiV1AgentRunsRoute = ApiV1AgentRunsRouteImport.update({
@@ -160,12 +166,13 @@ export interface FileRoutesByFullPath {
   '/payment-links': typeof PaymentLinksRoute
   '/refunds': typeof RefundsRoute
   '/settlements': typeof SettlementsRoute
-  '/stores': typeof StoresRoute
   '/team': typeof TeamRoute
   '/developer/create-order': typeof DeveloperCreateOrderRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
+  '/stores/$storeId': typeof StoresStoreIdRoute
   '/orders/': typeof OrdersIndexRoute
+  '/stores/': typeof StoresIndexRoute
   '/api/v1/agent-runs': typeof ApiV1AgentRunsRouteWithChildren
   '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
   '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
@@ -185,12 +192,13 @@ export interface FileRoutesByTo {
   '/payment-links': typeof PaymentLinksRoute
   '/refunds': typeof RefundsRoute
   '/settlements': typeof SettlementsRoute
-  '/stores': typeof StoresRoute
   '/team': typeof TeamRoute
   '/developer/create-order': typeof DeveloperCreateOrderRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
+  '/stores/$storeId': typeof StoresStoreIdRoute
   '/orders': typeof OrdersIndexRoute
+  '/stores': typeof StoresIndexRoute
   '/api/v1/agent-runs': typeof ApiV1AgentRunsRouteWithChildren
   '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
   '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
@@ -211,12 +219,13 @@ export interface FileRoutesById {
   '/payment-links': typeof PaymentLinksRoute
   '/refunds': typeof RefundsRoute
   '/settlements': typeof SettlementsRoute
-  '/stores': typeof StoresRoute
   '/team': typeof TeamRoute
   '/developer/create-order': typeof DeveloperCreateOrderRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
+  '/stores/$storeId': typeof StoresStoreIdRoute
   '/orders/': typeof OrdersIndexRoute
+  '/stores/': typeof StoresIndexRoute
   '/api/v1/agent-runs': typeof ApiV1AgentRunsRouteWithChildren
   '/api/v1/order-actions': typeof ApiV1OrderActionsRoute
   '/api/v1/orders': typeof ApiV1OrdersRouteWithChildren
@@ -238,12 +247,13 @@ export interface FileRouteTypes {
     | '/payment-links'
     | '/refunds'
     | '/settlements'
-    | '/stores'
     | '/team'
     | '/developer/create-order'
     | '/health/database'
     | '/orders/$orderId'
+    | '/stores/$storeId'
     | '/orders/'
+    | '/stores/'
     | '/api/v1/agent-runs'
     | '/api/v1/order-actions'
     | '/api/v1/orders'
@@ -263,12 +273,13 @@ export interface FileRouteTypes {
     | '/payment-links'
     | '/refunds'
     | '/settlements'
-    | '/stores'
     | '/team'
     | '/developer/create-order'
     | '/health/database'
     | '/orders/$orderId'
+    | '/stores/$storeId'
     | '/orders'
+    | '/stores'
     | '/api/v1/agent-runs'
     | '/api/v1/order-actions'
     | '/api/v1/orders'
@@ -288,12 +299,13 @@ export interface FileRouteTypes {
     | '/payment-links'
     | '/refunds'
     | '/settlements'
-    | '/stores'
     | '/team'
     | '/developer/create-order'
     | '/health/database'
     | '/orders/$orderId'
+    | '/stores/$storeId'
     | '/orders/'
+    | '/stores/'
     | '/api/v1/agent-runs'
     | '/api/v1/order-actions'
     | '/api/v1/orders'
@@ -314,12 +326,13 @@ export interface RootRouteChildren {
   PaymentLinksRoute: typeof PaymentLinksRoute
   RefundsRoute: typeof RefundsRoute
   SettlementsRoute: typeof SettlementsRoute
-  StoresRoute: typeof StoresRoute
   TeamRoute: typeof TeamRoute
   DeveloperCreateOrderRoute: typeof DeveloperCreateOrderRoute
   HealthDatabaseRoute: typeof HealthDatabaseRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
+  StoresStoreIdRoute: typeof StoresStoreIdRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
+  StoresIndexRoute: typeof StoresIndexRoute
   ApiV1AgentRunsRoute: typeof ApiV1AgentRunsRouteWithChildren
   ApiV1OrderActionsRoute: typeof ApiV1OrderActionsRoute
   ApiV1OrdersRoute: typeof ApiV1OrdersRouteWithChildren
@@ -399,13 +412,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettlementsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/stores': {
-      id: '/stores'
-      path: '/stores'
-      fullPath: '/stores'
-      preLoaderRoute: typeof StoresRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/team': {
       id: '/team'
       path: '/team'
@@ -439,6 +445,20 @@ declare module '@tanstack/react-router' {
       path: '/orders/$orderId'
       fullPath: '/orders/$orderId'
       preLoaderRoute: typeof OrdersOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stores/': {
+      id: '/stores/'
+      path: '/stores'
+      fullPath: '/stores/'
+      preLoaderRoute: typeof StoresIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stores/$storeId': {
+      id: '/stores/$storeId'
+      path: '/stores/$storeId'
+      fullPath: '/stores/$storeId'
+      preLoaderRoute: typeof StoresStoreIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/agent-runs': {
@@ -528,12 +548,13 @@ const rootRouteChildren: RootRouteChildren = {
   PaymentLinksRoute: PaymentLinksRoute,
   RefundsRoute: RefundsRoute,
   SettlementsRoute: SettlementsRoute,
-  StoresRoute: StoresRoute,
   TeamRoute: TeamRoute,
   DeveloperCreateOrderRoute: DeveloperCreateOrderRoute,
   HealthDatabaseRoute: HealthDatabaseRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
+  StoresStoreIdRoute: StoresStoreIdRoute,
   OrdersIndexRoute: OrdersIndexRoute,
+  StoresIndexRoute: StoresIndexRoute,
   ApiV1AgentRunsRoute: ApiV1AgentRunsRouteWithChildren,
   ApiV1OrderActionsRoute: ApiV1OrderActionsRoute,
   ApiV1OrdersRoute: ApiV1OrdersRouteWithChildren,
