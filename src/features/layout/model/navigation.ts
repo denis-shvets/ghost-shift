@@ -6,7 +6,7 @@ const navigationGroups = [
     label: "Work",
     developerOnly: false,
     items: [
-      { to: "/", label: "Dashboard", mock: true },
+      { to: "/", label: "Dashboard", mock: false },
       { to: "/orders", label: "Orders", mock: false },
       { to: "/refunds", label: "Refunds", mock: false },
       { to: "/disputes", label: "Disputes", mock: false },
