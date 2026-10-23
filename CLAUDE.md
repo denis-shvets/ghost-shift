@@ -15,7 +15,7 @@ Rules for AI agents (and humans) changing this repo. The reasons behind the stac
 - Tests sit next to the file they test (`money.ts` and `money.test.ts`), component tests included. No `tests/` folders.
 - No barrel files: no `index.ts` that re-exports. Import from the defining file.
 - Validate everything that comes from outside (server function input, API requests, environment) with Zod. Don't re-validate data from the database or between our own functions.
-- No UI design or component library until the design session ([ADR 0014](docs/adr/0014-no-design-yet.md)). Plain semantic HTML.
+- Styling and UI rules are set in [docs/adr/](docs/adr/README.md). Check the index first, since a later ADR can supersede an earlier one.
 
 ## Database
 
