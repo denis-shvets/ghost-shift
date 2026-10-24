@@ -20,3 +20,16 @@ export function keysetPage<T extends { id: string }>(
     prevCursor: (newer ? hasMore : cursor !== undefined) && first ? first.id : null,
   };
 }
+
+// A cursor the user can't see gives an empty page with no links, so fall back to the first page.
+// The filters stay, so the first page is still the filtered one.
+// shortcut: one extra query only when the cursor is invisible, upgrade if that path gets hot
+export async function keysetPageOrFirst<I extends { cursor?: string }, P>(
+  input: I,
+  list: (input: I) => Promise<P>,
+  isEmpty: (page: P) => boolean,
+) {
+  const page = await list(input);
+  if (!isEmpty(page) || input.cursor === undefined) return page;
+  return list({ ...input, cursor: undefined });
+}

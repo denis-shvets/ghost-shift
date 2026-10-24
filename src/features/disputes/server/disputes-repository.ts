@@ -2,7 +2,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { type Database, withUser } from "~/shared/db/client";
-import { keysetPage } from "~/shared/db/keyset-page";
+import { keysetPage, keysetPageOrFirst } from "~/shared/db/keyset-page";
 import { pgError } from "~/shared/db/pg-error";
 
 import { orders } from "~/features/orders/db/schema";
@@ -109,15 +109,10 @@ export function listDisputes(
   });
 }
 
-// A cursor the user can't see gives an empty page with no links, so fall back to the first page.
-// The filters stay, so the first page is still the filtered one.
-// shortcut: one extra query only when the cursor is invisible, upgrade if that path gets hot
-export async function listDisputesOrFirstPage(
-  db: Database,
-  user: UserClaims,
-  input: ListDisputesInput,
-) {
-  const page = await listDisputes(db, user, input);
-  if (page.disputes.length > 0 || input.cursor === undefined) return page;
-  return listDisputes(db, user, { ...input, cursor: undefined, direction: undefined });
+export function listDisputesOrFirstPage(db: Database, user: UserClaims, input: ListDisputesInput) {
+  return keysetPageOrFirst(
+    input,
+    (next) => listDisputes(db, user, next),
+    (page) => page.disputes.length === 0,
+  );
 }

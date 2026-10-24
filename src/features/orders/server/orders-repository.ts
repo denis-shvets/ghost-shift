@@ -4,7 +4,7 @@ import { organizations } from "~/features/organizations/db/schema";
 import { stores } from "~/features/stores/db/schema";
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { type Database, withUser } from "~/shared/db/client";
-import { keysetPage } from "~/shared/db/keyset-page";
+import { keysetPage, keysetPageOrFirst } from "~/shared/db/keyset-page";
 import { pgError } from "~/shared/db/pg-error";
 import { isUuid } from "~/shared/ids/is-uuid";
 
@@ -77,14 +77,12 @@ export function listOrders(
 // A cursor the user can't see gives an empty page with no links, so fall back to the first page.
 // The filters stay, so the first page is still the filtered one.
 // shortcut: one extra query only when the cursor is invisible, upgrade if that path gets hot
-export async function listOrdersOrFirstPage(db: Database, user: UserClaims, input: OrderListInput) {
-  const page = await listOrders(db, user, input);
-  if (page.orders.length > 0 || input.cursor === undefined) return page;
-  return listOrders(db, user, {
-    ...input,
-    cursor: undefined,
-    direction: undefined,
-  });
+export function listOrdersOrFirstPage(db: Database, user: UserClaims, input: OrderListInput) {
+  return keysetPageOrFirst(
+    input,
+    (next) => listOrders(db, user, next),
+    (page) => page.orders.length === 0,
+  );
 }
 
 // Thrown when the store is missing or not visible to the user (RLS hides it the same way).
