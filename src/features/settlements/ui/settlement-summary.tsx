@@ -1,5 +1,6 @@
 import { formatMoney } from "~/features/orders/model/money";
 import type { SettlementSummary } from "~/features/settlements/server/settlements-repository";
+import { cn } from "~/shared/styles/cn";
 
 export type SettlementOverview = {
   currencies: SettlementSummary[];
@@ -62,8 +63,10 @@ function CurrencySettlements({ row }: { row: SettlementSummary }) {
         {tiles.map((tile) => (
           <div key={tile.label} className="rounded border border-neutral-200 p-4">
             <dt className="text-sm text-neutral-600">{tile.label}</dt>
-            <dd className={`mt-1 text-xl font-semibold tabular-nums ${tile.tone}`}>{tile.value}</dd>
-            {tile.note ? <p className={`mt-1 text-sm ${tile.tone}`}>{tile.note}</p> : null}
+            <dd className={cn("mt-1 text-xl font-semibold tabular-nums", tile.tone)}>
+              {tile.value}
+            </dd>
+            {tile.note ? <p className={cn("mt-1 text-sm", tile.tone)}>{tile.note}</p> : null}
           </div>
         ))}
       </dl>

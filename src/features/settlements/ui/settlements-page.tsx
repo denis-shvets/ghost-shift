@@ -5,6 +5,7 @@ import { formatMoney } from "~/features/orders/model/money";
 import type { fetchSettlementsPage } from "~/features/settlements/server/functions";
 import { saveScheduleFn } from "~/features/settlements/server/functions";
 import { errorMessage } from "~/shared/errors/error-message";
+import { cn } from "~/shared/styles/cn";
 
 type Page = Awaited<ReturnType<typeof fetchSettlementsPage>>;
 
@@ -128,9 +129,10 @@ export function SettlementsPage({ page }: { page: Page }) {
                         {formatMoney(settlement.refundedAmount, settlement.currency)}
                       </td>
                       <td
-                        className={`text-right tabular-nums ${
-                          debt ? "font-semibold text-red-700" : ""
-                        }`}
+                        className={cn(
+                          "text-right tabular-nums",
+                          debt && "font-semibold text-red-700",
+                        )}
                       >
                         {formatMoney(settlement.netAmount, settlement.currency)}
                         {debt ? <span className="block text-sm font-normal">In debt</span> : null}
