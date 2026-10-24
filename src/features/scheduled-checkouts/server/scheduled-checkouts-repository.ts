@@ -23,6 +23,9 @@ export const LATE_LIMIT = 6 * HOUR;
 // The most rows one cron run places. Keeps a run well inside the Workers CPU and subrequest limits.
 export const RELEASE_BATCH = 10;
 
+// The plan id was already queued. Maps to 409 in handleApiRequest.
+export class PlanAlreadyQueuedError extends Error {}
+
 // Runs as the signed-in user. Raw SQL, because Drizzle's insert names every column and the user may
 // only insert the planned columns; the database fills in the id, the creator and the status.
 export function queueCheckouts(
@@ -31,6 +34,15 @@ export function queueCheckouts(
   { planId, checkouts }: ScheduledCheckoutsInput,
 ) {
   return withUser(db, user, async (tx) => {
+    // shortcut: check then insert are two statements, so two uploads at the same instant can both pass.
+    // Upgrade: a scheduled_plans table with plan_id as primary key, inserted first.
+    const [existing] = await tx
+      .select({ id: scheduledCheckouts.id })
+      .from(scheduledCheckouts)
+      .where(eq(scheduledCheckouts.planId, planId))
+      .limit(1);
+    if (existing) throw new PlanAlreadyQueuedError("Plan already queued");
+
     // Ask the same function the insert policy uses, so a refusal is a clear 404 or 403, not a raw 42501.
     // The policy still guards the insert on its own.
     const storeIds = [...new Set(checkouts.map((checkout) => checkout.order.storeId))];

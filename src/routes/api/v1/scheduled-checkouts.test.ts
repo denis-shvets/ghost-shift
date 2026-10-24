@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PlanAlreadyQueuedError } from "~/features/scheduled-checkouts/server/scheduled-checkouts-repository";
 import type { UserClaims } from "~/shared/auth/user-claims";
 
 import { Route } from "./scheduled-checkouts";
@@ -25,10 +26,16 @@ vi.mock("~/shared/db/client", () => ({
   createDb: () => ({ close }),
 }));
 
-vi.mock("~/features/scheduled-checkouts/server/scheduled-checkouts-repository", () => ({
-  queueCheckouts,
-  planningContext,
-}));
+vi.mock(
+  "~/features/scheduled-checkouts/server/scheduled-checkouts-repository",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("~/features/scheduled-checkouts/server/scheduled-checkouts-repository")
+    >()),
+    queueCheckouts,
+    planningContext,
+  }),
+);
 
 const customer: UserClaims = { sub: "88888888-8888-4888-8888-888888888888", global_roles: [] };
 
@@ -110,6 +117,16 @@ describe("POST /api/v1/scheduled-checkouts", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "Every dueAt must be in the future" });
     expect(queueCheckouts).not.toHaveBeenCalled();
+  });
+
+  it("answers 409 when the plan was already queued", async () => {
+    queueCheckouts.mockRejectedValue(new PlanAlreadyQueuedError("Plan already queued"));
+
+    const body = { planId, checkouts: [{ dueAt: inOneHour(), persona: "jonas-weber", order }] };
+    const response = await post(body);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "Plan already queued" });
   });
 
   it("refuses an empty plan", async () => {

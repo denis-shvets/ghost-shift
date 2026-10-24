@@ -5,6 +5,8 @@ import type { UserClaims } from "~/shared/auth/user-claims";
 import { type Database, createDb } from "~/shared/db/client";
 import { parseServerEnv } from "~/shared/env/server-env";
 
+import { PlanAlreadyQueuedError } from "~/features/scheduled-checkouts/server/scheduled-checkouts-repository";
+
 import {
   LimitReachedError,
   OrderActionError,
@@ -48,6 +50,8 @@ export async function handleApiRequest(
     if (error instanceof OrderActionError) return json({ error: error.message }, error.status);
     // The user can see the store but may not create orders in it.
     if (error instanceof OrderCreateForbiddenError) return json({ error: "Forbidden" }, 403);
+    // A plan uploaded a second time: the first queue stays as it is.
+    if (error instanceof PlanAlreadyQueuedError) return json({ error: error.message }, 409);
     // Too many orders this hour, or too many pending checkouts: the message says which.
     if (error instanceof LimitReachedError) return json({ error: error.message }, 429);
     // Anything else (a database rule, a reference clash) still answers in JSON, so scripts can read it.
