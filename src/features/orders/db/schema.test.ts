@@ -110,7 +110,7 @@ describe("signed-in users see what their access allows", () => {
     expect(storeRows).toEqual([]);
   });
 
-  it("can't write orders, because no write policy exists yet", async () => {
+  it("can't update orders directly, because no update policy exists", async () => {
     await expect(
       withUser(db, asUser(testAccounts.merchantA), (tx) =>
         tx.execute(sql`update public.orders set customer_first_name = 'Changed'`),

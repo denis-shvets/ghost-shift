@@ -13,7 +13,7 @@ Periods end on fixed days: weekly periods end on Monday 00:00 UTC, monthly perio
 
 ## Pay out (developer)
 
-Payouts are created automatically. A job runs every 15 minutes and creates a pending payout for each period that has ended, so no one has to start it. Open **Developer tools → Approve payouts** to see the pending payouts. Approving one moves it from pending to paid. Only platform developers can approve, and a paid payout can't be approved again.
+Payouts are created automatically. A job runs every 15 minutes and creates a pending payout for each period that has ended, so no one has to start it. Open **Developer tools → Approve payouts** to see the pending payouts. Approving one moves it from pending to paid. Only platform developers can approve, and a paid payout can't be approved again. When you approve several at once, it is all or nothing: if one of them can't be approved, none of them change.
 
 ## Read a settlement
 

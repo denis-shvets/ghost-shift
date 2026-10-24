@@ -5,7 +5,7 @@ Agents and people use the same app, the same API and the same permissions. Every
 
 > **Live demo:** <https://ghost-shift.denis-shvets.workers.dev/>
 >
-> **Status:** scaffold. Routes and pages with mocked data only, no features, database or design yet. See [the idea](docs/idea.md) and the [decision records](docs/adr/README.md).
+> **Status:** orders, disputes, stores, settlements and payouts run on a Postgres database with row-level security. See [the idea](docs/idea.md) and the [decision records](docs/adr/README.md).
 
 ## Stack
 
