@@ -2,13 +2,7 @@ import { formatMoney } from "~/features/orders/model/money";
 import { PAYMENT_METHOD_LABELS } from "~/features/orders/model/order-labels";
 import type { CurrencyInsights } from "~/features/insights/server/insights-repository";
 import { computeRates } from "~/features/insights/model/rates";
-
-const percent = new Intl.NumberFormat("en-GB", { style: "percent", maximumFractionDigits: 1 });
-
-// A null rate means nothing to divide by, so it shows a dash.
-function formatRate(rate: number | null) {
-  return rate === null ? "–" : percent.format(rate);
-}
+import { formatAverageOrderValue, formatRate } from "~/features/insights/ui/format";
 
 export function InsightsPage({ currencies }: { currencies: CurrencyInsights[] }) {
   if (currencies.length === 0) {
@@ -51,11 +45,7 @@ export function InsightsPage({ currencies }: { currencies: CurrencyInsights[] })
                 <td>{formatMoney(row.totalAmount, row.currency)}</td>
                 <td>{formatMoney(row.capturedAmount, row.currency)}</td>
                 <td>{formatMoney(row.refundedAmount, row.currency)}</td>
-                <td>
-                  {rates.averageOrderValue === null
-                    ? "–"
-                    : formatMoney(rates.averageOrderValue, row.currency)}
-                </td>
+                <td>{formatAverageOrderValue(rates.averageOrderValue, row.currency)}</td>
                 <td>{formatRate(rates.captureRate)}</td>
                 <td>{formatRate(rates.refundRate)}</td>
                 <td>{formatRate(rates.expiryRate)}</td>
