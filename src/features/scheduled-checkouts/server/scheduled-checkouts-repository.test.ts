@@ -1,6 +1,6 @@
 import { and, count, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   createTestAccounts,
@@ -24,6 +24,7 @@ import { scheduledCheckouts } from "../db/schema";
 import {
   PlanAlreadyQueuedError,
   RELEASE_BATCH,
+  STUCK_AFTER,
   planningContext,
   queueCheckouts,
   releaseDueCheckouts,
@@ -234,6 +235,64 @@ describe("releaseDueCheckouts", () => {
     expect(placed).toMatchObject({ createdAt: dueAt, createdBy: testAccounts.customer });
     const [event] = await db.select().from(orderEvents).where(eq(orderEvents.orderId, placed!.id));
     expect(event?.occurredAt).toEqual(dueAt);
+  });
+
+  it("keeps a placed order's row placing, not failed, when the final write fails", async () => {
+    const dueAt = new Date(Date.now() - 5 * MINUTE);
+    const id = await addDue(dueAt);
+    // Only the write that marks the row placed fails; the order itself is already committed.
+    const update = db.update.bind(db);
+    const spy = vi.spyOn(db, "update").mockImplementation((table) => {
+      const builder = update(table);
+      return {
+        set: (values: { status?: string }) =>
+          values.status === "placed"
+            ? { where: () => Promise.reject(new Error("connection lost")) }
+            : builder.set(values),
+      } as never;
+    });
+    try {
+      await expect(releaseDueCheckouts(db)).rejects.toThrow("connection lost");
+    } finally {
+      spy.mockRestore();
+    }
+
+    const row = await rowOf(id);
+    expect(row).toMatchObject({ status: "placing", error: null, orderId: null });
+    expect(row.claimedAt).toBeInstanceOf(Date);
+    // The order was committed, so it exists even though the row doesn't point at it.
+    const placed = await db
+      .select({ id: orders.id })
+      .from(orders)
+      .where(and(eq(orders.storeId, order.storeId), eq(orders.createdAt, dueAt)));
+    expect(placed).toHaveLength(1);
+    await db.delete(orders).where(
+      inArray(
+        orders.id,
+        placed.map((found) => found.id),
+      ),
+    );
+  });
+
+  it("recovers a row stuck in placing as failed, and leaves a newer one", async () => {
+    const stuck = await addDue(new Date(Date.now() - 2 * HOUR));
+    const recent = await addDue(new Date(Date.now() - 2 * HOUR));
+    await db
+      .update(scheduledCheckouts)
+      .set({ status: "placing", claimedAt: new Date(Date.now() - STUCK_AFTER - MINUTE) })
+      .where(eq(scheduledCheckouts.id, stuck));
+    await db
+      .update(scheduledCheckouts)
+      .set({ status: "placing", claimedAt: new Date(Date.now() - STUCK_AFTER + MINUTE) })
+      .where(eq(scheduledCheckouts.id, recent));
+
+    expect(await releaseDueCheckouts(db)).toMatchObject({ recovered: 1 });
+    expect(await rowOf(stuck)).toMatchObject({
+      status: "failed",
+      orderId: null,
+      error: expect.stringContaining("Stuck in placing"),
+    });
+    expect(await rowOf(recent)).toMatchObject({ status: "placing" });
   });
 
   it("leaves a checkout that isn't due yet", async () => {
