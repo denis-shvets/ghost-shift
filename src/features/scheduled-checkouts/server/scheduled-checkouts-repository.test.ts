@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -10,9 +10,11 @@ import {
 import { orderEvents, orders } from "~/features/orders/db/schema";
 import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
 import {
+  LimitReachedError,
   OrderCreateForbiddenError,
   StoreNotFoundError,
 } from "~/features/orders/server/orders-repository";
+import { MAX_PENDING_SCHEDULED_CHECKOUTS } from "~/features/scheduled-checkouts/model/scheduled-checkout-input";
 import type { UserClaims } from "~/shared/auth/user-claims";
 import { createDb } from "~/shared/db/client";
 import seedIds from "~/shared/seed/seed-ids.json" with { type: "json" };
@@ -155,6 +157,38 @@ describe("queueCheckouts", () => {
     expect(
       await db.select().from(scheduledCheckouts).where(eq(scheduledCheckouts.planId, planId)),
     ).toEqual([]);
+  });
+
+  it("queues up to the pending limit, then refuses one more and queues nothing", async () => {
+    const dueAt = new Date(Date.now() + 4 * HOUR).toISOString();
+    const batch = (size: number) => Array.from({ length: size }, () => ({ dueAt, persona, order }));
+    const pendingCount = async () =>
+      (
+        await db
+          .select({ pending: count() })
+          .from(scheduledCheckouts)
+          .where(
+            and(
+              eq(scheduledCheckouts.createdBy, testAccounts.customer),
+              eq(scheduledCheckouts.status, "pending"),
+            ),
+          )
+      )[0]!.pending;
+
+    // Counts the rows already pending from other tests, then fills all but one slot.
+    const room = MAX_PENDING_SCHEDULED_CHECKOUTS - (await pendingCount());
+    await queueCheckouts(db, customer, { planId: randomUUID(), checkouts: batch(room - 1) });
+    // The last free slot is still allowed.
+    await queueCheckouts(db, customer, { planId: randomUUID(), checkouts: batch(1) });
+
+    const planId = randomUUID();
+    await expect(
+      queueCheckouts(db, customer, { planId, checkouts: batch(1) }),
+    ).rejects.toBeInstanceOf(LimitReachedError);
+    expect(
+      await db.select().from(scheduledCheckouts).where(eq(scheduledCheckouts.planId, planId)),
+    ).toEqual([]);
+    expect(await pendingCount()).toBe(MAX_PENDING_SCHEDULED_CHECKOUTS);
   });
 });
 

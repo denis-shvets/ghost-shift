@@ -31,7 +31,8 @@ vi.mock("~/features/orders/server/orders-repository", async (importOriginal) => 
   createOrder,
 }));
 
-const { OrderCreateForbiddenError } = await import("~/features/orders/server/orders-repository");
+const { LimitReachedError, OrderCreateForbiddenError } =
+  await import("~/features/orders/server/orders-repository");
 
 const agent: UserClaims = { sub: "33333333-3333-4333-8333-333333333333", global_roles: [] };
 
@@ -224,5 +225,14 @@ describe("POST /api/v1/orders", () => {
 
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: "Forbidden" });
+  });
+
+  it("answers 429 with the limit message when the hourly order limit is reached", async () => {
+    createOrder.mockRejectedValue(new LimitReachedError("Too many orders this hour (limit 200)."));
+
+    const response = await post(JSON.stringify(validBody));
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Too many orders this hour (limit 200)." });
   });
 });

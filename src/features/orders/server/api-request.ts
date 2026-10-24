@@ -6,6 +6,7 @@ import { type Database, createDb } from "~/shared/db/client";
 import { parseServerEnv } from "~/shared/env/server-env";
 
 import {
+  LimitReachedError,
   OrderActionError,
   OrderCreateForbiddenError,
   StoreNotFoundError,
@@ -47,6 +48,8 @@ export async function handleApiRequest(
     if (error instanceof OrderActionError) return json({ error: error.message }, error.status);
     // The user can see the store but may not create orders in it.
     if (error instanceof OrderCreateForbiddenError) return json({ error: "Forbidden" }, 403);
+    // Too many orders this hour, or too many pending checkouts: the message says which.
+    if (error instanceof LimitReachedError) return json({ error: error.message }, 429);
     // Anything else (a database rule, a reference clash) still answers in JSON, so scripts can read it.
     console.error(error);
     return json({ error: "Internal error" }, 500);
