@@ -1,4 +1,4 @@
-import { TransactionRollbackError, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -141,43 +141,26 @@ describe("ending a run", () => {
 });
 
 describe("linking events to runs", () => {
-  it("lets a developer add an event directly only without a run", async () => {
+  // Events only get a run through order_action(), and nobody inserts events directly any more.
+  it("refuses a developer's direct event, with or without a run", async () => {
     const { id: runId } = await startRun(testAccounts.agent);
     const [seeded] = await db.select().from(orders).limit(1);
     const developer: UserClaims = {
       sub: testAccounts.developer,
       global_roles: ["platform_developer"],
     };
-    // Rolled back either way, so the seeded timeline stays as it is.
     const addEvent = (agentRunId: string | null) =>
-      withUser(db, developer, async (tx) => {
-        // A developer can only add events to orders they created, so the test makes its own order.
-        const [order] = await tx
-          .insert(orders)
-          .values({
-            reference: `TEST-${crypto.randomUUID()}`,
-            storeId: seeded!.storeId,
-            currency: seeded!.currency,
-            customerFirstName: "Schema",
-            customerLastName: "Test",
-            customerEmail: "schema@ghostshift.test",
-            paymentMethod: "card",
-            status: "authorized",
-            totalAmount: 1000,
-            shippingCarrier: "PostNord",
-          })
-          .returning({ id: orders.id });
-        await tx.insert(orderEvents).values({
-          orderId: order!.id,
+      withUser(db, developer, (tx) =>
+        tx.insert(orderEvents).values({
+          orderId: seeded!.id,
           action: "authorized",
           actorUserId: testAccounts.developer,
           actorName: "Schema test",
           agentRunId,
-        });
-        tx.rollback();
-      });
+        }),
+      );
 
-    await expect(addEvent(null)).rejects.toBeInstanceOf(TransactionRollbackError);
+    await expect(addEvent(null)).rejects.toMatchObject(permissionDenied);
     await expect(addEvent(runId)).rejects.toMatchObject(permissionDenied);
   });
 });
