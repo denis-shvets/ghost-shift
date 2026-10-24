@@ -25,7 +25,7 @@ export const scheduledCheckoutStatus = pgEnum(
 
 // Night Shift's queue: orders planned ahead on the owner's machine, placed by the Worker cron when
 // they are due (docs/guides/night-shift.md). The status only moves forward:
-// pending → placing → placed, failed or skipped.
+// pending → placing → placed, failed or skipped. A placing row that stays too long is moved to failed.
 export const scheduledCheckouts = pgTable(
   "scheduled_checkouts",
   {
@@ -44,6 +44,8 @@ export const scheduledCheckouts = pgTable(
     // The order to place, checked against createOrderInput when it was queued.
     payload: jsonb().$type<CreateOrderInput>().notNull(),
     status: scheduledCheckoutStatus().notNull().default("pending"),
+    // When the cron claimed the row (pending → placing). The recovery step ages stuck rows by this.
+    claimedAt: timestamp({ withTimezone: true }),
     orderId: uuid(),
     // Why the order was not placed, for failed and skipped rows.
     error: text(),

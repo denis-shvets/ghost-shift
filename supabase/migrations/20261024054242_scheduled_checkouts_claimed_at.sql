@@ -1,0 +1,1 @@
+ALTER TABLE "scheduled_checkouts" ADD COLUMN "claimed_at" timestamp with time zone;

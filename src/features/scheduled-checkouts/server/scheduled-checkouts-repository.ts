@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, max, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, lt, max, or, sql } from "drizzle-orm";
 
 import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
 import {
@@ -22,6 +22,9 @@ const HOUR = 60 * 60 * 1000;
 export const LATE_LIMIT = 6 * HOUR;
 // The most rows one cron run places. Keeps a run well inside the Workers CPU and subrequest limits.
 export const RELEASE_BATCH = 10;
+// A placing row this old lost its run before the final write. Longer than any real claim-to-write gap.
+export const STUCK_AFTER = HOUR / 2;
+const STUCK_ERROR = "Stuck in placing for over 30 minutes; check orders before re-queuing";
 
 // The plan id was already queued. Maps to 409 in handleApiRequest.
 export class PlanAlreadyQueuedError extends Error {}
@@ -114,14 +117,32 @@ type ClaimedRow = { id: string; created_by: string; due_at: string; payload: Cre
 // creator's rows. Each order is still placed through createOrder as the row's creator, so
 // row-level security decides again whether that user may order in the store.
 export async function releaseDueCheckouts(db: Database, now = new Date()) {
-  const counts = { placed: 0, failed: 0, skipped: 0 };
+  const counts = { placed: 0, failed: 0, skipped: 0, recovered: 0 };
+
+  // Rows a lost run left in placing. Their order may already exist, so they fail rather than being
+  // placed again: a second order would be a double charge.
+  const stuck = await db
+    .update(scheduledCheckouts)
+    .set({ status: "failed", error: STUCK_ERROR, releasedAt: now })
+    .where(
+      and(
+        eq(scheduledCheckouts.status, "placing"),
+        or(
+          isNull(scheduledCheckouts.claimedAt),
+          lt(scheduledCheckouts.claimedAt, new Date(now.getTime() - STUCK_AFTER)),
+        ),
+      ),
+    )
+    .returning({ id: scheduledCheckouts.id });
+  counts.recovered = stuck.length;
+
   for (let n = 0; n < RELEASE_BATCH; n++) {
     // Claim one row at a time: pending → placing in one statement. SKIP LOCKED makes a second run
     // at the same time pass over a row the first has locked, so no row is claimed twice. A crash
-    // or a lost connection leaves only the row in hand in placing, visible and never placed twice;
-    // the rest stay pending for the next run.
+    // or a lost connection leaves only the row in hand in placing; the recovery above fails it later.
     const [row] = await db.execute<ClaimedRow>(sql`
-      update public.scheduled_checkouts set status = 'placing'
+      update public.scheduled_checkouts
+      set status = 'placing', claimed_at = ${now.toISOString()}::timestamptz
       where id = (
         select id from public.scheduled_checkouts
         where status = 'pending' and due_at <= ${now.toISOString()}::timestamptz
@@ -143,20 +164,24 @@ export async function releaseDueCheckouts(db: Database, now = new Date()) {
       counts.skipped++;
       continue;
     }
+    let order;
     try {
       // The order's time is the planned time: up to one cron interval (30 minutes) in the past,
       // or up to LATE_LIMIT after a cron outage.
-      const order = await createOrder(db, { sub: row.created_by, global_roles: [] }, row.payload, {
+      order = await createOrder(db, { sub: row.created_by, global_roles: [] }, row.payload, {
         createdAt: dueAt,
       });
-      await finish({ status: "placed", orderId: order.id });
-      counts.placed++;
     } catch (error) {
-      // One refused order doesn't stop the others; the row says why.
+      // One refused order doesn't stop the others; the row says why. Only a refused create lands
+      // here, so a failed row never has an order.
       const message = error instanceof Error ? error.message : String(error);
       await finish({ status: "failed", error: message.slice(0, 500) });
       counts.failed++;
+      continue;
     }
+    // Outside the try: if this write fails the order exists, so the row stays placing for the recovery.
+    await finish({ status: "placed", orderId: order.id });
+    counts.placed++;
   }
   return counts;
 }

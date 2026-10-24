@@ -204,6 +204,13 @@
       "when": 1792819342020,
       "tag": "20261024052222_orders_disputes_captured_not_refunded",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792820562753,
+      "tag": "20261024054242_scheduled_checkouts_claimed_at",
+      "breakpoints": true
     }
   ]
 }

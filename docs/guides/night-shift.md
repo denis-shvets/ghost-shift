@@ -179,8 +179,11 @@ Step by step:
 
 Every 30 minutes, `releaseDueCheckouts()` in `src/features/scheduled-checkouts/server/scheduled-checkouts-repository.ts` runs:
 
+Before it claims anything, it recovers rows a lost run left behind (step 0 below).
+
 ```sql
-update public.scheduled_checkouts set status = 'placing'
+update public.scheduled_checkouts
+set status = 'placing', claimed_at = now()
 where id = (
   select id from public.scheduled_checkouts
   where status = 'pending' and due_at <= now()
@@ -193,12 +196,13 @@ returning id, created_by, due_at, payload;
 
 It runs this up to 10 times, one row each time, and stops early when no row is due. Step by step:
 
+0. **Recover stuck rows.** A row still `placing` 30 minutes after `claimed_at` (or with no `claimed_at`) lost its run before the final write. It becomes `failed` with the reason "Stuck in placing…", not placed again: its order may already exist, so check the orders list before re-queuing it. It runs first in each Worker cron run, not as a separate pg_cron job, because that cron already runs every 30 minutes and holds the database connection, so no second schedule is needed.
 1. **Claim one row.** The inner `select` finds the oldest row that is pending and due. `for update` locks it, and the outer `update` marks it `placing` in the same statement. Once a row is `placing`, no later run picks it up. One row at a time, not 10 at once: if something breaks while placing (a lost connection, say), only the row in hand is stuck in `placing`; the others are still `pending` for the next run.
 2. **`skip locked`.** If two runs overlap, the second passes over a row the first has locked instead of waiting for it. So each row is claimed by exactly one run.
 3. **Too late.** A row more than 6 hours past its `due_at` becomes `skipped`, without an order. That only happens when the cron was down; it keeps a restart from placing a burst of old orders.
 4. **Place.** For each other row, the cron calls `createOrder`, the same function as the orders API, as the row's `created_by` user, with the creation time set to `due_at`. Row-level security checks again that this user may order in the store. On success the row becomes `placed` with its `order_id`.
-5. **Fail alone.** If the database refuses one order (say the store's assignment was removed), that row becomes `failed` with the reason, and the cron goes on with the next.
-6. **Never twice.** The row is marked `placing` before the order is created. If the Worker crashes in between, the row stays `placing`: you can see it, and no run places it again.
+5. **Fail alone.** If `createOrder` refuses one order (say the store's assignment was removed), that row becomes `failed` with the reason, and the cron goes on with the next. Only a refused create marks a row `failed`: if the final `placed` write fails after the order was made, the row stays `placing` and step 0 deals with it later.
+6. **Never twice.** The row is marked `placing` before the order is created. If the Worker crashes in between, the row stays `placing` until step 0 fails it; no run places it again.
 
 Status only moves forward: `pending → placing → placed`, `failed` or `skipped`. Nothing ever sets a row back to `pending`.
 
