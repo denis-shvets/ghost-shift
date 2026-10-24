@@ -9,7 +9,7 @@ import { orders } from "~/features/orders/db/schema";
 
 import { orderDisputes } from "../db/schema";
 import type { OpenDisputeInput } from "../model/open-dispute-input";
-import { DISPUTABLE_ORDER_STATUSES } from "../model/disputable-order-statuses";
+import { isDisputable } from "../model/disputable-orders";
 import type { ListDisputesInput } from "../model/list-disputes-input";
 
 // Base for every refusal, so the server function can show these messages and log anything else.
@@ -29,11 +29,11 @@ export function openDispute(db: Database, user: UserClaims, input: OpenDisputeIn
   return withUser(db, user, async (tx) => {
     // Orders the user can't see come back empty, the same as a missing order.
     const [order] = await tx
-      .select({ status: orders.status })
+      .select({ capturedAmount: orders.capturedAmount, refundedAmount: orders.refundedAmount })
       .from(orders)
       .where(eq(orders.id, input.orderId));
     if (!order) throw new DisputeForbiddenError("Forbidden");
-    if (!(DISPUTABLE_ORDER_STATUSES as readonly string[]).includes(order.status)) {
+    if (!isDisputable(order)) {
       throw new DisputeOrderError(
         "Only orders with captured money that is not fully refunded can be disputed",
       );

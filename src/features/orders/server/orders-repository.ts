@@ -46,6 +46,7 @@ export function listOrders(
         currency: orders.currency,
         totalAmount: orders.totalAmount,
         capturedAmount: orders.capturedAmount,
+        refundedAmount: orders.refundedAmount,
         shippingCarrier: orders.shippingCarrier,
       })
       .from(orders)
