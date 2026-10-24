@@ -3,12 +3,24 @@ import { computeRates } from "~/features/insights/model/rates";
 import { formatAverageOrderValue, formatRate } from "~/features/insights/ui/format";
 import { formatMoney } from "~/features/orders/model/money";
 import { PAYMENT_METHOD_LABELS } from "~/features/orders/model/order-labels";
+import {
+  SettlementSummaryBlock,
+  type SettlementOverview,
+} from "~/features/settlements/ui/settlement-summary";
 
 // Each currency is its own block: amounts in different currencies are never added together.
-export function DashboardPage({ currencies }: { currencies: CurrencyInsights[] }) {
+export function DashboardPage({
+  currencies,
+  settlements,
+}: {
+  currencies: CurrencyInsights[];
+  settlements?: SettlementOverview;
+}) {
   return (
     <>
       <h1>Dashboard</h1>
+      {settlements ? <SettlementSummaryBlock overview={settlements} /> : null}
+      <h2>Orders</h2>
       {currencies.length === 0 ? (
         <p>No orders yet.</p>
       ) : (
@@ -40,7 +52,9 @@ function CurrencyBlock({ row }: { row: CurrencyInsights }) {
 
   return (
     <section aria-labelledby={`currency-${row.currency}`}>
-      <h2 id={`currency-${row.currency}`}>{row.currency}</h2>
+      <h3 id={`currency-${row.currency}`} className="pb-2 text-lg font-medium">
+        {row.currency}
+      </h3>
       <dl className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         {tiles.map((tile) => (
           <div key={tile.label} className="rounded border border-neutral-200 p-4">
