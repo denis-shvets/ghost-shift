@@ -12,8 +12,8 @@ import { listDisputesInput } from "../model/list-disputes-input";
 import { openDisputeInput } from "../model/open-dispute-input";
 import {
   DisputeError,
+  listDisputes,
   listDisputesOrFirstPage,
-  listOpenDisputes,
   openDispute,
 } from "./disputes-repository";
 
@@ -25,7 +25,10 @@ const refuse = refusalOrLog(DisputeError);
 export const fetchOpenDisputesFn = createServerFn({ method: "GET" }).handler(async () => {
   const user = await requireUser(parseServerEnv(env));
   requirePlatformDeveloper(user);
-  return withDb((db) => listOpenDisputes(db, user));
+  // shortcut: capped at 100 open disputes, no paging on the developer page, upgrade if a store passes that
+  return withDb(
+    async (db) => (await listDisputes(db, user, { limit: 100, status: "open" })).disputes,
+  );
 });
 
 // Any signed-in user may read the disputes RLS shows them. requireUser redirects anonymous visitors to /login.

@@ -52,16 +52,6 @@ export function openDispute(db: Database, user: UserClaims, input: OpenDisputeIn
   });
 }
 
-export function listOpenDisputes(db: Database, user: UserClaims) {
-  return withUser(db, user, (tx) =>
-    tx
-      .select()
-      .from(orderDisputes)
-      .where(eq(orderDisputes.status, "open"))
-      .orderBy(desc(orderDisputes.openedAt)),
-  );
-}
-
 // Runs as the signed-in user, so row-level security limits the rows to disputes of their stores.
 // Pages are ordered by (opened_at, id), like orders, so disputes opened at the same time can't be skipped.
 // The cursor is a dispute id: its opened_at and id are looked up in the same query.
