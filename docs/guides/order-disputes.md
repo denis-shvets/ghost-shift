@@ -16,6 +16,7 @@ A dispute is a customer's claim against an order. This first version only record
 Row-level security is in `supabase/migrations/20261023203832_orders_disputes.sql`:
 
 - Reading and opening a dispute need `disputes.manage` at the order's store. The policies check it through the parent order, the same way order events do.
+- Opening a dispute also needs the order to hold captured money: `captured_amount > refunded_amount`. The status doesn't matter, so a canceled or expired order that kept its captured money can be disputed. The current rule is in `supabase/migrations/20261024052222_orders_disputes_captured_not_refunded.sql`, which replaced the status check from the first migration.
 - There is no update or delete grant, so a dispute can't be changed or removed through the API. Closing disputes is not built yet.
 - The grants are in the same migration. Local Supabase grants everything on new tables and hosted grants nothing, so the migration revokes first and then grants `select, insert` to `authenticated` only.
 

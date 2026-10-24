@@ -60,6 +60,33 @@ async function orderWithStatus(
   return order!.id;
 }
 
+// For the amount rule: the status and money are set directly, so canceled and expired orders can hold captured money.
+async function orderWithMoney(
+  status: "canceled" | "expired",
+  capturedAmount: number,
+  refundedAmount: number,
+) {
+  const [order] = await db
+    .insert(orders)
+    .values({
+      reference: `TEST-${randomUUID()}`,
+      storeId: seedIds.stores.velourVault,
+      currency: "SEK",
+      customerFirstName: "Test",
+      customerLastName: "Customer",
+      customerEmail: "customer@ghostshift.test",
+      paymentMethod: "card",
+      status,
+      totalAmount: 20000,
+      capturedAmount,
+      refundedAmount,
+      shippingCarrier: "PostNord",
+    })
+    .returning({ id: orders.id });
+  created.push(order!.id);
+  return order!.id;
+}
+
 function asUser(id: string): UserClaims {
   return { sub: id, global_roles: [] };
 }
@@ -129,6 +156,23 @@ describe("only orders that took money can be disputed", () => {
     const orderId = await orderWithStatus("part_captured");
     const row = await open(testAccounts.developer, orderId);
     expect(row?.id).toEqual(expect.any(String));
+  });
+
+  it("accepts a canceled order that keeps money captured before the cancel", async () => {
+    const orderId = await orderWithMoney("canceled", 5000, 0);
+    const row = await open(testAccounts.developer, orderId);
+    expect(row?.id).toEqual(expect.any(String));
+  });
+
+  it("accepts an expired order that still holds captured money", async () => {
+    const orderId = await orderWithMoney("expired", 5000, 0);
+    const row = await open(testAccounts.developer, orderId);
+    expect(row?.id).toEqual(expect.any(String));
+  });
+
+  it("refuses a canceled order whose captured money was all refunded", async () => {
+    const orderId = await orderWithMoney("canceled", 5000, 5000);
+    await expect(open(testAccounts.developer, orderId)).rejects.toMatchObject(permissionDenied);
   });
 });
 

@@ -7,11 +7,17 @@ import type { OrderStatus } from "~/features/orders/model/order-statuses";
 
 import { issuesMessage } from "~/shared/validation/issues-message";
 
-import { DISPUTABLE_ORDER_STATUSES } from "../model/disputable-order-statuses";
+import { isDisputable } from "../model/disputable-orders";
 import { openDisputeInput } from "../model/open-dispute-input";
 import { openDisputeFn } from "../server/functions";
 
-type OrderOption = { id: string; reference: string; status: OrderStatus };
+type OrderOption = {
+  id: string;
+  reference: string;
+  status: OrderStatus;
+  capturedAmount: number;
+  refundedAmount: number;
+};
 type OpenDispute = { id: string; orderId: string; reason: string; openedAt: Date };
 
 // Structure only; the global base styles in src/styles/app.css style the form (ADR 0018).
@@ -27,10 +33,8 @@ export function OpenDisputePage({
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
-  // Only orders that took money can be disputed; the server checks the same rule.
-  const disputable = orders.filter((order) =>
-    (DISPUTABLE_ORDER_STATUSES as readonly string[]).includes(order.status),
-  );
+  // Only orders that still hold captured money can be disputed; the server checks the same rule.
+  const disputable = orders.filter(isDisputable);
 
   const referenceOf = (orderId: string) =>
     orders.find((order) => order.id === orderId)?.reference ?? orderId;
