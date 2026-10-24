@@ -18,7 +18,7 @@ type OrderOption = {
   capturedAmount: number;
   refundedAmount: number;
 };
-type OpenDispute = { id: string; orderId: string; reason: string; openedAt: Date };
+type OpenDispute = { id: string; orderReference: string; reason: string; openedAt: Date };
 
 // Structure only; the global base styles in src/styles/app.css style the form (ADR 0018).
 export function OpenDisputePage({
@@ -35,9 +35,6 @@ export function OpenDisputePage({
 
   // Only orders that still hold captured money can be disputed; the server checks the same rule.
   const disputable = orders.filter(isDisputable);
-
-  const referenceOf = (orderId: string) =>
-    orders.find((order) => order.id === orderId)?.reference ?? orderId;
 
   async function onSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -124,7 +121,7 @@ export function OpenDisputePage({
             <tbody>
               {disputes.map((dispute) => (
                 <tr key={dispute.id}>
-                  <td>{referenceOf(dispute.orderId)}</td>
+                  <td>{dispute.orderReference}</td>
                   <td>{dispute.reason}</td>
                   <td>{new Date(dispute.openedAt).toLocaleString("en-GB")}</td>
                 </tr>
