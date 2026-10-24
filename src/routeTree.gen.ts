@@ -22,6 +22,7 @@ import { Route as SettlementsRouteImport } from './routes/settlements'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as DeveloperCreateOrderRouteImport } from './routes/developer/create-order'
 import { Route as DeveloperDisputesRouteImport } from './routes/developer/disputes'
+import { Route as DeveloperPayoutsRouteImport } from './routes/developer/payouts'
 import { Route as HealthDatabaseRouteImport } from './routes/health/database'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
@@ -100,6 +101,11 @@ const DeveloperDisputesRoute = DeveloperDisputesRouteImport.update({
   path: '/developer/disputes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeveloperPayoutsRoute = DeveloperPayoutsRouteImport.update({
+  id: '/developer/payouts',
+  path: '/developer/payouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HealthDatabaseRoute = HealthDatabaseRouteImport.update({
   id: '/health/database',
   path: '/health/database',
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof TeamRoute
   '/developer/create-order': typeof DeveloperCreateOrderRoute
   '/developer/disputes': typeof DeveloperDisputesRoute
+  '/developer/payouts': typeof DeveloperPayoutsRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/stores/$storeId': typeof StoresStoreIdRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/team': typeof TeamRoute
   '/developer/create-order': typeof DeveloperCreateOrderRoute
   '/developer/disputes': typeof DeveloperDisputesRoute
+  '/developer/payouts': typeof DeveloperPayoutsRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/stores/$storeId': typeof StoresStoreIdRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/team': typeof TeamRoute
   '/developer/create-order': typeof DeveloperCreateOrderRoute
   '/developer/disputes': typeof DeveloperDisputesRoute
+  '/developer/payouts': typeof DeveloperPayoutsRoute
   '/health/database': typeof HealthDatabaseRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/stores/$storeId': typeof StoresStoreIdRoute
@@ -259,6 +268,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/developer/create-order'
     | '/developer/disputes'
+    | '/developer/payouts'
     | '/health/database'
     | '/orders/$orderId'
     | '/stores/$storeId'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/developer/create-order'
     | '/developer/disputes'
+    | '/developer/payouts'
     | '/health/database'
     | '/orders/$orderId'
     | '/stores/$storeId'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/developer/create-order'
     | '/developer/disputes'
+    | '/developer/payouts'
     | '/health/database'
     | '/orders/$orderId'
     | '/stores/$storeId'
@@ -341,6 +353,7 @@ export interface RootRouteChildren {
   TeamRoute: typeof TeamRoute
   DeveloperCreateOrderRoute: typeof DeveloperCreateOrderRoute
   DeveloperDisputesRoute: typeof DeveloperDisputesRoute
+  DeveloperPayoutsRoute: typeof DeveloperPayoutsRoute
   HealthDatabaseRoute: typeof HealthDatabaseRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   StoresStoreIdRoute: typeof StoresStoreIdRoute
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       path: '/developer/disputes'
       fullPath: '/developer/disputes'
       preLoaderRoute: typeof DeveloperDisputesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/developer/payouts': {
+      id: '/developer/payouts'
+      path: '/developer/payouts'
+      fullPath: '/developer/payouts'
+      preLoaderRoute: typeof DeveloperPayoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/health/database': {
@@ -571,6 +591,7 @@ const rootRouteChildren: RootRouteChildren = {
   TeamRoute: TeamRoute,
   DeveloperCreateOrderRoute: DeveloperCreateOrderRoute,
   DeveloperDisputesRoute: DeveloperDisputesRoute,
+  DeveloperPayoutsRoute: DeveloperPayoutsRoute,
   HealthDatabaseRoute: HealthDatabaseRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   StoresStoreIdRoute: StoresStoreIdRoute,

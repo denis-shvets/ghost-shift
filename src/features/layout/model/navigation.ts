@@ -16,7 +16,7 @@ const navigationGroups = [
     label: "Money",
     developerOnly: false,
     items: [
-      { to: "/settlements", label: "Settlements", mock: true },
+      { to: "/settlements", label: "Settlements", mock: false },
       { to: "/payment-links", label: "Payment links", mock: true },
       { to: "/insights", label: "Insights", mock: false },
     ],
@@ -44,6 +44,7 @@ const navigationGroups = [
     items: [
       { to: "/developer/create-order", label: "Create test order", mock: false },
       { to: "/developer/disputes", label: "Dispute an order", mock: false },
+      { to: "/developer/payouts", label: "Approve payouts", mock: false },
     ],
   },
 ] as const;

@@ -190,6 +190,13 @@
       "when": 1792797302744,
       "tag": "20261023231502_order_disputes_list_index",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792810139324,
+      "tag": "20261024024859_settlements",
+      "breakpoints": true
     }
   ]
 }
