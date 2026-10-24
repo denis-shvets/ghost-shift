@@ -14,6 +14,9 @@ export const SCHEDULED_CHECKOUT_STATUSES = [
 // with room to spare. About 1 KB each, so an upload stays well under the Worker's request limit.
 export const MAX_SCHEDULED_CHECKOUTS = 500;
 
+// The most pending checkouts one user may hold at once: one full upload.
+export const MAX_PENDING_SCHEDULED_CHECKOUTS = 500;
+
 export const scheduledCheckoutInput = z.object({
   dueAt: z.iso.datetime({ offset: true }),
   persona: z.string().min(1).max(60),

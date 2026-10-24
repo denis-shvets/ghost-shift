@@ -1,7 +1,8 @@
-import { and, eq, inArray, max, sql } from "drizzle-orm";
+import { and, count, eq, inArray, max, sql } from "drizzle-orm";
 
 import type { CreateOrderInput } from "~/features/orders/model/create-order-input";
 import {
+  LimitReachedError,
   OrderCreateForbiddenError,
   StoreNotFoundError,
   createOrder,
@@ -11,7 +12,10 @@ import type { UserClaims } from "~/shared/auth/user-claims";
 import { type Database, withUser } from "~/shared/db/client";
 
 import { scheduledCheckouts } from "../db/schema";
-import type { ScheduledCheckoutsInput } from "../model/scheduled-checkout-input";
+import {
+  MAX_PENDING_SCHEDULED_CHECKOUTS,
+  type ScheduledCheckoutsInput,
+} from "../model/scheduled-checkout-input";
 
 const HOUR = 60 * 60 * 1000;
 // A row this late is skipped, not placed, so a cron that was down never dumps a burst of orders.
@@ -39,6 +43,19 @@ export function queueCheckouts(
       .where(inArray(stores.id, storeIds));
     if (visible.length !== storeIds.length) throw new StoreNotFoundError("Store not found");
     if (visible.some((store) => !store.canCreate)) throw new OrderCreateForbiddenError("Forbidden");
+
+    // Counted before the insert, so a refused upload writes nothing. Same race caveat as createOrder.
+    const [counted] = await tx
+      .select({ pending: count() })
+      .from(scheduledCheckouts)
+      .where(
+        and(eq(scheduledCheckouts.createdBy, user.sub), eq(scheduledCheckouts.status, "pending")),
+      );
+    if (counted!.pending + checkouts.length > MAX_PENDING_SCHEDULED_CHECKOUTS) {
+      throw new LimitReachedError(
+        `Too many pending scheduled checkouts (limit ${MAX_PENDING_SCHEDULED_CHECKOUTS}). Wait for some to run before queueing more.`,
+      );
+    }
 
     const rows = checkouts.map((checkout) => ({
       store_id: checkout.order.storeId,

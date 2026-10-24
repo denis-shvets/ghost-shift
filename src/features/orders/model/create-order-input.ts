@@ -6,6 +6,10 @@ import { PAYMENT_METHODS } from "./payment-methods.ts";
 // The most units one line may hold. The create page caps added quantities at the same value.
 export const MAX_LINE_QUANTITY = 10000;
 
+// The most orders one user may create in an hour. Normal use is a handful; this stops a loop from filling the database.
+// shortcut: counts orders by created_at, so a backdated Night Shift order may not count; upgrade if that gap matters
+export const MAX_ORDERS_PER_HOUR = 200;
+
 const orderLineInput = z
   .object({
     type: z.enum(["physical", "digital", "shipping_fee", "discount", "surcharge"]),

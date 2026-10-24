@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, or, sql } from "drizzle-orm";
 
 import { organizations } from "~/features/organizations/db/schema";
 import { stores } from "~/features/stores/db/schema";
@@ -9,7 +9,7 @@ import { pgError } from "~/shared/db/pg-error";
 import { isUuid } from "~/shared/ids/is-uuid";
 
 import { orderAddresses, orderEvents, orderLines, orders } from "../db/schema";
-import type { CreateOrderInput } from "../model/create-order-input";
+import { type CreateOrderInput, MAX_ORDERS_PER_HOUR } from "../model/create-order-input";
 import type { OrderActionInput } from "../model/order-action-input";
 import type { OrderEvent, OrderEventMetadata } from "../model/order-event";
 import type { OrderListInput } from "../model/order-list-input";
@@ -92,6 +92,11 @@ export class StoreNotFoundError extends Error {}
 // Thrown when the user can see the store but may not create orders in it (no orders.create).
 export class OrderCreateForbiddenError extends Error {}
 
+// Thrown when a limit is reached: too many orders this hour, or too many pending scheduled checkouts.
+export class LimitReachedError extends Error {}
+
+const HOUR = 60 * 60 * 1000;
+
 // Runs as the signed-in user. Stores they can't read are hidden, so the lookup fails the same way.
 // `createdAt` is for server code only: the Night Shift cron places a planned order at its planned
 // time. No request input carries it, so API callers can't backdate an order.
@@ -114,6 +119,18 @@ export function createOrder(
       .where(eq(stores.id, input.storeId));
     if (!store) throw new StoreNotFoundError("Store not found");
     if (!store.canCreate) throw new OrderCreateForbiddenError("Forbidden");
+    // shortcut: count then insert is not atomic, so parallel requests can each pass the cap by a few; upgrade to a lock if that matters
+    const [counted] = await tx
+      .select({ recent: count() })
+      .from(orders)
+      .where(
+        and(eq(orders.createdBy, user.sub), gt(orders.createdAt, new Date(Date.now() - HOUR))),
+      );
+    if (counted!.recent >= MAX_ORDERS_PER_HOUR) {
+      throw new LimitReachedError(
+        `Too many orders this hour (limit ${MAX_ORDERS_PER_HOUR}). Try again later.`,
+      );
+    }
     const totalAmount = orderTotal(input.lines);
     // shortcut: 8 hex characters, a clash fails on the unique reference constraint, upgrade to a retry if clashes become common
     const reference = `DEV-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;

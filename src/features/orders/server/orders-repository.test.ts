@@ -1,4 +1,4 @@
-import { and, eq, inArray, like } from "drizzle-orm";
+import { and, count, eq, gt, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -14,9 +14,10 @@ import { agentRuns } from "~/features/agent-runs/db/schema";
 import { endAgentRun, startAgentRun } from "~/features/agent-runs/server/agent-runs-repository";
 
 import { orderEvents, orderLines, orders } from "../db/schema";
-import type { CreateOrderInput } from "../model/create-order-input";
+import { type CreateOrderInput, MAX_ORDERS_PER_HOUR } from "../model/create-order-input";
 
 import {
+  LimitReachedError,
   OrderActionError,
   OrderCreateForbiddenError,
   StoreNotFoundError,
@@ -494,6 +495,39 @@ describe("createOrder", () => {
       .where(eq(orders.id, id));
     expect(order?.email).toBe("mixed.case@example.com");
   });
+
+  it("refuses the order past the hourly limit, and writes nothing", async () => {
+    // Customer orders at Satin Sparrow, where the customer may create. Runs until the first refusal,
+    // so orders the other tests made in the last hour count toward the limit too.
+    const customer: UserClaims = { sub: testAccounts.customer, global_roles: [] };
+    const inSatinSparrow = { ...newOrder, storeId: seedIds.stores.satinSparrow };
+    // Deleted at the end, so the customer's hourly count is back to where it was for later tests.
+    const madeHere: string[] = [];
+    try {
+      let refused = false;
+      while (!refused) {
+        try {
+          madeHere.push((await createOrder(db, customer, inSatinSparrow)).id);
+        } catch (error) {
+          if (!(error instanceof LimitReachedError)) throw error;
+          refused = true;
+        }
+      }
+
+      const [counted] = await db
+        .select({ recent: count() })
+        .from(orders)
+        .where(
+          and(
+            eq(orders.createdBy, testAccounts.customer),
+            gt(orders.createdAt, new Date(Date.now() - 60 * 60 * 1000)),
+          ),
+        );
+      expect(counted!.recent).toBe(MAX_ORDERS_PER_HOUR);
+    } finally {
+      await db.delete(orders).where(inArray(orders.id, madeHere));
+    }
+  }, 120_000);
 
   it("dates the order, its expiry and its first event at a given creation time", async () => {
     const createdAt = new Date(Date.now() - 10 * 60 * 1000);
