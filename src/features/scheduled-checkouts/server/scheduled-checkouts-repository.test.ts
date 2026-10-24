@@ -22,6 +22,7 @@ import seedIds from "~/shared/seed/seed-ids.json" with { type: "json" };
 import { scheduledCheckouts } from "../db/schema";
 
 import {
+  PlanAlreadyQueuedError,
   RELEASE_BATCH,
   planningContext,
   queueCheckouts,
@@ -132,6 +133,25 @@ describe("queueCheckouts", () => {
       payload: order,
     });
     expect(await planningContext(db, customer)).toMatchObject({ lastDueAt: new Date(dueAt) });
+  });
+
+  it("refuses a plan id that is already queued, and leaves the first queue untouched", async () => {
+    const planId = randomUUID();
+    const dueAt = new Date(Date.now() + 2 * HOUR).toISOString();
+    await queueCheckouts(db, customer, {
+      planId,
+      checkouts: [
+        { dueAt, persona, order },
+        { dueAt, persona, order },
+      ],
+    });
+
+    await expect(
+      queueCheckouts(db, customer, { planId, checkouts: [{ dueAt, persona, order }] }),
+    ).rejects.toBeInstanceOf(PlanAlreadyQueuedError);
+    expect(
+      await db.select().from(scheduledCheckouts).where(eq(scheduledCheckouts.planId, planId)),
+    ).toHaveLength(2);
   });
 
   it("refuses a store the user can't see or can't order in, and queues nothing", async () => {
