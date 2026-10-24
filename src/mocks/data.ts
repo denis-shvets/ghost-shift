@@ -155,33 +155,6 @@ export const team = [
   },
 ] as const;
 
-export const auditLog = [
-  {
-    id: "log_9003",
-    at: "2026-10-17T06:00:12Z",
-    actor: "Orders agent",
-    action: "order.cancel",
-    target: "ord_1004",
-    reason: "Authorization expired after 14 days",
-  },
-  {
-    id: "log_9002",
-    at: "2026-10-16T09:00:00Z",
-    actor: "Orders agent",
-    action: "refund.create",
-    target: "ord_1003",
-    reason: "Shopper reported a broken item with a photo",
-  },
-  {
-    id: "log_9001",
-    at: "2026-10-16T08:30:00Z",
-    actor: "Owner",
-    action: "store.update",
-    target: "sto_no",
-    reason: "Switched Norway store to test mode",
-  },
-];
-
 export const apiKeys = [
   { id: "key_1", label: "Orders agent", prefix: "gs_live_4f2a", createdAt: "2026-10-10" },
 ];
