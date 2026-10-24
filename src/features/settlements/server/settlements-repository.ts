@@ -123,9 +123,9 @@ export function listPendingPayouts(db: Database, user: UserClaims) {
 // The database refuses non-developers and payouts that aren't pending.
 export function approvePayouts(db: Database, user: UserClaims, settlementIds: string[]) {
   return withUser(db, user, async (tx) => {
-    for (const id of settlementIds) {
-      await refused(tx.execute(sql`select public.approve_payout(${id}::uuid)`));
-    }
+    // Sent as one Postgres array literal ("{id,id}"), so drizzle doesn't spread the array into separate parameters.
+    const idList = `{${settlementIds.join(",")}}`;
+    await refused(tx.execute(sql`select public.approve_payouts(${idList}::uuid[])`));
   });
 }
 
