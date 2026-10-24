@@ -937,6 +937,19 @@ Step by step:
 
 Because the policies check `created_by`, a customer that adds to an order it can't see gets the same refusal as before (42501).
 
+## 6e. Creating an order in one call (2026-10-24)
+
+Until now, a signed-in user with `orders.create` could insert the order, its lines, addresses and first event straight through the Data API. The insert policies checked who was writing, but not the amounts or the expiry. A caller could set any `total_amount` or `expires_at`, and add lines after the order was captured.
+
+Migration `20261024052022_orders_create_function` closes that path, the same way section 6 closed capture:
+
+1. **`public.create_order()` is the only way in.** It is a `security definer` function, so it runs as the table owner and does its own checks. It takes the store, the reference, the customer, the two addresses and the lines. It writes the order, lines, addresses and the `authorized` event in one transaction. A transaction is all or nothing: if any insert fails, nothing is saved.
+2. **The database computes the money.** `total_amount` is the sum of `unit_price × quantity` over the lines, and `expires_at` is 7 or 28 days after `created_at`, by payment method. The caller never sends either value, so a wrong total can't get in.
+3. **The checks move into the function.** It refuses a user who isn't signed in, a store they can't read (reported as missing), a store where they lack `orders.create`, and a creation time outside the 7-hours-back and 5-minutes-ahead window that the Night Shift cron needs.
+4. **Direct inserts are revoked.** `revoke insert … from authenticated` on the four tables means the insert fails before any policy runs. The four "creators can create…" insert policies are dropped, since they can't pass without the grant. The select policies stay.
+
+`createOrder` in `src/features/orders/server/orders-repository.ts` now makes one call to this function. Its errors map as before: missing or hidden store is `P0002`, and no `orders.create` is `42501`.
+
 ## 7. What's deliberately not done yet
 
 - **Reads follow roles, and nobody updates orders directly.** Each company sees its own orders, and agents see their stores. Only the expiry job (section 5) and `public.order_action()` (section 6) change orders. See [Sign-in and access](auth-and-policies.md).

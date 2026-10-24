@@ -328,45 +328,17 @@ describe("creating orders", () => {
     return db.delete(orders).where(eq(orders.reference, reference));
   }
 
-  it("a platform developer can create an order and its lines", async () => {
+  // The total is worked out by public.create_order(), so a caller can't send one. The table itself
+  // refuses a direct insert, even with the right permission, so a wrong total can't get in that way.
+  it("a platform developer can't insert an order directly, not even with a wrong total", async () => {
     const reference = `TEST-${randomUUID()}`;
-    try {
-      await withUser(db, asUser(testAccounts.developer), async (tx) => {
-        const [order] = await tx.insert(orders).values(newOrder(reference)).returning();
-        await tx.insert(orderLines).values([
-          {
-            orderId: order!.id,
-            position: 1,
-            type: "physical",
-            name: "Test product",
-            quantity: 2,
-            unitPrice: 10000,
-            taxRate: 2500,
-          },
-          {
-            orderId: order!.id,
-            position: 2,
-            type: "discount",
-            name: "Test discount",
-            quantity: 1,
-            unitPrice: -1000,
-            taxRate: 0,
-          },
-        ]);
-      });
-
-      const lines = await db
-        .select()
-        .from(orderLines)
-        .innerJoin(orders, eq(orderLines.orderId, orders.id))
-        .where(eq(orders.reference, reference))
-        .orderBy(orderLines.position);
-      // The database computes the totals, so the app never sends them.
-      expect(lines.map((row) => row.order_lines.totalAmount)).toEqual([20000, -1000]);
-      expect(lines.map((row) => row.order_lines.totalTaxAmount)).toEqual([4000, 0]);
-    } finally {
-      await removeOrder(reference);
-    }
+    await expect(
+      withUser(db, asUser(testAccounts.developer), (tx) =>
+        tx.insert(orders).values({ ...newOrder(reference), totalAmount: 1 }),
+      ),
+    ).rejects.toMatchObject(permissionDenied);
+    const saved = await db.select().from(orders).where(eq(orders.reference, reference));
+    expect(saved).toEqual([]);
   });
 
   it.each([
@@ -387,9 +359,7 @@ describe("creating orders", () => {
   it("a merchant can't add lines to an order they can't see", async () => {
     const reference = `TEST-${randomUUID()}`;
     try {
-      await withUser(db, asUser(testAccounts.developer), (tx) =>
-        tx.insert(orders).values(newOrder(reference)),
-      );
+      await db.insert(orders).values(newOrder(reference));
       const [order] = await db.select().from(orders).where(eq(orders.reference, reference));
       await expect(
         withUser(db, asUser(testAccounts.stranger), (tx) =>
@@ -409,30 +379,15 @@ describe("creating orders", () => {
     }
   });
 
-  it("a checkout customer can place an order in its store and get its id back", async () => {
-    const reference = `TEST-${randomUUID()}`;
-    try {
-      // No orders.read for this account: the insert's returning works through the own-orders select policy.
-      const [order] = await withUser(db, asUser(testAccounts.customer), (tx) =>
-        tx
-          .insert(orders)
-          .values({ ...newOrder(reference), storeId: satinSparrow, currency: "EUR" })
-          .returning({ id: orders.id }),
-      );
-      expect(order?.id).toEqual(expect.any(String));
-    } finally {
-      await removeOrder(reference);
-    }
-  });
-
-  // The orders table is reachable through the Data API too, so the policy refuses an order that
-  // fakes captured money, is backdated, or is put in someone else's name.
+  // The orders table is reachable through the Data API too. The grant is gone, so a direct insert
+  // fails whatever its values are. Placing an order goes through create_order(), which checks them.
   it.each<[string, Partial<typeof orders.$inferInsert>]>([
     ["a captured order", { status: "captured", capturedAmount: 20000 }],
     ["a captured amount on an authorization", { capturedAmount: 100 }],
+    ["an order with a total the lines don't add up to", { totalAmount: 1 }],
     ["an order dated 8 hours ago", { createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000) }],
     ["an order in another user's name", { createdBy: testAccounts.developer }],
-  ])("a checkout customer can't create %s", async (_, values) => {
+  ])("a checkout customer can't insert %s directly", async (_, values) => {
     const reference = `TEST-${randomUUID()}`;
     await expect(
       withUser(db, asUser(testAccounts.customer), (tx) =>
@@ -446,25 +401,20 @@ describe("creating orders", () => {
     ).rejects.toMatchObject(permissionDenied);
   });
 
-  it("a checkout customer can add to its own order, but not to another order in its store", async () => {
+  // Lines, addresses and events can't be added after the fact, even to your own order: the one
+  // place they are written is create_order(), in the same transaction as the order.
+  it("nobody can add lines, addresses or events to an order directly, not even their own", async () => {
     const own = `TEST-${randomUUID()}`;
-    const other = `TEST-${randomUUID()}`;
     try {
-      await withUser(db, asUser(testAccounts.developer), (tx) =>
-        tx.insert(orders).values({ ...newOrder(other), storeId: satinSparrow, currency: "EUR" }),
-      );
-      const [theirs] = await db.select().from(orders).where(eq(orders.reference, other));
-      const [mine] = await withUser(db, asUser(testAccounts.customer), (tx) =>
-        tx
-          .insert(orders)
-          .values({ ...newOrder(own), storeId: satinSparrow, currency: "EUR" })
-          .returning({ id: orders.id }),
-      );
-      // The customer can't see the developer's order, so nothing can be added to it.
-      const seen = await withUser(db, asUser(testAccounts.customer), (tx) =>
-        tx.select().from(orders).where(eq(orders.id, theirs!.id)),
-      );
-      expect(seen).toEqual([]);
+      const [mine] = await db
+        .insert(orders)
+        .values({
+          ...newOrder(own),
+          storeId: satinSparrow,
+          currency: "EUR",
+          createdBy: testAccounts.customer,
+        })
+        .returning({ id: orders.id });
 
       const line = (orderId: string) => ({
         orderId,
@@ -493,39 +443,30 @@ describe("creating orders", () => {
         metadata: { amount: 100 },
       });
 
-      await withUser(db, asUser(testAccounts.customer), async (tx) => {
-        await tx.insert(orderLines).values(line(mine!.id));
-        await tx.insert(orderAddresses).values(address(mine!.id));
-        await tx.insert(orderEvents).values(event(mine!.id));
-      });
-
       await expect(
         withUser(db, asUser(testAccounts.customer), (tx) =>
-          tx.insert(orderLines).values(line(theirs!.id)),
+          tx.insert(orderLines).values(line(mine!.id)),
         ),
       ).rejects.toMatchObject(permissionDenied);
       await expect(
         withUser(db, asUser(testAccounts.customer), (tx) =>
-          tx.insert(orderAddresses).values(address(theirs!.id)),
+          tx.insert(orderAddresses).values(address(mine!.id)),
         ),
       ).rejects.toMatchObject(permissionDenied);
       await expect(
         withUser(db, asUser(testAccounts.customer), (tx) =>
-          tx.insert(orderEvents).values(event(theirs!.id)),
+          tx.insert(orderEvents).values(event(mine!.id)),
         ),
       ).rejects.toMatchObject(permissionDenied);
     } finally {
       await removeOrder(own);
-      await removeOrder(other);
     }
   });
 
   it("a merchant can't add lines to their own store's order, even though they can read it", async () => {
     const reference = `TEST-${randomUUID()}`;
     try {
-      await withUser(db, asUser(testAccounts.developer), (tx) =>
-        tx.insert(orders).values(newOrder(reference)),
-      );
+      await db.insert(orders).values(newOrder(reference));
       const [order] = await db.select().from(orders).where(eq(orders.reference, reference));
       await expect(
         withUser(db, asUser(testAccounts.merchantA), (tx) =>

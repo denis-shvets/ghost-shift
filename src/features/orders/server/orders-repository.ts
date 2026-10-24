@@ -11,11 +11,9 @@ import { isUuid } from "~/shared/ids/is-uuid";
 import { orderAddresses, orderEvents, orderLines, orders } from "../db/schema";
 import { type CreateOrderInput, MAX_ORDERS_PER_HOUR } from "../model/create-order-input";
 import type { OrderActionInput } from "../model/order-action-input";
-import type { OrderEvent, OrderEventMetadata } from "../model/order-event";
+import type { OrderEvent } from "../model/order-event";
 import type { OrderListInput } from "../model/order-list-input";
 import type { OrderStatus } from "../model/order-statuses";
-import { orderTotal } from "../model/order-total";
-import { authorizationExpiresAt } from "../model/payment-methods";
 
 // Runs as the signed-in user, so row-level security decides what they can read.
 // Pages are ordered by (created_at, id), so orders with the same time can't be skipped.
@@ -96,102 +94,49 @@ export class LimitReachedError extends Error {}
 
 const HOUR = 60 * 60 * 1000;
 
-// Runs as the signed-in user. Stores they can't read are hidden, so the lookup fails the same way.
+// Runs as the signed-in user. public.create_order() is the only way in: it computes the total and
+// the expiry, and writes the order, lines, addresses and first event in one transaction.
 // `createdAt` is for server code only: the Night Shift cron places a planned order at its planned
 // time. No request input carries it, so API callers can't backdate an order.
-export function createOrder(
+export async function createOrder(
   db: Database,
   user: UserClaims,
   input: CreateOrderInput,
   { createdAt = new Date() }: { createdAt?: Date } = {},
 ) {
-  return withUser(db, user, async (tx) => {
-    // Ask the same function the insert policy uses, so a refusal is a clear 403, not a raw 42501.
-    // The policy still guards the insert on its own.
-    const [store] = await tx
-      .select({
-        id: stores.id,
-        currency: stores.currency,
-        canCreate: sql<boolean>`public.has_permission('orders.create', ${stores.id})`,
-      })
-      .from(stores)
-      .where(eq(stores.id, input.storeId));
-    if (!store) throw new StoreNotFoundError("Store not found");
-    if (!store.canCreate) throw new OrderCreateForbiddenError("Forbidden");
-    // shortcut: count then insert is not atomic, so parallel requests can each pass the cap by a few; upgrade to a lock if that matters
-    const [counted] = await tx
-      .select({ recent: count() })
-      .from(orders)
-      .where(
-        and(eq(orders.createdBy, user.sub), gt(orders.createdAt, new Date(Date.now() - HOUR))),
+  // shortcut: 8 hex characters, a clash fails on the unique reference constraint, upgrade to a retry if clashes become common
+  const reference = `DEV-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  try {
+    const [order] = await withUser(db, user, async (tx) => {
+      // shortcut: count then insert is not atomic, so parallel requests can each pass the cap by a few; upgrade to a lock if that matters
+      const [counted] = await tx
+        .select({ recent: count() })
+        .from(orders)
+        .where(
+          and(eq(orders.createdBy, user.sub), gt(orders.createdAt, new Date(Date.now() - HOUR))),
+        );
+      if (counted!.recent >= MAX_ORDERS_PER_HOUR) {
+        throw new LimitReachedError(
+          `Too many orders this hour (limit ${MAX_ORDERS_PER_HOUR}). Try again later.`,
+        );
+      }
+      return tx.execute<{ id: string; reference: string }>(
+        sql`select id, reference from public.create_order(
+          ${input.storeId}::uuid, ${reference}, ${input.paymentMethod}, ${input.shippingCarrier},
+          ${JSON.stringify(input.customer)}::jsonb, ${JSON.stringify(input.billingAddress)}::jsonb,
+          ${JSON.stringify(input.shippingAddress)}::jsonb, ${JSON.stringify(input.lines)}::jsonb,
+          ${createdAt.toISOString()}::timestamptz)`,
       );
-    if (counted!.recent >= MAX_ORDERS_PER_HOUR) {
-      throw new LimitReachedError(
-        `Too many orders this hour (limit ${MAX_ORDERS_PER_HOUR}). Try again later.`,
-      );
-    }
-    const totalAmount = orderTotal(input.lines);
-    // shortcut: 8 hex characters, a clash fails on the unique reference constraint, upgrade to a retry if clashes become common
-    const reference = `DEV-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-
-    // The currency comes from the store, never from the request.
-    const [order] = await tx
-      .insert(orders)
-      .values({
-        reference,
-        createdBy: user.sub,
-        createdAt,
-        expiresAt: authorizationExpiresAt(createdAt, input.paymentMethod),
-        storeId: store.id,
-        currency: store.currency,
-        customerFirstName: input.customer.firstName,
-        customerLastName: input.customer.lastName,
-        // Lower case, so the email search and its index compare plain text (orders_customer_email_lowercase_check).
-        customerEmail: input.customer.email.toLowerCase(),
-        customerPhone: input.customer.phone,
-        paymentMethod: input.paymentMethod,
-        status: "authorized",
-        totalAmount,
-        capturedAmount: 0,
-        refundedAmount: 0,
-        shippingCarrier: input.shippingCarrier,
-      })
-      .returning({ id: orders.id, reference: orders.reference });
-    if (!order) throw new Error("Order was not created");
-
-    // total_amount and total_tax_amount on lines are generated by the database, so they are not sent.
-    await tx.insert(orderLines).values(
-      input.lines.map((line, index) => ({
-        orderId: order.id,
-        position: index + 1,
-        type: line.type,
-        sku: line.sku,
-        name: line.name,
-        quantity: line.quantity,
-        unitPrice: line.unitPrice,
-        taxRate: line.taxRate,
-      })),
-    );
-
-    await tx.insert(orderAddresses).values([
-      { orderId: order.id, kind: "billing", ...input.billingAddress },
-      { orderId: order.id, kind: "shipping", ...input.shippingAddress },
-    ]);
-
-    const metadata: OrderEventMetadata<"authorized"> = { amount: totalAmount };
-    await tx.insert(orderEvents).values({
-      orderId: order.id,
-      // The order's own time, so the timeline starts exactly when the order was created.
-      occurredAt: createdAt,
-      action: "authorized",
-      actorUserId: user.sub,
-      // The provider authorizes, as in the seed. Not the email: merchants can read the timeline.
-      actorName: "Phantom Checkout",
-      metadata,
     });
-
+    if (!order) throw new Error("Order was not created");
     return order;
-  });
+  } catch (error) {
+    // The function raises these on purpose: P0002 for a store the user can't see, 42501 for no orders.create.
+    const cause = pgError(error);
+    if (cause?.code === "P0002") throw new StoreNotFoundError("Store not found");
+    if (cause?.code === "42501") throw new OrderCreateForbiddenError("Forbidden");
+    throw error;
+  }
 }
 
 export function listStoresForOrder(db: Database, user: UserClaims) {

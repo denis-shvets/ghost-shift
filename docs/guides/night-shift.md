@@ -208,6 +208,8 @@ Status only moves forward: `pending → placing → placed`, `failed` or `skippe
 
 ### e. What a new order may look like
 
+Superseded: since `20261024052022_orders_create_function`, nobody inserts orders directly. `createOrder` calls `public.create_order()`, which checks these rules itself (see [orders-database.md](orders-database.md) section 6e).
+
 Until Night Shift, only platform developers held `orders.create`, so the insert policy on `orders` asked for nothing else. The checkout customer holds it now, and the `orders` table can be reached through the Data API too, not only through `createOrder`. So `20261021085941_night_shift_access` replaces the policy with a stricter one:
 
 ```sql
