@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -7,6 +7,7 @@ import {
   testAccounts,
   testDatabaseUrl,
 } from "~/features/access/db/test-accounts";
+import { orderEvents, orders } from "~/features/orders/db/schema";
 import { payoutAccounts, stores } from "~/features/stores/db/schema";
 import { createDb, withUser } from "~/shared/db/client";
 import seedIds from "~/shared/seed/seed-ids.json" with { type: "json" };
@@ -55,6 +56,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(settlements).where(eq(settlements.storeId, storeId));
   await db.delete(settlementSchedules).where(eq(settlementSchedules.storeId, storeId));
+  await db.delete(orders).where(eq(orders.storeId, storeId));
   await db.update(stores).set({ payoutAccountId: null }).where(eq(stores.id, storeId));
   await db.delete(payoutAccounts).where(eq(payoutAccounts.id, payoutAccountId));
   await db.delete(stores).where(eq(stores.id, storeId));
@@ -177,5 +179,98 @@ describe("public.run_settlements", () => {
       }),
     ).rejects.toThrow(/Pick a payout account/);
     await db.delete(payoutAccounts).where(eq(payoutAccounts.id, foreign!.id));
+  });
+
+  it("drops a period that nets negative, and its events roll into the next period", async () => {
+    // Period 1 ends on a Monday, so period 2 ends exactly one week later and is due.
+    const today = new Date();
+    const thisMonday = Date.UTC(
+      today.getUTCFullYear(),
+      today.getUTCMonth(),
+      today.getUTCDate() - ((today.getUTCDay() + 6) % 7),
+    );
+    const firstEnd = thisMonday - 4 * 7 * day;
+    const [order] = await db
+      .insert(orders)
+      .values({
+        reference: randomUUID(),
+        storeId,
+        currency: "SEK",
+        customerFirstName: "Sweep",
+        customerLastName: "Test",
+        customerEmail: "sweep@example.test",
+        paymentMethod: "bank_transfer",
+        status: "part_captured",
+        totalAmount: 1000,
+        capturedAmount: 600,
+        refundedAmount: 300,
+        shippingCarrier: "",
+      })
+      .returning();
+    // Period 1 nets 100 - 300 = -200. The 500 capture falls in period 2, which then nets 500 + 100 - 300 = 300.
+    const [capture, refund, nextCapture] = await db
+      .insert(orderEvents)
+      .values([
+        {
+          orderId: order!.id,
+          action: "captured",
+          occurredAt: new Date(firstEnd - 3 * day),
+          actorName: "Sweep test",
+          metadata: { amount: 100 },
+        },
+        {
+          orderId: order!.id,
+          action: "refunded",
+          occurredAt: new Date(firstEnd - 2 * day),
+          actorName: "Sweep test",
+          metadata: { amount: 300 },
+        },
+        {
+          orderId: order!.id,
+          action: "captured",
+          occurredAt: new Date(firstEnd + day),
+          actorName: "Sweep test",
+          metadata: { amount: 500 },
+        },
+      ])
+      .returning();
+    await db.delete(settlementSchedules).where(eq(settlementSchedules.storeId, storeId));
+    const [schedule] = await db
+      .insert(settlementSchedules)
+      .values({
+        storeId,
+        frequency: "weekly",
+        payoutAccountId,
+        periodStart: new Date(firstEnd - 7 * day),
+        periodEnd: new Date(firstEnd),
+      })
+      .returning();
+    const pick = sql`array[${schedule!.id}]::uuid[]`;
+
+    await db.execute(sql`select public.run_settlements(${pick})`);
+    const afterFirstRun = await db
+      .select()
+      .from(settlements)
+      .where(eq(settlements.storeId, storeId));
+    expect(afterFirstRun).toHaveLength(0);
+    const unsettled = await db
+      .select()
+      .from(settlementItems)
+      .where(inArray(settlementItems.orderEventId, [capture!.id, refund!.id]));
+    expect(unsettled).toHaveLength(0);
+
+    const [result] = await db.execute<{ n: number }>(
+      sql`select public.run_settlements(${pick}) as n`,
+    );
+    expect(Number(result?.n)).toBe(1);
+    const [next] = await db.select().from(settlements).where(eq(settlements.storeId, storeId));
+    expect(next?.netAmount).toBe(300);
+    const items = await db
+      .select({ orderEventId: settlementItems.orderEventId })
+      .from(settlementItems)
+      .where(eq(settlementItems.settlementId, next!.id));
+    expect(items.map((item) => item.orderEventId).sort()).toEqual(
+      [capture!.id, refund!.id, nextCapture!.id].sort(),
+    );
   });
 });
