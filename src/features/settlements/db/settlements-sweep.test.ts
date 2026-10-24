@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -303,11 +303,12 @@ describe("public.run_settlements", () => {
       .returning();
     const pick = sql`array[${schedule!.id}]::uuid[]`;
 
+    // Filter by period: an earlier test left a settlement for this store that must not count here.
+    const periodRow = (periodEnd: number) =>
+      and(eq(settlements.storeId, storeId), eq(settlements.periodEnd, new Date(periodEnd)));
+
     await db.execute(sql`select public.run_settlements(${pick})`);
-    const afterFirstRun = await db
-      .select()
-      .from(settlements)
-      .where(eq(settlements.storeId, storeId));
+    const afterFirstRun = await db.select().from(settlements).where(periodRow(firstEnd));
     expect(afterFirstRun).toHaveLength(0);
     const unsettled = await db
       .select()
@@ -319,7 +320,10 @@ describe("public.run_settlements", () => {
       sql`select public.run_settlements(${pick}) as n`,
     );
     expect(Number(result?.n)).toBe(1);
-    const [next] = await db.select().from(settlements).where(eq(settlements.storeId, storeId));
+    const [next] = await db
+      .select()
+      .from(settlements)
+      .where(periodRow(firstEnd + 7 * day));
     expect(next?.netAmount).toBe(300);
     const items = await db
       .select({ orderEventId: settlementItems.orderEventId })
