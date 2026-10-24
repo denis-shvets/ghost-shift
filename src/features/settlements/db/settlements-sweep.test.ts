@@ -7,6 +7,7 @@ import {
   testAccounts,
   testDatabaseUrl,
 } from "~/features/access/db/test-accounts";
+import { orderEvents, orders } from "~/features/orders/db/schema";
 import { payoutAccounts, stores } from "~/features/stores/db/schema";
 import { createDb, withUser } from "~/shared/db/client";
 import seedIds from "~/shared/seed/seed-ids.json" with { type: "json" };
@@ -55,6 +56,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(settlements).where(eq(settlements.storeId, storeId));
   await db.delete(settlementSchedules).where(eq(settlementSchedules.storeId, storeId));
+  await db.delete(orders).where(eq(orders.storeId, storeId));
   await db.update(stores).set({ payoutAccountId: null }).where(eq(stores.id, storeId));
   await db.delete(payoutAccounts).where(eq(payoutAccounts.id, payoutAccountId));
   await db.delete(stores).where(eq(stores.id, storeId));
@@ -137,6 +139,62 @@ describe("public.run_settlements", () => {
     });
     const row = summary.currencies.find((currency) => currency.nextPeriodEnd !== null);
     expect(row?.nextPeriodEnd).toBeInstanceOf(Date);
+  });
+
+  it("moves captured money from available to pending when the period closes", async () => {
+    // Other tests share SEK, so compare against the totals before this test's money goes in.
+    const sek = async () => {
+      const summary = await getSettlementSummary(db, developer);
+      return summary.currencies.find((currency) => currency.currency === "SEK");
+    };
+    const before = await sek();
+    const [order] = await db
+      .insert(orders)
+      .values({
+        reference: `SWEEP-${randomUUID()}`,
+        storeId,
+        currency: "SEK",
+        customerFirstName: "Sweep",
+        customerLastName: "Test",
+        customerEmail: "sweep@example.test",
+        paymentMethod: "apple_pay",
+        status: "captured",
+        totalAmount: 1000,
+        capturedAmount: 1000,
+        refundedAmount: 300,
+        shippingCarrier: "Test",
+      })
+      .returning();
+    await db.insert(orderEvents).values([
+      {
+        orderId: order!.id,
+        action: "captured",
+        actorName: "Sweep test",
+        metadata: { amount: 1000 },
+      },
+      {
+        orderId: order!.id,
+        action: "refunded",
+        actorName: "Sweep test",
+        metadata: { amount: 300 },
+      },
+    ]);
+    expect((await sek())!.available - before!.available).toBe(700);
+
+    // Ending the period now, after the events, so the sweep takes them into a settlement.
+    await db
+      .update(settlementSchedules)
+      .set({ periodEnd: sql`now()` })
+      .where(eq(settlementSchedules.storeId, storeId));
+    const [schedule] = await db
+      .select()
+      .from(settlementSchedules)
+      .where(eq(settlementSchedules.storeId, storeId));
+    await db.execute(sql`select public.run_settlements(array[${schedule!.id}]::uuid[])`);
+
+    const after = await sek();
+    expect(after!.pendingNet - before!.pendingNet).toBe(700);
+    expect(after!.available - before!.available).toBe(0);
   });
 
   it("puts each order event into one settlement only", async () => {
